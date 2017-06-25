@@ -1,38 +1,43 @@
 /**
  * WordPress dependencies
  */
-import { Children, cloneElement } from 'element';
+import { __ } from 'i18n';
+import { concatChildren } from 'element';
 
 /**
  * Internal dependencies
  */
-import { registerBlockType, createBlock, query } from '../../api';
+import { registerBlockType, createBlock, query as hpq, setDefaultBlock } from '../../api';
 import AlignmentToolbar from '../../alignment-toolbar';
 import BlockControls from '../../block-controls';
 import Editable from '../../editable';
+import InspectorControls from '../../inspector-controls';
+import ToggleControl from '../../inspector-controls/toggle-control';
 
-const { children } = query;
+const { children, query } = hpq;
 
 registerBlockType( 'core/text', {
-	title: wp.i18n.__( 'Text' ),
+	title: __( 'Text' ),
 
 	icon: 'text',
 
 	category: 'common',
 
+	className: false,
+
 	attributes: {
-		content: children(),
+		content: query( 'p', children() ),
 	},
 
 	merge( attributes, attributesToMerge ) {
 		return {
-			content: wp.element.concatChildren( attributes.content, attributesToMerge.content ),
+			content: concatChildren( attributes.content, attributesToMerge.content ),
 		};
 	},
 
 	edit( { attributes, setAttributes, insertBlockAfter, focus, setFocus, mergeBlocks } ) {
-		const { align, content } = attributes;
-
+		const { align, content, dropCap } = attributes;
+		const toggleDropCap = () => setAttributes( { dropCap: ! dropCap } );
 		return [
 			focus && (
 				<BlockControls key="controls">
@@ -44,7 +49,18 @@ registerBlockType( 'core/text', {
 					/>
 				</BlockControls>
 			),
+			focus && (
+				<InspectorControls key="inspector">
+					<ToggleControl
+						label={ __( 'Drop Cap' ) }
+						checked={ !! dropCap }
+						onChange={ toggleDropCap }
+					/>
+				</InspectorControls>
+			),
 			<Editable
+				inline
+				tagName="p"
 				key="editable"
 				value={ content }
 				onChange={ ( nextContent ) => {
@@ -62,6 +78,7 @@ registerBlockType( 'core/text', {
 				} }
 				onMerge={ mergeBlocks }
 				style={ { textAlign: align } }
+				className={ `drop-cap-${ dropCap }` }
 			/>,
 		];
 	},
@@ -70,11 +87,11 @@ registerBlockType( 'core/text', {
 		const { align, content } = attributes;
 
 		if ( ! align ) {
-			return content;
+			return <p>{ content }</p>;
 		}
 
-		return Children.map( content, ( paragraph ) => (
-			cloneElement( paragraph, { style: { textAlign: align } } )
-		) );
+		return <p style={ { textAlign: align } }>{ content }</p>;
 	},
 } );
+
+setDefaultBlock( 'core/text' );

@@ -75,6 +75,7 @@ describe( 'block parser', () => {
 					};
 				},
 				defaultAttributes: {
+					content: '',
 					topic: 'none',
 				},
 			};
@@ -259,6 +260,20 @@ describe( 'block parser', () => {
 			expect( parsed ).to.have.lengthOf( 1 );
 			expect( parsed.map( ( { name } ) => name ) ).to.eql( [
 				'core/test-block',
+			] );
+		} );
+
+		it( 'should parse void blocks', () => {
+			registerBlockType( 'core/test-block', {} );
+			registerBlockType( 'core/void-block', {} );
+			const parsed = parse(
+				'<!-- wp:core/test-block --><!-- /wp:core/test-block -->' +
+				'<!-- wp:core/void-block /-->'
+			);
+
+			expect( parsed ).to.have.lengthOf( 2 );
+			expect( parsed.map( ( { name } ) => name ) ).to.eql( [
+				'core/test-block', 'core/void-block',
 			] );
 		} );
 	} );

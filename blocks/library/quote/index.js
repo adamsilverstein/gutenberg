@@ -1,7 +1,9 @@
 /**
  * WordPress dependencies
  */
-import { switchChildrenNodeName } from 'element';
+import { __, sprintf } from 'i18n';
+import { concatChildren } from 'element';
+import { Toolbar } from 'components';
 
 /**
  * Internal dependencies
@@ -15,7 +17,7 @@ import Editable from '../../editable';
 const { children, query } = hpq;
 
 registerBlockType( 'core/quote', {
-	title: wp.i18n.__( 'Quote' ),
+	title: __( 'Quote' ),
 	icon: 'format-quote',
 	category: 'common',
 
@@ -23,16 +25,6 @@ registerBlockType( 'core/quote', {
 		value: query( 'blockquote > p', children() ),
 		citation: children( 'footer' ),
 	},
-
-	controls: [ 1, 2 ].map( ( variation ) => ( {
-		icon: 'format-quote',
-		title: wp.i18n.sprintf( wp.i18n.__( 'Quote style %d' ), variation ),
-		isActive: ( { style = 1 } ) => Number( style ) === variation,
-		onClick( attributes, setAttributes ) {
-			setAttributes( { style: variation } );
-		},
-		subscript: variation,
-	} ) ),
 
 	transforms: {
 		from: [
@@ -42,15 +34,6 @@ registerBlockType( 'core/quote', {
 				transform: ( { content } ) => {
 					return createBlock( 'core/quote', {
 						value: content,
-					} );
-				},
-			},
-			{
-				type: 'block',
-				blocks: [ 'core/list' ],
-				transform: ( { values } ) => {
-					return createBlock( 'core/quote', {
-						value: switchChildrenNodeName( values, 'p' ),
 					} );
 				},
 			},
@@ -70,21 +53,7 @@ registerBlockType( 'core/quote', {
 				blocks: [ 'core/text' ],
 				transform: ( { value, citation } ) => {
 					return createBlock( 'core/text', {
-						content: wp.element.concatChildren( value, citation ),
-					} );
-				},
-			},
-			{
-				type: 'block',
-				blocks: [ 'core/list' ],
-				transform: ( { value, citation } ) => {
-					const valueElements = switchChildrenNodeName( value, 'li' );
-					const values = citation
-						? wp.element.concatChildren( valueElements, <li>{ citation }</li> )
-						: valueElements;
-					return createBlock( 'core/list', {
-						nodeName: 'ul',
-						values,
+						content: concatChildren( value, citation ),
 					} );
 				},
 			},
@@ -119,6 +88,15 @@ registerBlockType( 'core/quote', {
 		return [
 			focus && (
 				<BlockControls key="controls">
+					<Toolbar controls={ [ 1, 2 ].map( ( variation ) => ( {
+						icon: 'format-quote',
+						title: sprintf( __( 'Quote style %d' ), variation ),
+						isActive: Number( style ) === variation,
+						onClick() {
+							setAttributes( { style: variation } );
+						},
+						subscript: variation,
+					} ) ) } />
 					<AlignmentToolbar
 						value={ align }
 						onChange={ ( nextAlign ) => {
@@ -147,7 +125,7 @@ registerBlockType( 'core/quote', {
 					<Editable
 						tagName="footer"
 						value={ citation }
-						placeholder={ wp.i18n.__( '— Add citation…' ) }
+						placeholder={ __( '— Add citation…' ) }
 						onChange={
 							( nextCitation ) => setAttributes( {
 								citation: nextCitation,
