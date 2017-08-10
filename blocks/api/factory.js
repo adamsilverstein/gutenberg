@@ -2,7 +2,14 @@
  * External dependencies
  */
 import uuid from 'uuid/v4';
-import { get, castArray, findIndex, isObjectLike, find } from 'lodash';
+import {
+	get,
+	reduce,
+	castArray,
+	findIndex,
+	isObjectLike,
+	find,
+} from 'lodash';
 
 /**
  * Internal dependencies
@@ -20,21 +27,26 @@ export function createBlock( name, attributes = {} ) {
 	// Get the type definition associated with a registered block.
 	const blockType = getBlockType( name );
 
-	// Do we need this? What purpose does it have?
-	let defaultAttributes;
-	if ( blockType ) {
-		defaultAttributes = blockType.defaultAttributes;
-	}
+	// Ensure attributes contains only values defined by block type, and merge
+	// default values for missing attributes.
+	attributes = reduce( blockType.attributes, ( result, source, key ) => {
+		const value = attributes[ key ];
+		if ( undefined !== value ) {
+			result[ key ] = value;
+		} else if ( source.default ) {
+			result[ key ] = source.default;
+		}
+
+		return result;
+	}, {} );
 
 	// Blocks are stored with a unique ID, the assigned type name,
 	// and the block attributes.
 	return {
 		uid: uuid(),
 		name,
-		attributes: {
-			...defaultAttributes,
-			...attributes,
-		},
+		isValid: true,
+		attributes,
 	};
 }
 
@@ -87,13 +99,10 @@ export function switchToBlockType( block, name ) {
 		return null;
 	}
 
-	return transformationResults.map( ( result, index ) => {
-		return {
-			// The first transformed block whose type matches the "destination"
-			// type gets to keep the existing block's UID.
-			uid: index === firstSwitchedBlock ? block.uid : result.uid,
-			name: result.name,
-			attributes: result.attributes,
-		};
-	} );
+	return transformationResults.map( ( result, index ) => ( {
+		...result,
+		// The first transformed block whose type matches the "destination"
+		// type gets to keep the existing block's UID.
+		uid: index === firstSwitchedBlock ? block.uid : result.uid,
+	} ) );
 }

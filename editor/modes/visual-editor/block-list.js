@@ -2,16 +2,17 @@
  * External dependencies
  */
 import { connect } from 'react-redux';
+import classnames from 'classnames';
 import { throttle, reduce, noop } from 'lodash';
 
 /**
  * WordPress dependencies
  */
-import { __ } from 'i18n';
-import { Component } from 'element';
-import { serialize, getDefaultBlock, createBlock } from 'blocks';
-import { Dashicon } from 'components';
-import { ENTER } from 'utils/keycodes';
+import { __ } from '@wordpress/i18n';
+import { Component } from '@wordpress/element';
+import { serialize, getDefaultBlock, createBlock } from '@wordpress/blocks';
+import { IconButton } from '@wordpress/components';
+import { keycodes } from '@wordpress/utils';
 
 /**
  * Internal dependencies
@@ -30,11 +31,14 @@ import {
 import { insertBlock, multiSelect } from '../../actions';
 
 const INSERTION_POINT_PLACEHOLDER = '[[insertion-point]]';
+const { ENTER } = keycodes;
 
 class VisualEditorBlockList extends Component {
 	constructor( props ) {
 		super( props );
-
+		this.state = {
+			showContinueWritingControls: false,
+		};
 		this.onSelectionStart = this.onSelectionStart.bind( this );
 		this.onSelectionChange = this.onSelectionChange.bind( this );
 		this.onSelectionEnd = this.onSelectionEnd.bind( this );
@@ -45,6 +49,7 @@ class VisualEditorBlockList extends Component {
 		this.setLastClientY = this.setLastClientY.bind( this );
 		this.onPointerMove = throttle( this.onPointerMove.bind( this ), 250 );
 		this.onPlaceholderKeyDown = this.onPlaceholderKeyDown.bind( this );
+		this.toggleContinueWritingControls = this.toggleContinueWritingControls.bind( this );
 		// Browser does not fire `*move` event when the pointer position changes
 		// relative to the document, so fire it with the last known position.
 		this.onScroll = () => this.onPointerMove( { clientY: this.lastClientY } );
@@ -198,12 +203,15 @@ class VisualEditorBlockList extends Component {
 		this.props.onInsertBlock( newBlock );
 	}
 
+	toggleContinueWritingControls( showContinueWritingControls ) {
+		return () => this.setState( { showContinueWritingControls } );
+	}
+
 	render() {
 		const {
 			blocks,
 			showInsertionPoint,
 			insertionPoint,
-			multiSelectedBlockUids,
 		} = this.props;
 
 		const insertionPointIndex = blocks.indexOf( insertionPoint );
@@ -214,6 +222,9 @@ class VisualEditorBlockList extends Component {
 				...blocks.slice( insertionPointIndex + 1 ),
 			]
 			: blocks;
+		const continueWritingClassname = classnames( 'editor-visual-editor__continue-writing', {
+			'is-showing-controls': this.state.showContinueWritingControls,
+		} );
 
 		return (
 			<div>
@@ -233,37 +244,43 @@ class VisualEditorBlockList extends Component {
 							uid={ uid }
 							blockRef={ ( ref ) => this.setBlockRef( ref, uid ) }
 							onSelectionStart={ () => this.onSelectionStart( uid ) }
-							multiSelectedBlockUids={ multiSelectedBlockUids }
 						/>
 					);
 				} ) }
 				{ ! blocks.length &&
-					<input
-						type="text"
-						readOnly
-						className="editor-visual-editor__placeholder"
-						value={ __( 'Write your story' ) }
-						onFocus={ this.appendDefaultBlock }
-						onClick={ noop }
-						onKeyDown={ noop }
-					/>
+					<div className="editor-visual-editor__placeholder">
+						<input
+							type="text"
+							readOnly
+							value={ __( 'Write your story' ) }
+							onFocus={ this.appendDefaultBlock }
+							onClick={ noop }
+							onKeyDown={ noop }
+						/>
+					</div>
 				}
-				<div className="editor-visual-editor__continue-writing">
+				<div
+					className={ continueWritingClassname }
+					onFocus={ this.toggleContinueWritingControls( true ) }
+					onBlur={ this.toggleContinueWritingControls( false ) }
+				>
 					<Inserter position="top right" />
-					<button
+					<IconButton
+						icon="editor-paragraph"
 						className="editor-inserter__block"
-						onClick={ () => this.insertBlock( 'core/text' ) }
+						onClick={ () => this.insertBlock( 'core/paragraph' ) }
+						label={ __( 'Insert paragraph block' ) }
 					>
-						<Dashicon icon="text" />
-						{ __( 'Text' ) }
-					</button>
-					<button
+						{ __( 'Paragraph' ) }
+					</IconButton>
+					<IconButton
+						icon="format-image"
 						className="editor-inserter__block"
 						onClick={ () => this.insertBlock( 'core/image' ) }
+						label={ __( 'Insert image block' ) }
 					>
-						<Dashicon icon="format-image" />
 						{ __( 'Image' ) }
-					</button>
+					</IconButton>
 				</div>
 			</div>
 		);

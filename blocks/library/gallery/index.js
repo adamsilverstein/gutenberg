@@ -1,9 +1,8 @@
 /**
  * WordPress dependencies
  */
-import { __ } from 'i18n';
-import { Toolbar, Placeholder } from 'components';
-import { pick } from 'lodash';
+import { __ } from '@wordpress/i18n';
+import { Toolbar, Placeholder } from '@wordpress/components';
 
 /**
  * Internal dependencies
@@ -15,12 +14,18 @@ import MediaUploadButton from '../../media-upload-button';
 import InspectorControls from '../../inspector-controls';
 import RangeControl from '../../inspector-controls/range-control';
 import ToggleControl from '../../inspector-controls/toggle-control';
+import SelectControl from '../../inspector-controls/select-control';
 import BlockControls from '../../block-controls';
 import BlockAlignmentToolbar from '../../block-alignment-toolbar';
 import GalleryImage from './gallery-image';
 import BlockDescription from '../../block-description';
 
 const MAX_COLUMNS = 8;
+const linkOptions = [
+	{ value: 'attachment', label: __( 'Attachment Page' ) },
+	{ value: 'media', label: __( 'Media File' ) },
+	{ value: 'none', label: __( 'None' ) },
+];
 
 const editMediaLibrary = ( attributes, setAttributes ) => {
 	const frameConfig = {
@@ -53,15 +58,7 @@ const editMediaLibrary = ( attributes, setAttributes ) => {
 	editFrame.open( 'gutenberg-gallery' );
 };
 
-// the media library image object contains numerous attributes
-// we only need this set to display the image in the library
-const slimImageObjects = ( imgs ) => {
-	const attrSet = [ 'sizes', 'mime', 'type', 'subtype', 'id', 'url', 'alt' ];
-	return imgs.map( ( img ) => pick( img, attrSet ) );
-};
-
 function defaultColumnsNumber( attributes ) {
-	attributes.images = attributes.images || [];
 	return Math.min( 3, attributes.images.length );
 }
 
@@ -69,6 +66,29 @@ registerBlockType( 'core/gallery', {
 	title: __( 'Gallery' ),
 	icon: 'format-gallery',
 	category: 'common',
+	keywords: [ __( 'images' ), __( 'photos' ) ],
+
+	attributes: {
+		align: {
+			type: 'string',
+			default: 'none',
+		},
+		images: {
+			type: 'array',
+			default: [],
+		},
+		columns: {
+			type: 'number',
+		},
+		imageCrop: {
+			type: 'boolean',
+			default: true,
+		},
+		linkTo: {
+			type: 'string',
+			default: 'none',
+		},
+	},
 
 	getEditWrapperProps( attributes ) {
 		const { align } = attributes;
@@ -78,10 +98,10 @@ registerBlockType( 'core/gallery', {
 	},
 
 	edit( { attributes, setAttributes, focus, className } ) {
-		const { images = [], columns = defaultColumnsNumber( attributes ), align = 'none' } = attributes;
+		const { images, columns = defaultColumnsNumber( attributes ), align, imageCrop, linkTo } = attributes;
+		const setLinkTo = ( value ) => setAttributes( { linkTo: value } );
 		const setColumnsNumber = ( event ) => setAttributes( { columns: event.target.value } );
 		const updateAlignment = ( nextAlign ) => setAttributes( { align: nextAlign } );
-		const { imageCrop = true } = attributes;
 		const toggleImageCrop = () => setAttributes( { imageCrop: ! imageCrop } );
 
 		const controls = (
@@ -90,7 +110,6 @@ registerBlockType( 'core/gallery', {
 					<BlockAlignmentToolbar
 						value={ align }
 						onChange={ updateAlignment }
-						controls={ [ 'left', 'center', 'right', 'wide', 'full' ] }
 					/>
 					{ !! images.length && (
 						<Toolbar controls={ [ {
@@ -104,7 +123,7 @@ registerBlockType( 'core/gallery', {
 		);
 
 		if ( images.length === 0 ) {
-			const setMediaUrl = ( imgs ) => setAttributes( { images: slimImageObjects( imgs ) } );
+			const setMediaUrl = ( imgs ) => setAttributes( { images: imgs } );
 			const uploadButtonProps = { isLarge: true };
 
 			return [
@@ -120,6 +139,7 @@ registerBlockType( 'core/gallery', {
 						onSelect={ setMediaUrl }
 						type="image"
 						multiple="true"
+						gallery="true"
 					>
 						{ __( 'Insert from Media Library' ) }
 					</MediaUploadButton>
@@ -147,6 +167,12 @@ registerBlockType( 'core/gallery', {
 						checked={ !! imageCrop }
 						onChange={ toggleImageCrop }
 					/>
+					<SelectControl
+						label={ __( 'Link to' ) }
+						selected={ linkTo }
+						onBlur={ setLinkTo }
+						options={ linkOptions }
+					/>
 				</InspectorControls>
 			),
 			<div key="gallery" className={ `${ className } align${ align } columns-${ columns } ${ imageCrop ? 'is-cropped' : '' }` }>
@@ -158,11 +184,11 @@ registerBlockType( 'core/gallery', {
 	},
 
 	save( { attributes } ) {
-		const { images, columns = defaultColumnsNumber( attributes ), align = 'none', imageCrop = true } = attributes;
+		const { images, columns = defaultColumnsNumber( attributes ), align, imageCrop, linkTo } = attributes;
 		return (
 			<div className={ `align${ align } columns-${ columns } ${ imageCrop ? 'is-cropped' : '' }` } >
 				{ images.map( ( img ) => (
-					<GalleryImage key={ img.url } img={ img } />
+					<GalleryImage key={ img.url } img={ img } linkTo={ linkTo } />
 				) ) }
 			</div>
 		);

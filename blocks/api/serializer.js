@@ -8,13 +8,12 @@ import classnames from 'classnames';
 /**
  * WordPress dependencies
  */
-import { Component, createElement, renderToString, cloneElement, Children } from 'element';
+import { Component, createElement, renderToString, cloneElement, Children } from '@wordpress/element';
 
 /**
  * Internal dependencies
  */
 import { getBlockType } from './registration';
-import { parseBlockAttributes } from './parser';
 
 /**
  * Returns the block's default classname from its name
@@ -71,36 +70,43 @@ export function getSaveContent( blockType, attributes ) {
 }
 
 /**
- * Returns attributes which ought to be saved
- * and serialized into the block comment header
+ * Returns attributes which are to be saved and serialized into the block
+ * comment delimiter.
  *
- * When a block exists in memory it contains as its attributes
- * both those which come from the block comment header _and_
- * those which come from parsing the contents of the block.
+ * When a block exists in memory it contains as its attributes both those
+ * parsed the block comment delimiter _and_ those which matched from the
+ * contents of the block.
  *
- * This function returns only those attributes which are
- * needed to persist and which cannot already be inferred
- * from the block content.
+ * This function returns only those attributes which are needed to persist and
+ * which cannot be matched from the block content.
  *
- * @param {Object<String,*>}   allAttributes         Attributes from in-memory block data
- * @param {Object<String,*>}   attributesFromContent Attributes which are inferred from block content
- * @returns {Object<String,*>} filtered set of attributes for minimum save/serialization
+ * @param   {Object<String,*>} allAttributes Attributes from in-memory block data
+ * @param   {Object<String,*>} schema        Block type schema
+ * @returns {Object<String,*>}               Subset of attributes for comment serialization
  */
-export function getCommentAttributes( allAttributes, attributesFromContent ) {
-	// Iterate over attributes and produce the set to save
-	return reduce(
-		Object.keys( allAttributes ),
-		( toSave, key ) => {
-			const allValue = allAttributes[ key ];
-			const contentValue = attributesFromContent[ key ];
+export function getCommentAttributes( allAttributes, schema ) {
+	return reduce( schema, ( result, attributeSchema, key ) => {
+		const value = allAttributes[ key ];
 
-			// save only if attribute if not inferred from the content and if valued
-			return ! ( contentValue !== undefined || allValue === undefined )
-				? Object.assign( toSave, { [ key ]: allValue } )
-				: toSave;
-		},
-		{},
-	);
+		// Ignore undefined values
+		if ( undefined === value ) {
+			return result;
+		}
+
+		// Ignore values sources from content
+		if ( attributeSchema.source ) {
+			return result;
+		}
+
+		// Ignore default value
+		if ( 'default' in attributeSchema && attributeSchema.default === value ) {
+			return result;
+		}
+
+		// Otherwise, include in comment set
+		result[ key ] = value;
+		return result;
+	}, {} );
 }
 
 export function serializeAttributes( attrs ) {
@@ -111,14 +117,37 @@ export function serializeAttributes( attrs ) {
 		.replace( /&/g, '\\u0026' ); // ibid
 }
 
+/**
+ * Returns HTML markup processed by a markup beautifier configured for use in
+ * block serialization.
+ *
+ * @param  {String} content Original HTML
+ * @return {String}         Beautiful HTML
+ */
+export function getBeautifulContent( content ) {
+	return beautifyHtml( content, {
+		indent_inner_html: true,
+		wrap_line_length: 0,
+	} );
+}
+
 export function serializeBlock( block ) {
 	const blockName = block.name;
 	const blockType = getBlockType( blockName );
-	const saveContent = getSaveContent( blockType, block.attributes );
-	const saveAttributes = getCommentAttributes( block.attributes, parseBlockAttributes( saveContent, blockType.attributes ) );
 
-	if ( 'wp:core/more' === blockName ) {
-		return `<!-- more ${ saveAttributes.customText ? `${ saveAttributes.customText } ` : '' }-->${ saveAttributes.noTeaser ? '\n<!--noteaser-->' : '' }`;
+	let saveContent;
+	if ( block.isValid ) {
+		saveContent = getSaveContent( blockType, block.attributes );
+	} else {
+		// If block was parsed as invalid, skip serialization behavior and opt
+		// to use original content instead so we don't destroy user content.
+		saveContent = block.originalContent;
+	}
+
+	const saveAttributes = getCommentAttributes( block.attributes, blockType.attributes );
+
+	if ( 'core/more' === blockName ) {
+		return `<!--more${ saveAttributes.text ? ` ${ saveAttributes.text }` : '' }-->${ saveAttributes.noTeaser ? '\n<!--noteaser-->' : '' }`;
 	}
 
 	const serializedAttributes = ! isEmpty( saveAttributes )
@@ -131,13 +160,7 @@ export function serializeBlock( block ) {
 
 	return (
 		`<!-- wp:${ blockName } ${ serializedAttributes }-->\n` +
-
-		/** make more readable - @see https://github.com/WordPress/gutenberg/pull/663 */
-		beautifyHtml( saveContent, {
-			indent_inner_html: true,
-			wrap_line_length: 0,
-		} ) +
-
+		getBeautifulContent( saveContent ) +
 		`\n<!-- /wp:${ blockName } -->`
 	);
 }

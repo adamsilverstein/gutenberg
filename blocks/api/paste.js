@@ -1,20 +1,23 @@
 /**
  * External dependencies
  */
-import { nodeListToReact } from 'dom-react';
-import { find, get } from 'lodash';
+import { find, get, flowRight as compose } from 'lodash';
 
 /**
  * WordPress dependencies
  */
-import { createElement } from 'element';
+import { nodetypes } from '@wordpress/utils';
 
 /**
  * Internal dependencies
  */
 import { createBlock } from './factory';
-import { getBlockTypes, getUnknownTypeHandler } from './registration';
-import { parseBlockAttributes } from './parser';
+import { getBlockTypes, getUnknownTypeHandlerName } from './registration';
+import { getSourcedAttributes } from './parser';
+import stripAttributes from './paste/strip-attributes';
+import removeSpans from './paste/remove-spans';
+
+const { ELEMENT_NODE, TEXT_NODE } = nodetypes;
 
 /**
  * Normalises array nodes of any node type to an array of block level nodes.
@@ -32,14 +35,14 @@ export function normaliseToBlockLevelNodes( nodes ) {
 		const node = decu.firstChild;
 
 		// Text nodes: wrap in a paragraph, or append to previous.
-		if ( node.nodeType === 3 ) {
+		if ( node.nodeType === TEXT_NODE ) {
 			if ( ! accu.lastChild || accu.lastChild.nodeName !== 'P' ) {
 				accu.appendChild( document.createElement( 'P' ) );
 			}
 
 			accu.lastChild.appendChild( node );
 		// Element nodes.
-		} else if ( node.nodeType === 1 ) {
+		} else if ( node.nodeType === ELEMENT_NODE ) {
 			// BR nodes: create a new paragraph on double, or append to previous.
 			if ( node.nodeName === 'BR' ) {
 				if ( node.nextSibling && node.nextSibling.nodeName === 'BR' ) {
@@ -76,7 +79,9 @@ export function normaliseToBlockLevelNodes( nodes ) {
 }
 
 export default function( nodes ) {
-	return normaliseToBlockLevelNodes( nodes ).map( ( node ) => {
+	const prepare = compose( [ normaliseToBlockLevelNodes, removeSpans, stripAttributes ] );
+
+	return prepare( nodes ).map( ( node ) => {
 		const block = getBlockTypes().reduce( ( acc, blockType ) => {
 			if ( acc ) {
 				return acc;
@@ -85,22 +90,24 @@ export default function( nodes ) {
 			const transformsFrom = get( blockType, 'transforms.from', [] );
 			const transform = find( transformsFrom, ( { type } ) => type === 'raw' );
 
-			if ( ! transform || ! transform.matcher( node ) ) {
+			if ( ! transform || ! transform.source( node ) ) {
 				return acc;
 			}
 
-			const { name, defaultAttributes = [] } = blockType;
-			const attributes = parseBlockAttributes( node.outerHTML, transform.attributes );
+			const attributes = getSourcedAttributes(
+				node.outerHTML,
+				transform.attributes,
+			);
 
-			return createBlock( name, { ...defaultAttributes, ...attributes } );
+			return createBlock( blockType.name, attributes );
 		}, null );
 
 		if ( block ) {
 			return block;
 		}
 
-		return createBlock( getUnknownTypeHandler(), {
-			content: nodeListToReact( [ node ], createElement ),
+		return createBlock( getUnknownTypeHandlerName(), {
+			content: node.outerHTML,
 		} );
 	} );
 }

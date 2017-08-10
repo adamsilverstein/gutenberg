@@ -7,9 +7,9 @@ import { first, last } from 'lodash';
 /**
  * WordPress dependencies
  */
-import { __ } from 'i18n';
-import { Component, findDOMNode } from 'element';
-import { CHAR_A } from 'utils/keycodes';
+import { __ } from '@wordpress/i18n';
+import { Component, findDOMNode } from '@wordpress/element';
+import { KeyboardShortcuts } from '@wordpress/components';
 
 /**
  * Internal dependencies
@@ -17,9 +17,8 @@ import { CHAR_A } from 'utils/keycodes';
 import './style.scss';
 import VisualEditorBlockList from './block-list';
 import PostTitle from '../../post-title';
-import { getBlockUids } from '../../selectors';
-import { clearSelectedBlock, multiSelect } from '../../actions';
-import { isEditableElement } from '../../utils/dom';
+import { getBlockUids, getMultiSelectedBlockUids } from '../../selectors';
+import { clearSelectedBlock, multiSelect, redo, undo, removeBlocks } from '../../actions';
 
 class VisualEditor extends Component {
 	constructor() {
@@ -27,7 +26,9 @@ class VisualEditor extends Component {
 		this.bindContainer = this.bindContainer.bind( this );
 		this.bindBlocksContainer = this.bindBlocksContainer.bind( this );
 		this.onClick = this.onClick.bind( this );
-		this.onKeyDown = this.onKeyDown.bind( this );
+		this.selectAll = this.selectAll.bind( this );
+		this.undoOrRedo = this.undoOrRedo.bind( this );
+		this.deleteSelectedBlocks = this.deleteSelectedBlocks.bind( this );
 	}
 
 	componentDidMount() {
@@ -52,15 +53,28 @@ class VisualEditor extends Component {
 		}
 	}
 
-	onKeyDown( event ) {
-		const { uids } = this.props;
-		if (
-			! isEditableElement( document.activeElement ) &&
-			( event.ctrlKey || event.metaKey ) &&
-			event.keyCode === CHAR_A
-		) {
+	selectAll( event ) {
+		const { uids, onMultiSelect } = this.props;
+		event.preventDefault();
+		onMultiSelect( first( uids ), last( uids ) );
+	}
+
+	undoOrRedo( event ) {
+		const { onRedo, onUndo } = this.props;
+		if ( event.shiftKey ) {
+			onRedo();
+		} else {
+			onUndo();
+		}
+
+		event.preventDefault();
+	}
+
+	deleteSelectedBlocks( event ) {
+		const { multiSelectedBlockUids, onRemove } = this.props;
+		if ( multiSelectedBlockUids.length ) {
 			event.preventDefault();
-			this.props.multiSelect( first( uids ), last( uids ) );
+			onRemove( multiSelectedBlockUids );
 		}
 	}
 
@@ -77,6 +91,13 @@ class VisualEditor extends Component {
 				onKeyDown={ this.onKeyDown }
 				ref={ this.bindContainer }
 			>
+				<KeyboardShortcuts shortcuts={ {
+					'mod+a': this.selectAll,
+					'mod+z': this.undoOrRedo,
+					'mod+shift+z': this.undoOrRedo,
+					backspace: this.deleteSelectedBlocks,
+					del: this.deleteSelectedBlocks,
+				} } />
 				<PostTitle />
 				<VisualEditorBlockList ref={ this.bindBlocksContainer } />
 			</div>
@@ -89,10 +110,14 @@ export default connect(
 	( state ) => {
 		return {
 			uids: getBlockUids( state ),
+			multiSelectedBlockUids: getMultiSelectedBlockUids( state ),
 		};
 	},
 	{
 		clearSelectedBlock,
-		multiSelect,
+		onMultiSelect: multiSelect,
+		onRedo: redo,
+		onUndo: undo,
+		onRemove: removeBlocks,
 	}
 )( VisualEditor );

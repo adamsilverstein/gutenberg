@@ -7,25 +7,27 @@ import { includes } from 'lodash';
 /**
  * WordPress dependencies
  */
-import { __, sprintf } from 'i18n';
-import { Component } from 'element';
-import { Button, Placeholder, Spinner, SandBox } from 'components';
+import { __, sprintf } from '@wordpress/i18n';
+import { Component, renderToString } from '@wordpress/element';
+import { Button, Placeholder, Spinner, SandBox } from '@wordpress/components';
+import { addQueryArgs } from '@wordpress/url';
 
 /**
  * Internal dependencies
  */
+import './block.scss';
 import './style.scss';
-import { registerBlockType, query } from '../../api';
+import { registerBlockType, source, createBlock } from '../../api';
 import Editable from '../../editable';
 import BlockControls from '../../block-controls';
 import BlockAlignmentToolbar from '../../block-alignment-toolbar';
 
-const { attr, children } = query;
+const { children } = source;
 
 // These embeds do not work in sandboxes
 const HOSTS_NO_PREVIEWS = [ 'facebook.com' ];
 
-function getEmbedBlockSettings( { title, icon, category = 'embed' } ) {
+function getEmbedBlockSettings( { title, icon, category = 'embed', transforms, keywords = [] } ) {
 	return {
 		title: __( title ),
 
@@ -33,10 +35,22 @@ function getEmbedBlockSettings( { title, icon, category = 'embed' } ) {
 
 		category,
 
+		keywords,
+
 		attributes: {
-			title: attr( 'iframe', 'title' ),
-			caption: children( 'figcaption' ),
+			url: {
+				type: 'string',
+			},
+			caption: {
+				type: 'array',
+				source: children( 'figcaption' ),
+			},
+			align: {
+				type: 'string',
+			},
 		},
+
+		transforms,
 
 		getEditWrapperProps( attributes ) {
 			const { align } = attributes;
@@ -76,7 +90,7 @@ function getEmbedBlockSettings( { title, icon, category = 'embed' } ) {
 				// 100% width for the preview so it fits nicely into the document, some "thumbnails" are
 				// acually the full size photo.
 				const photoPreview = <p><img src={ photo.thumbnail_url } alt={ photo.title } width="100%" /></p>;
-				return wp.element.renderToString( photoPreview );
+				return renderToString( photoPreview );
 			}
 
 			doServerSideRender( event ) {
@@ -84,7 +98,10 @@ function getEmbedBlockSettings( { title, icon, category = 'embed' } ) {
 					event.preventDefault();
 				}
 				const { url } = this.props.attributes;
-				const apiURL = wpApiSettings.root + 'oembed/1.0/proxy?url=' + encodeURIComponent( url ) + '&_wpnonce=' + wpApiSettings.nonce;
+				const apiURL = addQueryArgs( wpApiSettings.root + 'oembed/1.0/proxy', {
+					url: url,
+					_wpnonce: wpApiSettings.nonce,
+				} );
 
 				this.setState( { error: false, fetching: true } );
 				window.fetch( apiURL, {
@@ -121,7 +138,6 @@ function getEmbedBlockSettings( { title, icon, category = 'embed' } ) {
 							<BlockAlignmentToolbar
 								value={ align }
 								onChange={ updateAlignment }
-								controls={ [ 'left', 'center', 'right', 'wide', 'full' ] }
 							/>
 						</BlockControls>
 					)
@@ -179,7 +195,9 @@ function getEmbedBlockSettings( { title, icon, category = 'embed' } ) {
 								<p className="components-placeholder__error">{ __( 'Previews for this are unavailable in the editor, sorry!' ) }</p>
 							</Placeholder>
 						) : (
-							<SandBox html={ html } title={ iframeTitle } />
+							<div className="wp-block-embed__wrapper">
+								<SandBox html={ html } title={ iframeTitle } type={ type } />
+							</div>
 						) }
 						{ ( caption && caption.length > 0 ) || !! focus ? (
 							<Editable
@@ -198,7 +216,7 @@ function getEmbedBlockSettings( { title, icon, category = 'embed' } ) {
 		},
 
 		save( { attributes } ) {
-			const { url, caption = [], align } = attributes;
+			const { url, caption, align } = attributes;
 
 			return (
 				<figure className={ align && `align${ align }` }>
@@ -215,8 +233,97 @@ registerBlockType(
 	getEmbedBlockSettings( {
 		title: 'Embed',
 		icon: 'video-alt3',
+		transforms: {
+			from: [
+				{
+					type: 'pattern',
+					trigger: 'paste',
+					regExp: /^\s*(https?:\/\/\S+)\s*/i,
+					transform: ( { match } ) => {
+						return createBlock( 'core/embed', {
+							url: match[ 1 ],
+						} );
+					},
+				},
+			],
+		},
 	} )
 );
+
+// Common
+registerBlockType(
+	'core-embed/twitter',
+	getEmbedBlockSettings( {
+		title: 'Twitter',
+		icon: 'twitter',
+		keywords: [ __( 'tweet' ) ],
+	} )
+);
+registerBlockType(
+	'core-embed/youtube',
+	getEmbedBlockSettings( {
+		title: 'YouTube',
+		icon: 'video-alt3',
+		keywords: [ __( 'music' ), __( 'video' ) ],
+	} )
+);
+registerBlockType(
+	'core-embed/facebook',
+	getEmbedBlockSettings( {
+		title: 'Facebook',
+		icon: 'facebook',
+	} )
+);
+registerBlockType(
+	'core-embed/instagram',
+	getEmbedBlockSettings( {
+		title: 'Instagram',
+		icon: 'camera',
+		keywords: [ __( 'image' ) ],
+	} )
+);
+registerBlockType(
+	'core-embed/wordpress',
+	getEmbedBlockSettings( {
+		title: 'WordPress',
+		icon: 'wordpress',
+		keywords: [ __( 'post' ), __( 'blog' ) ],
+	} )
+);
+registerBlockType(
+	'core-embed/soundcloud',
+	getEmbedBlockSettings( {
+		title: 'SoundCloud',
+		icon: 'format-audio',
+		keywords: [ __( 'music' ), __( 'audio' ) ],
+	} )
+);
+registerBlockType(
+	'core-embed/spotify',
+	getEmbedBlockSettings( {
+		title: 'Spotify',
+		icon: 'format-audio',
+		keywords: [ __( 'music' ), __( 'audio' ) ],
+	} )
+);
+registerBlockType(
+	'core-embed/flickr',
+	getEmbedBlockSettings( {
+		title: 'Flickr',
+		icon: 'format-image',
+		keywords: [ __( 'image' ) ],
+	} )
+);
+registerBlockType(
+	'core-embed/vimeo',
+	getEmbedBlockSettings( {
+		title: 'Vimeo',
+		icon: 'video-alt3',
+		keywords: [ __( 'video' ) ],
+	} )
+);
+
+// Others
 registerBlockType(
 	'core-embed/animoto',
 	getEmbedBlockSettings( {
@@ -246,20 +353,6 @@ registerBlockType(
 	} )
 );
 registerBlockType(
-	'core-embed/facebook',
-	getEmbedBlockSettings( {
-		title: 'Facebook',
-		icon: 'facebook',
-	} )
-);
-registerBlockType(
-	'core-embed/flickr',
-	getEmbedBlockSettings( {
-		title: 'Flickr',
-		icon: 'format-image',
-	} )
-);
-registerBlockType(
 	'core-embed/funnyordie',
 	getEmbedBlockSettings( {
 		title: 'Funny or Die',
@@ -277,13 +370,6 @@ registerBlockType(
 	getEmbedBlockSettings( {
 		title: 'Imgur',
 		icon: 'format-image',
-	} )
-);
-registerBlockType(
-	'core-embed/instagram',
-	getEmbedBlockSettings( {
-		title: 'Instagram',
-		icon: 'camera',
 	} )
 );
 registerBlockType(
@@ -312,6 +398,7 @@ registerBlockType(
 	getEmbedBlockSettings( {
 		title: 'Mixcloud',
 		icon: 'format-audio',
+		keywords: [ __( 'music' ), __( 'audio' ) ],
 	} )
 );
 registerBlockType(
@@ -371,23 +458,9 @@ registerBlockType(
 	} )
 );
 registerBlockType(
-	'core-embed/soundcloud',
-	getEmbedBlockSettings( {
-		title: 'SoundCloud',
-		icon: 'format-audio',
-	} )
-);
-registerBlockType(
 	'core-embed/speaker',
 	getEmbedBlockSettings( {
 		title: 'Speaker',
-		icon: 'format-audio',
-	} )
-);
-registerBlockType(
-	'core-embed/spotify',
-	getEmbedBlockSettings( {
-		title: 'Spotify',
 		icon: 'format-audio',
 	} )
 );
@@ -406,24 +479,11 @@ registerBlockType(
 	} )
 );
 registerBlockType(
-	'core-embed/twitter',
-	getEmbedBlockSettings( {
-		title: 'Twitter',
-		icon: 'twitter',
-	} )
-);
-registerBlockType(
 	'core-embed/videopress',
 	getEmbedBlockSettings( {
 		title: 'VideoPress',
 		icon: 'video-alt3',
-	} )
-);
-registerBlockType(
-	'core-embed/vimeo',
-	getEmbedBlockSettings( {
-		title: 'Vimeo',
-		icon: 'video-alt3',
+		keywords: [ __( 'video' ) ],
 	} )
 );
 registerBlockType(
@@ -434,23 +494,9 @@ registerBlockType(
 	} )
 );
 registerBlockType(
-	'core-embed/wordpress',
-	getEmbedBlockSettings( {
-		title: 'WordPress',
-		icon: 'wordpress',
-	} )
-);
-registerBlockType(
 	'core-embed/wordpress-tv',
 	getEmbedBlockSettings( {
 		title: 'WordPress.tv',
-		icon: 'video-alt3',
-	} )
-);
-registerBlockType(
-	'core-embed/youtube',
-	getEmbedBlockSettings( {
-		title: 'YouTube',
 		icon: 'video-alt3',
 	} )
 );

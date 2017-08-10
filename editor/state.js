@@ -4,12 +4,12 @@
 import optimist from 'redux-optimist';
 import { combineReducers, applyMiddleware, createStore } from 'redux';
 import refx from 'refx';
-import { reduce, keyBy, first, last, omit, without, flowRight } from 'lodash';
+import { reduce, keyBy, first, last, omit, without, flowRight, mapValues } from 'lodash';
 
 /**
  * WordPress dependencies
  */
-import { getBlockTypes } from 'blocks';
+import { getBlockTypes } from '@wordpress/blocks';
 
 /**
  * Internal dependencies
@@ -18,6 +18,21 @@ import { combineUndoableReducers } from './utils/undoable-reducer';
 import effects from './effects';
 
 const isMobile = window.innerWidth < 782;
+
+/**
+ * Returns a post attribute value, flattening nested rendered content using its
+ * raw value in place of its original object form.
+ *
+ * @param  {*} value Original value
+ * @return {*}       Raw value
+ */
+export function getPostRawValue( value ) {
+	if ( 'object' === typeof value && 'raw' in value ) {
+		return value.raw;
+	}
+
+	return value;
+}
 
 /**
  * Undoable reducer returning the editor post state, including blocks parsed
@@ -53,34 +68,26 @@ export const editor = combineUndoableReducers( {
 					return result;
 				}, state );
 
-			case 'CLEAR_POST_EDITS':
-				// Don't return a new object if there's not any edits
-				if ( ! Object.keys( state ).length ) {
-					return state;
+			case 'RESET_BLOCKS':
+				if ( 'content' in state ) {
+					return omit( state, 'content' );
 				}
 
-				return {};
-		}
+				return state;
 
-		return state;
-	},
+			case 'RESET_POST':
+				return reduce( state, ( result, value, key ) => {
+					if ( value !== getPostRawValue( action.post[ key ] ) ) {
+						return result;
+					}
 
-	dirty( state = false, action ) {
-		switch ( action.type ) {
-			case 'RESET_BLOCKS':
-			case 'REQUEST_POST_UPDATE_SUCCESS':
-			case 'TRASH_POST_SUCCESS':
-				return false;
+					if ( state === result ) {
+						result = { ...state };
+					}
 
-			case 'UPDATE_BLOCK_ATTRIBUTES':
-			case 'INSERT_BLOCKS':
-			case 'MOVE_BLOCKS_DOWN':
-			case 'MOVE_BLOCKS_UP':
-			case 'REPLACE_BLOCKS':
-			case 'REMOVE_BLOCKS':
-			case 'EDIT_POST':
-			case 'MARK_DIRTY':
-				return true;
+					delete result[ key ];
+					return result;
+				}, state );
 		}
 
 		return state;
@@ -101,8 +108,8 @@ export const editor = combineUndoableReducers( {
 				const nextAttributes = reduce( action.attributes, ( result, value, key ) => {
 					if ( value !== result[ key ] ) {
 						// Avoid mutating original block by creating shallow clone
-						if ( result === state[ action.uid ] ) {
-							result = { ...state[ action.uid ] };
+						if ( result === state[ action.uid ].attributes ) {
+							result = { ...result };
 						}
 
 						result[ key ] = value;
@@ -225,13 +232,24 @@ export const editor = combineUndoableReducers( {
 
 		return state;
 	},
+}, { resetTypes: [ 'RESET_POST' ] } );
 
+/**
+ * Reducer loading and saving user specific data, such as preferences and
+ * block usage.
+ *
+ * @param  {Object} state  Current state
+ * @param  {Object} action Dispatched action
+ * @return {Object}        Updated state
+ */
+export const userData = combineReducers( {
 	recentlyUsedBlocks( state = [], action ) {
 		const maxRecent = 8;
 		switch ( action.type ) {
-			case 'SETUP_NEW_POST':
+			case 'SETUP_EDITOR':
 				// This is where we initially populate the recently used blocks,
-				// for now this inserts blocks from the common category.
+				// for now this inserts blocks from the common category, but will
+				// load this from an API in the future.
 				return getBlockTypes()
 					.filter( ( blockType ) => 'common' === blockType.category )
 					.slice( 0, maxRecent )
@@ -247,7 +265,7 @@ export const editor = combineUndoableReducers( {
 		}
 		return state;
 	},
-}, { resetTypes: [ 'RESET_BLOCKS' ] } );
+} );
 
 /**
  * Reducer returning the last-known state of the current post, in the format
@@ -260,67 +278,20 @@ export const editor = combineUndoableReducers( {
 export function currentPost( state = {}, action ) {
 	switch ( action.type ) {
 		case 'RESET_POST':
-			return action.post;
-
 		case 'UPDATE_POST':
-			return { ...state, ...action.edits };
-	}
-
-	return state;
-}
-
-/**
- * Reducer returning selected block state.
- *
- * @param  {Object} state  Current state
- * @param  {Object} action Dispatched action
- * @return {Object}        Updated state
- */
-export function selectedBlock( state = {}, action ) {
-	switch ( action.type ) {
-		case 'TOGGLE_BLOCK_SELECTED':
-			if ( ! action.selected ) {
-				return state.uid === action.uid ? {} : state;
-			}
-			return action.uid === state.uid && ! state.typing
-				? state
-				: {
-					uid: action.uid,
-					focus: action.uid === state.uid ? state.focus : {},
+			let post;
+			if ( action.post ) {
+				post = action.post;
+			} else if ( action.edits ) {
+				post = {
+					...state,
+					...action.edits,
 				};
-
-		case 'CLEAR_SELECTED_BLOCK':
-			return {};
-
-		case 'MOVE_BLOCKS_UP':
-		case 'MOVE_BLOCKS_DOWN': {
-			const firstUid = first( action.uids );
-			return firstUid === state.uid
-				? state
-				: { uid: firstUid, focus: {} };
-		}
-
-		case 'INSERT_BLOCKS':
-			return {
-				uid: action.blocks[ 0 ].uid,
-				focus: {},
-			};
-
-		case 'UPDATE_FOCUS':
-			return {
-				uid: action.uid,
-				focus: action.config || {},
-			};
-
-		case 'REPLACE_BLOCKS':
-			if ( ! action.blocks || ! action.blocks.length || action.uids.indexOf( state.uid ) === -1 ) {
+			} else {
 				return state;
 			}
 
-			return {
-				uid: action.blocks[ 0 ].uid,
-				focus: {},
-			};
+			return mapValues( post, getPostRawValue );
 	}
 
 	return state;
@@ -346,26 +317,64 @@ export function isTyping( state = false, action ) {
 }
 
 /**
- * Reducer returning multi selected block state.
+ * Reducer returning the block selection's state.
  *
  * @param  {Object} state  Current state
  * @param  {Object} action Dispatched action
  * @return {Object}        Updated state
  */
-export function multiSelectedBlocks( state = { start: null, end: null }, action ) {
+export function blockSelection( state = { start: null, end: null, focus: null }, action ) {
 	switch ( action.type ) {
 		case 'CLEAR_SELECTED_BLOCK':
-		case 'TOGGLE_BLOCK_SELECTED':
-		case 'INSERT_BLOCKS':
 			return {
 				start: null,
 				end: null,
+				focus: null,
 			};
 		case 'MULTI_SELECT':
 			return {
 				start: action.start,
 				end: action.end,
+				focus: null,
 			};
+		case 'SELECT_BLOCK':
+			return {
+				start: action.uid,
+				end: action.uid,
+				focus: action.focus || {},
+			};
+		case 'UPDATE_FOCUS':
+			return {
+				start: action.uid,
+				end: action.uid,
+				focus: action.config || {},
+			};
+		case 'INSERT_BLOCKS':
+			return {
+				start: action.blocks[ 0 ].uid,
+				end: action.blocks[ 0 ].uid,
+				focus: {},
+			};
+		case 'REPLACE_BLOCKS':
+			if ( ! action.blocks || ! action.blocks.length || action.uids.indexOf( state.start ) === -1 ) {
+				return state;
+			}
+			return {
+				start: action.blocks[ 0 ].uid,
+				end: action.blocks[ 0 ].uid,
+				focus: {},
+			};
+		case 'MOVE_BLOCKS_UP':
+		case 'MOVE_BLOCKS_DOWN': {
+			const firstUid = first( action.uids );
+			return firstUid === state.start
+				? state
+				: {
+					start: firstUid,
+					end: firstUid,
+					focus: {},
+				};
+		}
 	}
 
 	return state;
@@ -382,17 +391,10 @@ export function hoveredBlock( state = null, action ) {
 	switch ( action.type ) {
 		case 'TOGGLE_BLOCK_HOVERED':
 			return action.hovered ? action.uid : null;
-
-		case 'TOGGLE_BLOCK_SELECTED':
-			if ( action.selected ) {
-				return null;
-			}
-			break;
-
+		case 'SELECT_BLOCK':
 		case 'START_TYPING':
 		case 'MULTI_SELECT':
 			return null;
-
 		case 'REPLACE_BLOCKS':
 			if ( ! action.blocks || ! action.blocks.length || action.uids.indexOf( state ) === -1 ) {
 				return state;
@@ -460,9 +462,9 @@ export function panel( state = 'document', action ) {
  * Reducer returning current network request state (whether a request to the WP
  * REST API is in progress, successful, or failed).
  *
- * @param  {string} state  Current state
+ * @param  {Object} state  Current state
  * @param  {Object} action Dispatched action
- * @return {string}        Updated state
+ * @return {Object}        Updated state
  */
 export function saving( state = {}, action ) {
 	switch ( action.type ) {
@@ -518,9 +520,8 @@ export function createReduxStore() {
 	const reducer = optimist( combineReducers( {
 		editor,
 		currentPost,
-		selectedBlock,
 		isTyping,
-		multiSelectedBlocks,
+		blockSelection,
 		hoveredBlock,
 		showInsertionPoint,
 		mode,
@@ -528,6 +529,7 @@ export function createReduxStore() {
 		panel,
 		saving,
 		notices,
+		userData,
 	} ) );
 
 	const enhancers = [ applyMiddleware( refx( effects ) ) ];

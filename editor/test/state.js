@@ -7,27 +7,42 @@ import deepFreeze from 'deep-freeze';
 /**
  * WordPress dependencies
  */
-import { registerBlockType, unregisterBlockType } from 'blocks';
+import { registerBlockType, unregisterBlockType } from '@wordpress/blocks';
 
 /**
  * Internal dependencies
  */
 import {
+	getPostRawValue,
 	editor,
 	currentPost,
 	hoveredBlock,
-	selectedBlock,
 	isTyping,
-	multiSelectedBlocks,
+	blockSelection,
 	mode,
 	isSidebarOpened,
 	saving,
 	notices,
 	showInsertionPoint,
 	createReduxStore,
+	userData,
 } from '../state';
 
 describe( 'state', () => {
+	describe( 'getPostRawValue', () => {
+		it( 'returns original value for non-rendered content', () => {
+			const value = getPostRawValue( '' );
+
+			expect( value ).toBe( '' );
+		} );
+
+		it( 'returns raw value for rendered content', () => {
+			const value = getPostRawValue( { raw: '' } );
+
+			expect( value ).toBe( '' );
+		} );
+	} );
+
 	describe( 'editor()', () => {
 		beforeAll( () => {
 			registerBlockType( 'core/test-block', {
@@ -81,42 +96,6 @@ describe( 'state', () => {
 			expect( Object.keys( state.blocksByUid ) ).toHaveLength( 2 );
 			expect( values( state.blocksByUid )[ 1 ].uid ).toBe( 'ribs' );
 			expect( state.blockOrder ).toEqual( [ 'chicken', 'ribs' ] );
-		} );
-
-		it( 'should record recently used blocks', () => {
-			const original = editor( undefined, {} );
-			const state = editor( original, {
-				type: 'INSERT_BLOCKS',
-				blocks: [ {
-					uid: 'bacon',
-					name: 'core-embed/twitter',
-				} ],
-			} );
-
-			expect( state.recentlyUsedBlocks[ 0 ] ).toEqual( 'core-embed/twitter' );
-
-			const twoRecentBlocks = editor( state, {
-				type: 'INSERT_BLOCKS',
-				blocks: [ {
-					uid: 'eggs',
-					name: 'core-embed/youtube',
-				} ],
-			} );
-
-			expect( twoRecentBlocks.recentlyUsedBlocks[ 0 ] ).toEqual( 'core-embed/youtube' );
-			expect( twoRecentBlocks.recentlyUsedBlocks[ 1 ] ).toEqual( 'core-embed/twitter' );
-		} );
-
-		it( 'should populate recently used blocks with the common category', () => {
-			const initial = editor( undefined, {
-				type: 'SETUP_NEW_POST',
-				edits: {
-					status: 'draft',
-					title: 'post title',
-				},
-			} );
-
-			expect( initial.recentlyUsedBlocks ).toEqual( expect.arrayContaining( [ 'core/test-block', 'core/text' ] ) );
 		} );
 
 		it( 'should replace the block', () => {
@@ -432,36 +411,6 @@ describe( 'state', () => {
 				} );
 			} );
 
-			it( 'should reset modified properties', () => {
-				const original = editor( undefined, {
-					type: 'EDIT_POST',
-					edits: {
-						status: 'draft',
-						title: 'post title',
-						tags: [ 1 ],
-					},
-				} );
-
-				const state = editor( original, {
-					type: 'CLEAR_POST_EDITS',
-				} );
-
-				expect( state.edits ).toEqual( {} );
-			} );
-
-			it( 'should return same reference if clearing non-edited', () => {
-				const original = editor( undefined, {
-					type: 'EDIT_POST',
-					edits: {},
-				} );
-
-				const state = editor( original, {
-					type: 'CLEAR_POST_EDITS',
-				} );
-
-				expect( state.edits ).toBe( original.edits );
-			} );
-
 			it( 'should save initial post state', () => {
 				const state = editor( undefined, {
 					type: 'SETUP_NEW_POST',
@@ -476,81 +425,47 @@ describe( 'state', () => {
 					title: 'post title',
 				} );
 			} );
-		} );
 
-		describe( 'dirty()', () => {
-			it( 'should be true when the post is edited', () => {
-				const state = editor( undefined, {
+			it( 'should omit content when resetting', () => {
+				// Use case: When editing in Text mode, we defer to content on
+				// the property, but we reset blocks by parse when switching
+				// back to Visual mode.
+				const original = deepFreeze( editor( undefined, {} ) );
+				let state = editor( original, {
 					type: 'EDIT_POST',
-					edits: {},
+					edits: {
+						content: 'bananas',
+					},
 				} );
 
-				expect( state.dirty ).toBe( true );
-			} );
+				expect( state.edits ).toHaveProperty( 'content' );
 
-			it( 'should change to false when the post is reset', () => {
-				const original = editor( undefined, {
-					type: 'EDIT_POST',
-					edits: {},
-				} );
-
-				const state = editor( original, {
+				state = editor( original, {
 					type: 'RESET_BLOCKS',
-					post: {},
-					blocks: [],
+					blocks: [ {
+						uid: 'kumquat',
+						name: 'core/test-block',
+						attributes: {},
+					}, {
+						uid: 'loquat',
+						name: 'core/test-block',
+						attributes: {},
+					} ],
 				} );
 
-				expect( state.dirty ).toBe( false );
-			} );
-
-			it( 'should not change from true when an unrelated action occurs', () => {
-				const original = editor( undefined, {
-					type: 'EDIT_POST',
-					edits: {},
-				} );
-
-				const state = editor( original, {
-					type: 'BRISKET_READY',
-				} );
-
-				expect( state.dirty ).toBe( true );
-			} );
-
-			it( 'should not change from false when an unrelated action occurs', () => {
-				const original = editor( undefined, {
-					type: 'RESET_BLOCKS',
-					post: {},
-					blocks: [],
-				} );
-
-				expect( original.dirty ).toBe( false );
-
-				const state = editor( original, {
-					type: 'BRISKET_READY',
-				} );
-
-				expect( state.dirty ).toBe( false );
-			} );
-
-			it( 'should be false when the post is initialized', () => {
-				const state = editor( undefined, {
-					type: 'SETUP_NEW_POST',
-					edits: {},
-				} );
-
-				expect( state.dirty ).toBe( false );
+				expect( state.edits ).not.toHaveProperty( 'content' );
 			} );
 		} );
 
 		describe( 'blocksByUid', () => {
 			it( 'should return with attribute block updates', () => {
-				const original = editor( undefined, {
+				const original = deepFreeze( editor( undefined, {
 					type: 'RESET_BLOCKS',
 					blocks: [ {
 						uid: 'kumquat',
 						attributes: {},
 					} ],
-				} );
+				} ) );
 				const state = editor( original, {
 					type: 'UPDATE_BLOCK_ATTRIBUTES',
 					uid: 'kumquat',
@@ -562,11 +477,35 @@ describe( 'state', () => {
 				expect( state.blocksByUid.kumquat.attributes.updated ).toBe( true );
 			} );
 
+			it( 'should accumulate attribute block updates', () => {
+				const original = deepFreeze( editor( undefined, {
+					type: 'RESET_BLOCKS',
+					blocks: [ {
+						uid: 'kumquat',
+						attributes: {
+							updated: true,
+						},
+					} ],
+				} ) );
+				const state = editor( original, {
+					type: 'UPDATE_BLOCK_ATTRIBUTES',
+					uid: 'kumquat',
+					attributes: {
+						moreUpdated: true,
+					},
+				} );
+
+				expect( state.blocksByUid.kumquat.attributes ).toEqual( {
+					updated: true,
+					moreUpdated: true,
+				} );
+			} );
+
 			it( 'should ignore updates to non-existant block', () => {
-				const original = editor( undefined, {
+				const original = deepFreeze( editor( undefined, {
 					type: 'RESET_BLOCKS',
 					blocks: [],
-				} );
+				} ) );
 				const state = editor( original, {
 					type: 'UPDATE_BLOCK_ATTRIBUTES',
 					uid: 'kumquat',
@@ -579,7 +518,7 @@ describe( 'state', () => {
 			} );
 
 			it( 'should return with same reference if no changes in updates', () => {
-				const original = editor( undefined, {
+				const original = deepFreeze( editor( undefined, {
 					type: 'RESET_BLOCKS',
 					blocks: [ {
 						uid: 'kumquat',
@@ -587,7 +526,7 @@ describe( 'state', () => {
 							updated: true,
 						},
 					} ],
-				} );
+				} ) );
 				const state = editor( original, {
 					type: 'UPDATE_BLOCK_ATTRIBUTES',
 					uid: 'kumquat',
@@ -647,9 +586,8 @@ describe( 'state', () => {
 
 		it( 'should return null when a block is selected', () => {
 			const state = hoveredBlock( 'kumquat', {
-				type: 'TOGGLE_BLOCK_SELECTED',
+				type: 'SELECT_BLOCK',
 				uid: 'kumquat',
-				selected: true,
 			} );
 
 			expect( state ).toBeNull();
@@ -700,149 +638,6 @@ describe( 'state', () => {
 		} );
 	} );
 
-	describe( 'selectedBlock()', () => {
-		it( 'should return with block uid as selected', () => {
-			const state = selectedBlock( undefined, {
-				type: 'TOGGLE_BLOCK_SELECTED',
-				uid: 'kumquat',
-				selected: true,
-			} );
-
-			expect( state ).toEqual( { uid: 'kumquat', focus: {} } );
-		} );
-
-		it( 'returns an empty object when clearing selected block', () => {
-			const original = deepFreeze( { uid: 'kumquat', focus: {} } );
-			const state = selectedBlock( original, {
-				type: 'CLEAR_SELECTED_BLOCK',
-			} );
-
-			expect( state ).toEqual( {} );
-		} );
-
-		it( 'should not update the state if already selected', () => {
-			const original = deepFreeze( { uid: 'kumquat', focus: {} } );
-			const state = selectedBlock( original, {
-				type: 'TOGGLE_BLOCK_SELECTED',
-				uid: 'kumquat',
-				selected: true,
-			} );
-
-			expect( state ).toBe( original );
-		} );
-
-		it( 'should unselect the block if currently selected', () => {
-			const original = deepFreeze( { uid: 'kumquat', focus: {} } );
-			const state = selectedBlock( original, {
-				type: 'TOGGLE_BLOCK_SELECTED',
-				uid: 'kumquat',
-				selected: false,
-			} );
-
-			expect( state ).toEqual( {} );
-		} );
-
-		it( 'should not unselect the block if another block is selected', () => {
-			const original = deepFreeze( { uid: 'loquat', focus: {} } );
-			const state = selectedBlock( original, {
-				type: 'TOGGLE_BLOCK_SELECTED',
-				uid: 'kumquat',
-				selected: false,
-			} );
-
-			expect( state ).toBe( original );
-		} );
-
-		it( 'should return with inserted block', () => {
-			const state = selectedBlock( undefined, {
-				type: 'INSERT_BLOCKS',
-				blocks: [ {
-					uid: 'ribs',
-					name: 'core/freeform',
-				} ],
-			} );
-
-			expect( state ).toEqual( { uid: 'ribs', focus: {} } );
-		} );
-
-		it( 'should return with block moved up', () => {
-			const state = selectedBlock( undefined, {
-				type: 'MOVE_BLOCKS_UP',
-				uids: [ 'ribs' ],
-			} );
-
-			expect( state ).toEqual( { uid: 'ribs', focus: {} } );
-		} );
-
-		it( 'should return with block moved down', () => {
-			const state = selectedBlock( undefined, {
-				type: 'MOVE_BLOCKS_DOWN',
-				uids: [ 'chicken' ],
-			} );
-
-			expect( state ).toEqual( { uid: 'chicken', focus: {} } );
-		} );
-
-		it( 'should not update the state if the block moved is already selected', () => {
-			const original = deepFreeze( { uid: 'ribs', focus: {} } );
-			const state = selectedBlock( original, {
-				type: 'MOVE_BLOCKS_UP',
-				uids: [ 'ribs' ],
-			} );
-
-			expect( state ).toBe( original );
-		} );
-
-		it( 'should update the focus and selects the block', () => {
-			const state = selectedBlock( undefined, {
-				type: 'UPDATE_FOCUS',
-				uid: 'chicken',
-				config: { editable: 'citation' },
-			} );
-
-			expect( state ).toEqual( { uid: 'chicken', focus: { editable: 'citation' } } );
-		} );
-
-		it( 'should update the focus and merge the existing state', () => {
-			const original = deepFreeze( { uid: 'ribs', focus: {} } );
-			const state = selectedBlock( original, {
-				type: 'UPDATE_FOCUS',
-				uid: 'ribs',
-				config: { editable: 'citation' },
-			} );
-
-			expect( state ).toEqual( { uid: 'ribs', focus: { editable: 'citation' } } );
-		} );
-
-		it( 'should replace the selected block', () => {
-			const original = deepFreeze( { uid: 'chicken', focus: { editable: 'citation' } } );
-			const state = selectedBlock( original, {
-				type: 'REPLACE_BLOCKS',
-				uids: [ 'chicken' ],
-				blocks: [ {
-					uid: 'wings',
-					name: 'core/freeform',
-				} ],
-			} );
-
-			expect( state ).toEqual( { uid: 'wings', focus: {} } );
-		} );
-
-		it( 'should keep the selected block', () => {
-			const original = deepFreeze( { uid: 'chicken', focus: { editable: 'citation' } } );
-			const state = selectedBlock( original, {
-				type: 'REPLACE_BLOCKS',
-				uids: [ 'ribs' ],
-				blocks: [ {
-					uid: 'wings',
-					name: 'core/freeform',
-				} ],
-			} );
-
-			expect( state ).toBe( original );
-		} );
-	} );
-
 	describe( 'isTyping()', () => {
 		it( 'should set the typing flag to true', () => {
 			const state = isTyping( false, {
@@ -861,33 +656,36 @@ describe( 'state', () => {
 		} );
 	} );
 
-	describe( 'multiSelectedBlocks()', () => {
+	describe( 'blockSelection()', () => {
+		it( 'should return with block uid as selected', () => {
+			const state = blockSelection( undefined, {
+				type: 'SELECT_BLOCK',
+				uid: 'kumquat',
+			} );
+
+			expect( state ).toEqual( { start: 'kumquat', end: 'kumquat', focus: {} } );
+		} );
+
 		it( 'should set multi selection', () => {
-			const state = multiSelectedBlocks( undefined, {
+			const state = blockSelection( undefined, {
 				type: 'MULTI_SELECT',
 				start: 'ribs',
 				end: 'chicken',
 			} );
 
-			expect( state ).toEqual( { start: 'ribs', end: 'chicken' } );
+			expect( state ).toEqual( { start: 'ribs', end: 'chicken', focus: null } );
 		} );
 
-		it( 'should unset multi selection', () => {
+		it( 'should unset multi selection and select inserted block', () => {
 			const original = deepFreeze( { start: 'ribs', end: 'chicken' } );
 
-			const state1 = multiSelectedBlocks( original, {
+			const state1 = blockSelection( original, {
 				type: 'CLEAR_SELECTED_BLOCK',
 			} );
 
-			expect( state1 ).toEqual( { start: null, end: null } );
+			expect( state1 ).toEqual( { start: null, end: null, focus: null } );
 
-			const state2 = multiSelectedBlocks( original, {
-				type: 'TOGGLE_BLOCK_SELECTED',
-			} );
-
-			expect( state2 ).toEqual( { start: null, end: null } );
-
-			const state3 = multiSelectedBlocks( original, {
+			const state3 = blockSelection( original, {
 				type: 'INSERT_BLOCKS',
 				blocks: [ {
 					uid: 'ribs',
@@ -895,7 +693,84 @@ describe( 'state', () => {
 				} ],
 			} );
 
-			expect( state3 ).toEqual( { start: null, end: null } );
+			expect( state3 ).toEqual( { start: 'ribs', end: 'ribs', focus: {} } );
+		} );
+
+		it( 'should return with block moved up', () => {
+			const state = blockSelection( undefined, {
+				type: 'MOVE_BLOCKS_UP',
+				uids: [ 'ribs' ],
+			} );
+
+			expect( state ).toEqual( { start: 'ribs', end: 'ribs', focus: {} } );
+		} );
+
+		it( 'should return with block moved down', () => {
+			const state = blockSelection( undefined, {
+				type: 'MOVE_BLOCKS_DOWN',
+				uids: [ 'chicken' ],
+			} );
+
+			expect( state ).toEqual( { start: 'chicken', end: 'chicken', focus: {} } );
+		} );
+
+		it( 'should not update the state if the block moved is already selected', () => {
+			const original = deepFreeze( { start: 'ribs', end: 'ribs', focus: {} } );
+			const state = blockSelection( original, {
+				type: 'MOVE_BLOCKS_UP',
+				uids: [ 'ribs' ],
+			} );
+
+			expect( state ).toBe( original );
+		} );
+
+		it( 'should update the focus and selects the block', () => {
+			const state = blockSelection( undefined, {
+				type: 'UPDATE_FOCUS',
+				uid: 'chicken',
+				config: { editable: 'citation' },
+			} );
+
+			expect( state ).toEqual( { start: 'chicken', end: 'chicken', focus: { editable: 'citation' } } );
+		} );
+
+		it( 'should update the focus and merge the existing state', () => {
+			const original = deepFreeze( { start: 'ribs', end: 'ribs', focus: {} } );
+			const state = blockSelection( original, {
+				type: 'UPDATE_FOCUS',
+				uid: 'ribs',
+				config: { editable: 'citation' },
+			} );
+
+			expect( state ).toEqual( { start: 'ribs', end: 'ribs', focus: { editable: 'citation' } } );
+		} );
+
+		it( 'should replace the selected block', () => {
+			const original = deepFreeze( { start: 'chicken', end: 'chicken', focus: { editable: 'citation' } } );
+			const state = blockSelection( original, {
+				type: 'REPLACE_BLOCKS',
+				uids: [ 'chicken' ],
+				blocks: [ {
+					uid: 'wings',
+					name: 'core/freeform',
+				} ],
+			} );
+
+			expect( state ).toEqual( { start: 'wings', end: 'wings', focus: {} } );
+		} );
+
+		it( 'should keep the selected block', () => {
+			const original = deepFreeze( { start: 'chicken', end: 'chicken', focus: { editable: 'citation' } } );
+			const state = blockSelection( original, {
+				type: 'REPLACE_BLOCKS',
+				uids: [ 'ribs' ],
+				blocks: [ {
+					uid: 'wings',
+					name: 'core/freeform',
+				} ],
+			} );
+
+			expect( state ).toBe( original );
 		} );
 	} );
 
@@ -1040,9 +915,8 @@ describe( 'state', () => {
 				'optimist',
 				'editor',
 				'currentPost',
-				'selectedBlock',
 				'isTyping',
-				'multiSelectedBlocks',
+				'blockSelection',
 				'hoveredBlock',
 				'mode',
 				'isSidebarOpened',
@@ -1050,6 +924,52 @@ describe( 'state', () => {
 				'showInsertionPoint',
 				'notices',
 			] ) );
+		} );
+	} );
+
+	describe( 'userData()', () => {
+		beforeAll( () => {
+			registerBlockType( 'core/test-block', {
+				save: noop,
+				edit: noop,
+				category: 'common',
+			} );
+		} );
+
+		afterAll( () => {
+			unregisterBlockType( 'core/test-block' );
+		} );
+
+		it( 'should record recently used blocks', () => {
+			const original = userData( undefined, {} );
+			const state = userData( original, {
+				type: 'INSERT_BLOCKS',
+				blocks: [ {
+					uid: 'bacon',
+					name: 'core-embed/twitter',
+				} ],
+			} );
+
+			expect( state.recentlyUsedBlocks[ 0 ] ).toEqual( 'core-embed/twitter' );
+
+			const twoRecentBlocks = userData( state, {
+				type: 'INSERT_BLOCKS',
+				blocks: [ {
+					uid: 'eggs',
+					name: 'core-embed/youtube',
+				} ],
+			} );
+
+			expect( twoRecentBlocks.recentlyUsedBlocks[ 0 ] ).toEqual( 'core-embed/youtube' );
+			expect( twoRecentBlocks.recentlyUsedBlocks[ 1 ] ).toEqual( 'core-embed/twitter' );
+		} );
+
+		it( 'should populate recently used blocks with the common category', () => {
+			const initial = userData( undefined, {
+				type: 'SETUP_EDITOR',
+			} );
+
+			expect( initial.recentlyUsedBlocks ).toEqual( expect.arrayContaining( [ 'core/paragraph' ] ) );
 		} );
 	} );
 } );

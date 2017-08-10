@@ -2,6 +2,7 @@
     {
         "uid": "_uid_0",
         "name": "core/list",
+        "isValid": true,
         "attributes": {
             "nodeName": "UL",
             "values": [

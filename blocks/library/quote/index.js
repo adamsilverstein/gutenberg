@@ -6,19 +6,19 @@ import { isString, isObject } from 'lodash';
 /**
  * WordPress dependencies
  */
-import { __, sprintf } from 'i18n';
-import { Toolbar } from 'components';
+import { __, sprintf } from '@wordpress/i18n';
+import { Toolbar } from '@wordpress/components';
 
 /**
  * Internal dependencies
  */
 import './block.scss';
-import { registerBlockType, createBlock, query as hpq } from '../../api';
+import { registerBlockType, createBlock, source } from '../../api';
 import AlignmentToolbar from '../../alignment-toolbar';
 import BlockControls from '../../block-controls';
 import Editable from '../../editable';
 
-const { children, node, query } = hpq;
+const { children, node, query } = source;
 
 registerBlockType( 'core/quote', {
 	title: __( 'Quote' ),
@@ -26,22 +26,33 @@ registerBlockType( 'core/quote', {
 	category: 'common',
 
 	attributes: {
-		value: query( 'blockquote > p', node() ),
-		citation: children( 'footer' ),
-	},
-
-	defaultAttributes: {
-		value: [],
+		value: {
+			type: 'array',
+			source: query( 'blockquote > p', node() ),
+		},
+		citation: {
+			type: 'array',
+			source: children( 'footer' ),
+		},
+		align: {
+			type: 'string',
+		},
+		style: {
+			type: 'number',
+			default: 1,
+		},
 	},
 
 	transforms: {
 		from: [
 			{
 				type: 'block',
-				blocks: [ 'core/text' ],
+				blocks: [ 'core/paragraph' ],
 				transform: ( { content } ) => {
 					return createBlock( 'core/quote', {
-						value: content,
+						value: [
+							<p key="1">{ content }</p>,
+						],
 					} );
 				},
 			},
@@ -50,7 +61,20 @@ registerBlockType( 'core/quote', {
 				blocks: [ 'core/heading' ],
 				transform: ( { content } ) => {
 					return createBlock( 'core/quote', {
-						value: content,
+						value: [
+							<p key="1">{ content }</p>,
+						],
+					} );
+				},
+			},
+			{
+				type: 'pattern',
+				regExp: /^>\s/,
+				transform: ( { content } ) => {
+					return createBlock( 'core/quote', {
+						value: [
+							<p key="1">{ content }</p>,
+						],
 					} );
 				},
 			},
@@ -58,17 +82,17 @@ registerBlockType( 'core/quote', {
 		to: [
 			{
 				type: 'block',
-				blocks: [ 'core/text' ],
+				blocks: [ 'core/paragraph' ],
 				transform: ( { value, citation, ...attrs } ) => {
 					const textElement = value[ 0 ];
 					if ( ! textElement ) {
-						return createBlock( 'core/text', {
+						return createBlock( 'core/paragraph', {
 							content: citation,
 						} );
 					}
 					const textContent = isString( textElement ) ? textElement : textElement.props.children;
 					if ( Array.isArray( value ) || citation ) {
-						const text = createBlock( 'core/text', {
+						const text = createBlock( 'core/paragraph', {
 							content: textContent,
 						} );
 						const quote = createBlock( 'core/quote', {
@@ -79,7 +103,7 @@ registerBlockType( 'core/quote', {
 
 						return [ text, quote ];
 					}
-					return createBlock( 'core/text', {
+					return createBlock( 'core/paragraph', {
 						content: textContent,
 					} );
 				},
@@ -114,20 +138,19 @@ registerBlockType( 'core/quote', {
 	},
 
 	edit( { attributes, setAttributes, focus, setFocus, mergeBlocks, className } ) {
-		const { align, value, citation, style = 1 } = attributes;
+		const { align, value, citation, style } = attributes;
 		const focusedEditable = focus ? focus.editable || 'value' : null;
 
 		return [
 			focus && (
 				<BlockControls key="controls">
 					<Toolbar controls={ [ 1, 2 ].map( ( variation ) => ( {
-						icon: 'format-quote',
+						icon: 1 === variation ? 'format-quote' : 'testimonial',
 						title: sprintf( __( 'Quote style %d' ), variation ),
 						isActive: Number( style ) === variation,
 						onClick() {
 							setAttributes( { style: variation } );
 						},
-						subscript: variation,
 					} ) ) } />
 					<AlignmentToolbar
 						value={ align }
@@ -174,18 +197,14 @@ registerBlockType( 'core/quote', {
 	},
 
 	save( { attributes } ) {
-		const { align, value, citation, style = 1 } = attributes;
+		const { align, value, citation, style } = attributes;
 
 		return (
-			<blockquote className={ `blocks-quote-style-${ style }` }>
-				{ value && value.map( ( paragraph, i ) => (
-					<p
-						key={ i }
-						style={ { textAlign: align ? align : null } }
-					>
-						{ isString( paragraph ) ? paragraph : paragraph.props.children }
-					</p>
-				) ) }
+			<blockquote
+				className={ `blocks-quote-style-${ style }` }
+				style={ { textAlign: align ? align : null } }
+			>
+				{ value.map( ( paragraph, i ) => <p key={ i }>{ paragraph.props.children }</p> ) }
 				{ citation && citation.length > 0 && (
 					<footer>{ citation }</footer>
 				) }

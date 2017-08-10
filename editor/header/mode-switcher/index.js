@@ -6,8 +6,8 @@ import { connect } from 'react-redux';
 /**
  * WordPress dependencies
  */
-import { __, _x } from 'i18n';
-import { Dashicon } from 'components';
+import { __, _x } from '@wordpress/i18n';
+import { Dashicon } from '@wordpress/components';
 
 /**
  * Internal dependencies
@@ -40,10 +40,12 @@ function ModeSwitcher( { mode, onSwitch } ) {
 	/* eslint-disable jsx-a11y/no-onchange */
 	return (
 		<div className="editor-mode-switcher">
+			<label htmlFor="editor-mode-switcher__input" className="screen-reader-text">{ __( 'Change editor mode' ) }</label>
 			<select
 				value={ mode }
 				onChange={ ( event ) => onSwitch( event.target.value ) }
 				className="editor-mode-switcher__input"
+				id="editor-mode-switcher__input"
 			>
 				{ MODES.map( ( { value, label } ) =>
 					<option key={ value } value={ value }>

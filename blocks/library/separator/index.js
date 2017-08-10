@@ -1,13 +1,13 @@
 /**
  * WordPress dependencies
  */
-import { __ } from 'i18n';
+import { __ } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
  */
 import './block.scss';
-import { registerBlockType } from '../../api';
+import { registerBlockType, createBlock } from '../../api';
 
 registerBlockType( 'core/separator', {
 	title: __( 'Separator' ),
@@ -15,6 +15,19 @@ registerBlockType( 'core/separator', {
 	icon: 'minus',
 
 	category: 'layout',
+
+	keywords: [ __( 'horizontal-line' ), 'hr', __( 'divider' ) ],
+
+	transforms: {
+		from: [
+			{
+				type: 'pattern',
+				trigger: 'enter',
+				regExp: /^-{3,}$/,
+				transform: () => createBlock( 'core/separator' ),
+			},
+		],
+	},
 
 	edit( { className } ) {
 		return <hr className={ className } />;

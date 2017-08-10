@@ -1,26 +1,37 @@
 /**
  * External dependencies
  */
-import { flow, groupBy, sortBy, findIndex, filter, debounce } from 'lodash';
+import { flow, groupBy, sortBy, findIndex, filter, find, some } from 'lodash';
 import { connect } from 'react-redux';
 
 /**
  * WordPress dependencies
  */
-import { __, _n, sprintf } from 'i18n';
-import { Component } from 'element';
-import { Dashicon, Popover, withFocusReturn, withInstanceId } from 'components';
-import { TAB, ESCAPE, LEFT, UP, RIGHT, DOWN } from 'utils/keycodes';
-import { getCategories, getBlockTypes } from 'blocks';
+import { __, _n, sprintf } from '@wordpress/i18n';
+import { Component } from '@wordpress/element';
+import { Popover, withFocusReturn, withInstanceId, withSpokenMessages } from '@wordpress/components';
+import { keycodes } from '@wordpress/utils';
+import { getCategories, getBlockTypes, BlockIcon } from '@wordpress/blocks';
 
 /**
  * Internal dependencies
  */
 import './style.scss';
+import { getBlocks, getRecentlyUsedBlocks } from '../selectors';
 import { showInsertionPoint, hideInsertionPoint } from '../actions';
-import { getRecentlyUsedBlocks } from '../selectors';
 
-class InserterMenu extends Component {
+const { TAB, ESCAPE, LEFT, UP, RIGHT, DOWN } = keycodes;
+
+export const searchBlocks = ( blocks, searchTerm ) => {
+	const normalizedSearchTerm = searchTerm.toLowerCase().trim();
+	const matchSearch = ( string ) => string.toLowerCase().indexOf( normalizedSearchTerm ) !== -1;
+
+	return blocks.filter( ( block ) =>
+		matchSearch( block.title ) || some( block.keywords, matchSearch )
+	);
+};
+
+export class InserterMenu extends Component {
 	constructor() {
 		super( ...arguments );
 		this.nodes = {};
@@ -36,8 +47,8 @@ class InserterMenu extends Component {
 		this.getBlocksForCurrentTab = this.getBlocksForCurrentTab.bind( this );
 		this.sortBlocks = this.sortBlocks.bind( this );
 		this.addRecentBlocks = this.addRecentBlocks.bind( this );
-		const speakAssertive = ( message ) => wp.a11y.speak( message, 'assertive' );
-		this.debouncedSpeakAssertive = debounce( speakAssertive, 500 );
+
+		this.tabScrollTop = { recent: 0, blocks: 0, embeds: 0 };
 	}
 
 	componentDidMount() {
@@ -46,21 +57,28 @@ class InserterMenu extends Component {
 
 	componentWillUnmount() {
 		document.removeEventListener( 'keydown', this.onKeyDown );
-		this.debouncedSpeakAssertive.cancel();
 	}
 
-	componentDidUpdate() {
+	componentDidUpdate( prevProps, prevState ) {
 		const searchResults = this.searchBlocks( getBlockTypes() );
 		// Announce the blocks search results to screen readers.
 		if ( !! searchResults.length ) {
-			this.debouncedSpeakAssertive( sprintf( _n(
+			this.props.debouncedSpeak( sprintf( _n(
 				'%d result found',
 				'%d results found',
 				searchResults.length
-			), searchResults.length ) );
+			), searchResults.length ), 'assertive' );
 		} else {
-			this.debouncedSpeakAssertive( __( 'No results.' ) );
+			this.props.debouncedSpeak( __( 'No results.' ), 'assertive' );
 		}
+
+		if ( this.state.tab !== prevState.tab ) {
+			this.tabContainer.scrollTop = this.tabScrollTop[ this.state.tab ];
+		}
+	}
+
+	isDisabledBlock( blockType ) {
+		return blockType.useOnce && find( this.props.blocks, ( { name } ) => blockType.name === name );
 	}
 
 	bindReferenceNode( nodeName ) {
@@ -84,8 +102,7 @@ class InserterMenu extends Component {
 	}
 
 	searchBlocks( blockTypes ) {
-		const matchesSearch = ( block ) => block.title.toLowerCase().indexOf( this.state.filterValue.toLowerCase() ) !== -1;
-		return filter( blockTypes, matchesSearch );
+		return searchBlocks( blockTypes, this.state.filterValue );
 	}
 
 	getBlocksForCurrentTab() {
@@ -134,24 +151,28 @@ class InserterMenu extends Component {
 	}
 
 	findByIncrement( blockTypes, increment = 1 ) {
-		// Prepend a fake search block to the list to cycle through.
-		const list = [ { name: 'search' }, ...blockTypes ];
-
-		const currentIndex = findIndex( list, ( blockType ) => this.state.currentFocus === blockType.name );
-		const nextIndex = currentIndex + increment;
-		const highestIndex = list.length - 1;
+		const currentIndex = findIndex( blockTypes, ( blockType ) => this.state.currentFocus === blockType.name );
+		const highestIndex = blockTypes.length - 1;
 		const lowestIndex = 0;
 
+		let nextIndex = currentIndex;
+		let blockType;
+		do {
+			nextIndex += increment;
+			// Return the name of the next block type.
+			blockType = blockTypes[ nextIndex ];
+			if ( blockType && ! this.isDisabledBlock( blockType ) ) {
+				return blockType.name;
+			}
+		} while ( blockType );
+
 		if ( nextIndex > highestIndex ) {
-			return list[ lowestIndex ].name;
+			return 'search';
 		}
 
 		if ( nextIndex < lowestIndex ) {
-			return list[ highestIndex ].name;
+			return 'search';
 		}
-
-		// Return the name of the next block type.
-		return list[ nextIndex ].name;
 	}
 
 	findNext( blockTypes ) {
@@ -267,6 +288,7 @@ class InserterMenu extends Component {
 	}
 
 	getBlockItem( block ) {
+		const disabled = this.isDisabledBlock( block );
 		return (
 			<button
 				role="menuitem"
@@ -275,27 +297,34 @@ class InserterMenu extends Component {
 				onClick={ this.selectBlock( block.name ) }
 				ref={ this.bindReferenceNode( block.name ) }
 				tabIndex="-1"
-				onMouseEnter={ this.props.showInsertionPoint }
-				onMouseLeave={ this.props.hideInsertionPoint }
+				onMouseEnter={ ! disabled && this.props.showInsertionPoint }
+				onMouseLeave={ ! disabled && this.props.hideInsertionPoint }
+				disabled={ disabled }
 			>
-				<Dashicon icon={ block.icon } />
+				<BlockIcon icon={ block.icon } />
 				{ block.title }
 			</button>
 		);
 	}
 
 	switchTab( tab ) {
+		// store the scrollTop of the tab switched from
+		this.tabScrollTop[ this.state.tab ] = this.tabContainer.scrollTop;
 		this.setState( { tab: tab } );
 	}
 
 	render() {
-		const { position, instanceId } = this.props;
+		const { position, onClose, instanceId } = this.props;
 		const isSearching = this.state.filterValue;
 		const visibleBlocksByCategory = this.getVisibleBlocksByCategory( this.getBlocksForCurrentTab() );
 
 		/* eslint-disable jsx-a11y/no-autofocus */
 		return (
-			<Popover position={ position } className="editor-inserter__menu">
+			<Popover
+				position={ position }
+				isOpen
+				onClose={ onClose }
+				className="editor-inserter__menu">
 				<label htmlFor={ `editor-inserter__search-${ instanceId }` } className="screen-reader-text">
 					{ __( 'Search blocks' ) }
 				</label>
@@ -310,7 +339,8 @@ class InserterMenu extends Component {
 					ref={ this.bindReferenceNode( 'search' ) }
 					tabIndex="-1"
 				/>
-				<div role="menu" className="editor-inserter__content">
+				<div role="menu" className="editor-inserter__content"
+					ref={ ( ref ) => this.tabContainer = ref }>
 					{ this.state.tab === 'recent' && ! isSearching &&
 						<div className="editor-inserter__recent">
 							<div
@@ -326,7 +356,7 @@ class InserterMenu extends Component {
 					}
 					{ this.state.tab === 'blocks' && ! isSearching &&
 						getCategories()
-							.map( ( category ) => category.slug !== 'embed' && !! visibleBlocksByCategory[ category.slug ] && (
+							.map( ( category ) => !! visibleBlocksByCategory[ category.slug ] && (
 								<div key={ category.slug }>
 									<div
 										className="editor-inserter__separator"
@@ -348,7 +378,7 @@ class InserterMenu extends Component {
 					}
 					{ this.state.tab === 'embeds' && ! isSearching &&
 						getCategories()
-							.map( ( category ) => category.slug === 'embed' && !! visibleBlocksByCategory[ category.slug ] && (
+							.map( ( category ) => !! visibleBlocksByCategory[ category.slug ] && (
 								<div
 									className="editor-inserter__category-blocks"
 									role="menu"
@@ -415,6 +445,7 @@ const connectComponent = connect(
 	( state ) => {
 		return {
 			recentlyUsedBlocks: getRecentlyUsedBlocks( state ),
+			blocks: getBlocks( state ),
 		};
 	},
 	{ showInsertionPoint, hideInsertionPoint }
@@ -422,6 +453,7 @@ const connectComponent = connect(
 
 export default flow(
 	withInstanceId,
+	withSpokenMessages,
 	withFocusReturn,
 	connectComponent
 )( InserterMenu );

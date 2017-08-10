@@ -1,19 +1,23 @@
 /**
+ * External dependencies
+ */
+import { find } from 'lodash';
+
+/**
  * WordPress dependencies
  */
-import { Component, createElement, Children, concatChildren } from 'element';
-import { find } from 'lodash';
-import { __ } from 'i18n';
+import { Component, createElement, Children, concatChildren } from '@wordpress/element';
+import { __ } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
  */
 import './style.scss';
-import { registerBlockType, query as hpq, createBlock } from '../../api';
+import { registerBlockType, source, createBlock } from '../../api';
 import Editable from '../../editable';
 import BlockControls from '../../block-controls';
 
-const { children, prop } = hpq;
+const { children, prop } = source;
 
 const fromBrDelimitedContent = ( content ) => {
 	if ( undefined === content ) {
@@ -68,10 +72,19 @@ registerBlockType( 'core/list', {
 	title: __( 'List' ),
 	icon: 'editor-ul',
 	category: 'common',
+	keywords: [ __( 'bullet list' ), __( 'ordered list' ), __( 'numbered list' ) ],
 
 	attributes: {
-		nodeName: prop( 'ol,ul', 'nodeName' ),
-		values: children( 'ol,ul' ),
+		nodeName: {
+			type: 'string',
+			source: prop( 'ol,ul', 'nodeName' ),
+			default: 'UL',
+		},
+		values: {
+			type: 'array',
+			source: children( 'ol,ul' ),
+			default: [],
+		},
 	},
 
 	className: false,
@@ -80,10 +93,10 @@ registerBlockType( 'core/list', {
 		from: [
 			{
 				type: 'block',
-				blocks: [ 'core/text' ],
+				blocks: [ 'core/paragraph' ],
 				transform: ( { content } ) => {
 					return createBlock( 'core/list', {
-						nodeName: 'ul',
+						nodeName: 'UL',
 						values: fromBrDelimitedContent( content ),
 					} );
 				},
@@ -97,26 +110,46 @@ registerBlockType( 'core/list', {
 						? concatChildren( listItems, <li>{ citation }</li> )
 						: listItems;
 					return createBlock( 'core/list', {
-						nodeName: 'ul',
+						nodeName: 'UL',
 						values,
 					} );
 				},
 			},
 			{
 				type: 'raw',
-				matcher: ( node ) => node.nodeName === 'OL' || node.nodeName === 'UL',
+				source: ( node ) => node.nodeName === 'OL' || node.nodeName === 'UL',
 				attributes: {
 					nodeName: prop( 'ol,ul', 'nodeName' ),
 					values: children( 'ol,ul' ),
+				},
+			},
+			{
+				type: 'pattern',
+				regExp: /^[*-]\s/,
+				transform: ( { content } ) => {
+					return createBlock( 'core/list', {
+						nodeName: 'UL',
+						values: fromBrDelimitedContent( content ),
+					} );
+				},
+			},
+			{
+				type: 'pattern',
+				regExp: /^1[.)]\s/,
+				transform: ( { content } ) => {
+					return createBlock( 'core/list', {
+						nodeName: 'OL',
+						values: fromBrDelimitedContent( content ),
+					} );
 				},
 			},
 		],
 		to: [
 			{
 				type: 'block',
-				blocks: [ 'core/text' ],
+				blocks: [ 'core/paragraph' ],
 				transform: ( { values } ) => {
-					return createBlock( 'core/text', {
+					return createBlock( 'core/paragraph', {
 						content: toBrDelimitedContent( values ),
 					} );
 				},
@@ -131,6 +164,23 @@ registerBlockType( 'core/list', {
 				},
 			},
 		],
+	},
+
+	merge( attributes, attributesToMerge ) {
+		const valuesToMerge = attributesToMerge.values || [];
+
+		// Standard text-like block attribute.
+		if ( attributesToMerge.content ) {
+			valuesToMerge.push( attributesToMerge.content );
+		}
+
+		return {
+			...attributes,
+			values: [
+				...attributes.values,
+				...valuesToMerge,
+			],
+		};
 	},
 
 	edit: class extends Component {
@@ -148,7 +198,7 @@ registerBlockType( 'core/list', {
 
 		isListActive( listType ) {
 			const { internalListType } = this.state;
-			const { nodeName = 'OL' } = this.props.attributes;
+			const { nodeName } = this.props.attributes;
 
 			return listType === ( internalListType ? internalListType : nodeName );
 		}
@@ -217,8 +267,15 @@ registerBlockType( 'core/list', {
 		}
 
 		render() {
-			const { attributes, focus, setFocus } = this.props;
-			const { nodeName = 'OL', values = [] } = attributes;
+			const {
+				attributes,
+				focus,
+				setFocus,
+				insertBlocksAfter,
+				setAttributes,
+				mergeBlocks,
+			} = this.props;
+			const { nodeName, values } = attributes;
 
 			return [
 				focus && (
@@ -262,13 +319,29 @@ registerBlockType( 'core/list', {
 					onFocus={ setFocus }
 					className="blocks-list"
 					placeholder={ __( 'Write list…' ) }
+					onMerge={ mergeBlocks }
+					onSplit={ ( before, after, ...blocks ) => {
+						if ( ! blocks.length ) {
+							blocks.push( createBlock( 'core/paragraph' ) );
+						}
+
+						if ( after.length ) {
+							blocks.push( createBlock( 'core/list', {
+								nodeName,
+								values: after,
+							} ) );
+						}
+
+						setAttributes( { values: before } );
+						insertBlocksAfter( blocks );
+					} }
 				/>,
 			];
 		}
 	},
 
 	save( { attributes } ) {
-		const { nodeName = 'OL', values = [] } = attributes;
+		const { nodeName, values } = attributes;
 
 		return createElement(
 			nodeName.toLowerCase(),

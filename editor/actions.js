@@ -2,7 +2,22 @@
  * External Dependencies
  */
 import uuid from 'uuid/v4';
-import { partial } from 'lodash';
+import { partial, castArray } from 'lodash';
+
+/**
+ * Returns an action object used in signalling that blocks state should be
+ * reset to the specified array of blocks, taking precedence over any other
+ * content reflected as an edit in state.
+ *
+ * @param  {Array}  blocks Array of blocks
+ * @return {Object}        Action object
+ */
+export function resetBlocks( blocks ) {
+	return {
+		type: 'RESET_BLOCKS',
+		blocks,
+	};
+}
 
 /**
  * Returns an action object used in signalling that the block with the
@@ -28,10 +43,9 @@ export function focusBlock( uid, config ) {
 	};
 }
 
-export function deselectBlock( uid ) {
+export function selectBlock( uid ) {
 	return {
-		type: 'TOGGLE_BLOCK_SELECTED',
-		selected: false,
+		type: 'SELECT_BLOCK',
 		uid,
 	};
 }
@@ -56,6 +70,18 @@ export function replaceBlocks( uids, blocks ) {
 		uids,
 		blocks,
 	};
+}
+
+/**
+ * Returns an action object signalling that a single block should be replaced
+ * with one or more replacement blocks.
+ *
+ * @param  {String}            uid   Block UID to replace
+ * @param  {(Object|Object[])} block Replacement block(s)
+ * @return {Object}                  Action object
+ */
+export function replaceBlock( uid, block ) {
+	return replaceBlocks( [ uid ], castArray( block ) );
 }
 
 export function insertBlock( block, after ) {
@@ -111,6 +137,36 @@ export function mergeBlocks( blockA, blockB ) {
 }
 
 /**
+ * Returns an action object used in signalling that the post should autosave.
+ *
+ * @return {Object} Action object
+ */
+export function autosave() {
+	return {
+		type: 'AUTOSAVE',
+	};
+}
+
+/**
+ * Returns an action object used in signalling that undo history should
+ * restore last popped state.
+ *
+ * @return {Object} Action object
+ */
+export function redo() {
+	return { type: 'REDO' };
+}
+
+/**
+ * Returns an action object used in signalling that undo history should pop.
+ *
+ * @return {Object} Action object
+ */
+export function undo() {
+	return { type: 'UNDO' };
+}
+
+/**
  * Returns an action object used in signalling that the blocks
  * corresponding to the specified UID set are to be removed.
  *
@@ -162,17 +218,24 @@ export function stopTyping() {
  *
  * @param {String}     status   The notice status
  * @param {WPElement}  content  The notice content
- * @param {String}     id       The notice id
+ * @param {?Object}    options  The notice options.  Available options:
+ *                              `id` (string; default auto-generated)
+ *                              `isDismissible` (boolean; default `true`)
  *
  * @return {Object}             Action object
  */
-export function createNotice( status, content, id = uuid() ) {
+export function createNotice( status, content, options = {} ) {
+	const {
+		id = uuid(),
+		isDismissible = true,
+	} = options;
 	return {
 		type: 'CREATE_NOTICE',
 		notice: {
 			id,
 			status,
 			content,
+			isDismissible,
 		},
 	};
 }
@@ -192,5 +255,6 @@ export function removeNotice( id ) {
 }
 
 export const createSuccessNotice = partial( createNotice, 'success' );
+export const createInfoNotice = partial( createNotice, 'info' );
 export const createErrorNotice = partial( createNotice, 'error' );
 export const createWarningNotice = partial( createNotice, 'warning' );

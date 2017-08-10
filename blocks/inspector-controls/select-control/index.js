@@ -6,7 +6,7 @@ import { isEmpty } from 'lodash';
 /**
  * WordPress dependencies
  */
-import { withInstanceId } from 'components';
+import { withInstanceId } from '@wordpress/components';
 
 /**
  * Internal dependencies
@@ -32,7 +32,7 @@ function SelectControl( { label, selected, instanceId, onBlur, options = [], ...
 						value={ option.value }
 						selected={ option.value === selected }
 					>
-						{ label }
+						{ option.label }
 					</option>
 				) }
 			</select>

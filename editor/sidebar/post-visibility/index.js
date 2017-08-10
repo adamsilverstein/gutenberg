@@ -2,15 +2,14 @@
  * External dependencies
  */
 import { connect } from 'react-redux';
-import clickOutside from 'react-click-outside';
 import { find } from 'lodash';
-import { withInstanceId } from 'components';
 
 /**
  * WordPress dependencies
  */
-import { __ } from 'i18n';
-import { Component } from 'element';
+import { __ } from '@wordpress/i18n';
+import { Component } from '@wordpress/element';
+import { PanelRow, Popover, withInstanceId } from '@wordpress/components';
 
 /**
  * Internal Dependencies
@@ -27,9 +26,12 @@ class PostVisibility extends Component {
 		super( ...arguments );
 
 		this.toggleDialog = this.toggleDialog.bind( this );
+		this.stopPropagation = this.stopPropagation.bind( this );
+		this.closeOnClickOutside = this.closeOnClickOutside.bind( this );
 		this.setPublic = this.setPublic.bind( this );
 		this.setPrivate = this.setPrivate.bind( this );
 		this.setPasswordProtected = this.setPasswordProtected.bind( this );
+		this.bindButtonNode = this.bindButtonNode.bind( this );
 
 		this.state = {
 			opened: false,
@@ -39,6 +41,17 @@ class PostVisibility extends Component {
 
 	toggleDialog() {
 		this.setState( ( state ) => ( { opened: ! state.opened } ) );
+	}
+
+	stopPropagation( event ) {
+		event.stopPropagation();
+	}
+
+	closeOnClickOutside( event ) {
+		const { opened } = this.state;
+		if ( opened && ! this.buttonNode.contains( event.target ) ) {
+			this.toggleDialog();
+		}
 	}
 
 	setPublic() {
@@ -67,8 +80,8 @@ class PostVisibility extends Component {
 		this.setState( { hasPassword: true } );
 	}
 
-	handleClickOutside() {
-		this.setState( { opened: false } );
+	bindButtonNode( node ) {
+		this.buttonNode = node;
 	}
 
 	render() {
@@ -104,20 +117,23 @@ class PostVisibility extends Component {
 		// Disable Reason: The input is inside the label, we shouldn't need the htmlFor
 		/* eslint-disable jsx-a11y/label-has-for */
 		return (
-			<div className="editor-post-visibility">
+			<PanelRow className="editor-post-visibility">
 				<span>{ __( 'Visibility' ) }</span>
 				<button
 					type="button"
 					aria-expanded={ this.state.opened }
 					className="editor-post-visibility__toggle button-link"
 					onClick={ this.toggleDialog }
+					ref={ this.bindButtonNode }
 				>
 					{ getVisibilityLabel( visibility ) }
-				</button>
-
-				{ this.state.opened &&
-					<div className="editor-post-visibility__dialog">
-						<div className="editor-post-visibility__dialog-arrow" />
+					<Popover
+						position="bottom left"
+						isOpen={ this.state.opened }
+						onClose={ this.closeOnClickOutside }
+						onClick={ this.stopPropagation }
+						className="editor-post-visibility__dialog"
+					>
 						<fieldset>
 							<legend className="editor-post-visibility__dialog-legend">
 								{ __( 'Post Visibility' ) }
@@ -162,9 +178,9 @@ class PostVisibility extends Component {
 								/>
 							</div>
 						}
-					</div>
-				}
-			</div>
+					</Popover>
+				</button>
+			</PanelRow>
 		);
 		/* eslint-enable jsx-a11y/label-has-for */
 	}
@@ -182,4 +198,4 @@ export default connect(
 			return editPost( { status, password } );
 		},
 	}
-)( withInstanceId( clickOutside( PostVisibility ) ) );
+)( withInstanceId( PostVisibility ) );

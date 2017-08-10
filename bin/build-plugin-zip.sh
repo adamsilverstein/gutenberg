@@ -45,7 +45,17 @@ exec 3< <(
 while IFS='|' read -u 3 url filename; do
 	echo "$url"
 	echo -n " > vendor/$filename ... "
-	curl --location --silent "$url" --output "vendor/_download.tmp.js"
+	http_status=$( curl \
+		--location \
+		--silent \
+		"$url" \
+		--output "vendor/_download.tmp.js" \
+		--write-out "%{http_code}"
+	)
+	if [ "$http_status" != 200 ]; then
+		echo "error - HTTP $http_status"
+		exit 1
+	fi
 	mv -f "vendor/_download.tmp.js" "vendor/$filename"
 	echo "done!"
 	vendor_scripts="$vendor_scripts vendor/$filename"
@@ -68,7 +78,7 @@ mv gutenberg.tmp.php gutenberg.php
 zip -r gutenberg.zip \
 	gutenberg.php \
 	lib/*.php \
-	lib/blocks/*.php \
+	blocks/library/*/*.php \
 	post-content.js \
 	$vendor_scripts \
 	blocks/build/*.{js,map} \

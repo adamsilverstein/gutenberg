@@ -2,18 +2,15 @@
  * External dependencies
  */
 import moment from 'moment';
-import { first, last, get, values } from 'lodash';
+import { first, last, values, some, isEqual } from 'lodash';
 import createSelector from 'rememo';
 
 /**
  * WordPress dependencies
  */
-import { getBlockType } from 'blocks';
-
-/**
- * Internal dependencies
- */
-import { addQueryArgs } from './utils/url';
+import { serialize, getBlockType } from '@wordpress/blocks';
+import { __ } from '@wordpress/i18n';
+import { addQueryArgs } from '@wordpress/url';
 
 /**
  * Returns the current editing mode.
@@ -74,7 +71,7 @@ export function hasEditorRedo( state ) {
  * @return {Boolean}       Whether the post is new
  */
 export function isEditedPostNew( state ) {
-	return ! getCurrentPostId( state );
+	return getCurrentPost( state ).status === 'auto-draft';
 }
 
 /**
@@ -84,8 +81,54 @@ export function isEditedPostNew( state ) {
  * @param  {Object}  state Global application state
  * @return {Boolean}       Whether unsaved values exist
  */
-export function isEditedPostDirty( state ) {
-	return state.editor.dirty;
+export const isEditedPostDirty = createSelector(
+	( state ) => {
+		const edits = getPostEdits( state );
+		const currentPost = getCurrentPost( state );
+		const hasEditedAttributes = some( edits, ( value, key ) => {
+			return ! isEqual( value, currentPost[ key ] );
+		} );
+
+		if ( hasEditedAttributes ) {
+			return true;
+		}
+
+		// This is a cheaper operation that still must occur after checking
+		// attributes, because a post initialized with attributes different
+		// from its saved copy should be considered dirty.
+		if ( ! hasEditorUndo( state ) ) {
+			return false;
+		}
+
+		// Check whether there are differences between editor from its original
+		// state (when history was last reset) and currently. Any difference in
+		// attributes, block type, order should consistute needing save.
+		const { history } = state.editor;
+		const originalEditor = history.past[ 0 ];
+		const currentEditor = history.present;
+		return some( [
+			'blocksByUid',
+			'blockOrder',
+		], ( key ) => ! isEqual(
+			originalEditor[ key ],
+			currentEditor[ key ]
+		) );
+	},
+	( state ) => [
+		state.editor,
+		state.currentPost,
+	]
+);
+
+/**
+ * Returns true if there are no unsaved values for the current edit session and if
+ * the currently edited post is new (and has never been saved before).
+ *
+ * @param  {Object}  state Global application state
+ * @return {Boolean}       Whether new post and unsaved values exist
+ */
+export function isCleanNewPost( state ) {
+	return ! isEditedPostDirty( state ) && isEditedPostNew( state );
 }
 
 /**
@@ -153,7 +196,7 @@ export function getEditedPostAttribute( state, attributeName ) {
  * "private", "password", or "public".
  *
  * @param  {Object} state Global application state
- * @return {String}       Post visiblity
+ * @return {String}       Post visibility
  */
 export function getEditedPostVisibility( state ) {
 	const status = getEditedPostAttribute( state, 'status' );
@@ -168,12 +211,12 @@ export function getEditedPostVisibility( state ) {
 }
 
 /**
- * Return true if the post being edited has already been published.
+ * Return true if the current post has already been published.
  *
  * @param  {Object}   state Global application state
- * @return {Boolearn}       Whether the post has been bublished
+ * @return {Boolean}        Whether the post has been published
  */
-export function isEditedPostPublished( state ) {
+export function isCurrentPostPublished( state ) {
 	const post = getCurrentPost( state );
 
 	return [ 'publish', 'private' ].indexOf( post.status ) !== -1 ||
@@ -184,7 +227,7 @@ export function isEditedPostPublished( state ) {
  * Return true if the post being edited can be published
  *
  * @param  {Object}   state Global application state
- * @return {Boolearn}       Whether the post can been bublished
+ * @return {Boolean}        Whether the post can been published
  */
 export function isEditedPostPublishable( state ) {
 	const post = getCurrentPost( state );
@@ -200,7 +243,7 @@ export function isEditedPostPublishable( state ) {
  */
 export function isEditedPostSaveable( state ) {
 	return (
-		getBlockCount( state ) > 0 ||
+		!! getEditedPostContent( state ) ||
 		!! getEditedPostTitle( state ) ||
 		!! getEditedPostExcerpt( state )
 	);
@@ -211,7 +254,7 @@ export function isEditedPostSaveable( state ) {
  * unsaved status values.
  *
  * @param  {Object}   state Global application state
- * @return {Boolearn}       Whether the post has been bublished
+ * @return {Boolean}        Whether the post has been published
  */
 export function isEditedPostBeingScheduled( state ) {
 	const date = getEditedPostAttribute( state, 'date' );
@@ -226,9 +269,30 @@ export function isEditedPostBeingScheduled( state ) {
  * @return {String}       Raw post title
  */
 export function getEditedPostTitle( state ) {
-	return state.editor.edits.title === undefined
-		? get( state.currentPost, 'title.raw' )
-		: state.editor.edits.title;
+	const editedTitle = getPostEdits( state ).title;
+	if ( editedTitle !== undefined ) {
+		return editedTitle;
+	}
+	const currentPost = getCurrentPost( state );
+	if ( currentPost.title && currentPost.title ) {
+		return currentPost.title;
+	}
+	return '';
+}
+
+/**
+ * Gets the document title to be used.
+ *
+ * @param  {Object}  state Global application state
+ * @return {string}        Document title
+ */
+export function getDocumentTitle( state ) {
+	let title = getEditedPostTitle( state );
+
+	if ( ! title.trim() ) {
+		title = isCleanNewPost( state ) ? __( 'New post' ) : __( '(Untitled)' );
+	}
+	return title;
 }
 
 /**
@@ -240,7 +304,7 @@ export function getEditedPostTitle( state ) {
  */
 export function getEditedPostExcerpt( state ) {
 	return state.editor.edits.excerpt === undefined
-		? get( state.currentPost, 'excerpt.raw' )
+		? state.currentPost.excerpt
 		: state.editor.edits.excerpt;
 }
 
@@ -308,14 +372,12 @@ export function getBlockCount( state ) {
  * @return {?Object}       Selected block
  */
 export function getSelectedBlock( state ) {
-	const { uid } = state.selectedBlock;
-	const { start, end } = state.multiSelectedBlocks;
-
-	if ( start || end || ! uid ) {
+	const { start, end } = state.blockSelection;
+	if ( start !== end || ! start ) {
 		return null;
 	}
 
-	return getBlock( state, uid );
+	return getBlock( state, start );
 }
 
 /**
@@ -327,9 +389,8 @@ export function getSelectedBlock( state ) {
  */
 export function getMultiSelectedBlockUids( state ) {
 	const { blockOrder } = state.editor;
-	const { start, end } = state.multiSelectedBlocks;
-
-	if ( ! start || ! end ) {
+	const { start, end } = state.blockSelection;
+	if ( start === end ) {
 		return [];
 	}
 
@@ -382,7 +443,7 @@ export function getLastMultiSelectedBlockUid( state ) {
  * otherwise.
  *
  * @param  {Object}  state Global application state
- * @param  {Object}  uid   Block unique ID
+ * @param  {String}  uid   Block unique ID
  * @return {Boolean}       Whether block is first in mult-selection
  */
 export function isFirstMultiSelectedBlock( state, uid ) {
@@ -394,7 +455,7 @@ export function isFirstMultiSelectedBlock( state, uid ) {
  * false otherwise.
  *
  * @param  {Object} state Global application state
- * @param  {Object} uid   Block unique ID
+ * @param  {String} uid   Block unique ID
  * @return {Boolean}      Whether block is in multi-selection set
  */
 export function isBlockMultiSelected( state, uid ) {
@@ -412,7 +473,11 @@ export function isBlockMultiSelected( state, uid ) {
  * @return {?String}       Unique ID of block beginning multi-selection
  */
 export function getMultiSelectedBlocksStartUid( state ) {
-	return state.multiSelectedBlocks.start || null;
+	const { start, end } = state.blockSelection;
+	if ( start === end ) {
+		return null;
+	}
+	return start || null;
 }
 
 /**
@@ -426,7 +491,11 @@ export function getMultiSelectedBlocksStartUid( state ) {
  * @return {?String}       Unique ID of block ending multi-selection
  */
 export function getMultiSelectedBlocksEndUid( state ) {
-	return state.multiSelectedBlocks.end || null;
+	const { start, end } = state.blockSelection;
+	if ( start === end ) {
+		return null;
+	}
+	return end || null;
 }
 
 /**
@@ -457,7 +526,7 @@ export function getBlockIndex( state, uid ) {
  * first block of the post, or false otherwise.
  *
  * @param  {Object}  state Global application state
- * @param  {Object}  uid   Block unique ID
+ * @param  {String}  uid   Block unique ID
  * @return {Boolean}       Whether block is first in post
  */
 export function isFirstBlock( state, uid ) {
@@ -469,7 +538,7 @@ export function isFirstBlock( state, uid ) {
  * last block of the post, or false otherwise.
  *
  * @param  {Object}  state Global application state
- * @param  {Object}  uid   Block unique ID
+ * @param  {String}  uid   Block unique ID
  * @return {Boolean}       Whether block is last in post
  */
 export function isLastBlock( state, uid ) {
@@ -481,7 +550,7 @@ export function isLastBlock( state, uid ) {
  * specified unique ID.
  *
  * @param  {Object} state Global application state
- * @param  {Object} uid   Block unique ID
+ * @param  {String} uid   Block unique ID
  * @return {Object}       Block occurring before specified unique ID
  */
 export function getPreviousBlock( state, uid ) {
@@ -494,7 +563,7 @@ export function getPreviousBlock( state, uid ) {
  * specified unique ID.
  *
  * @param  {Object} state Global application state
- * @param  {Object} uid   Block unique ID
+ * @param  {String} uid   Block unique ID
  * @return {Object}       Block occurring after specified unique ID
  */
 export function getNextBlock( state, uid ) {
@@ -509,17 +578,17 @@ export function getNextBlock( state, uid ) {
  * specified unique ID is not the selected block.
  *
  * @param  {Object} state Global application state
- * @param  {Object} uid   Block unique ID
+ * @param  {String} uid   Block unique ID
  * @return {Boolean}      Whether block is selected and multi-selection exists
  */
 export function isBlockSelected( state, uid ) {
-	const { start, end } = state.multiSelectedBlocks;
+	const { start, end } = state.blockSelection;
 
-	if ( start || end ) {
+	if ( start !== end ) {
 		return null;
 	}
 
-	return state.selectedBlock.uid === uid;
+	return start === uid;
 }
 
 /**
@@ -527,7 +596,7 @@ export function isBlockSelected( state, uid ) {
  * specified unique ID, or false otherwise.
  *
  * @param  {Object} state Global application state
- * @param  {Object} uid   Block unique ID
+ * @param  {String} uid   Block unique ID
  * @return {Boolean}      Whether block is hovered
  */
 export function isBlockHovered( state, uid ) {
@@ -540,7 +609,7 @@ export function isBlockHovered( state, uid ) {
  * to manage the content of this object, defaulting to an empty object.
  *
  * @param  {Object} state Global application state
- * @param  {Object} uid   Block unique ID
+ * @param  {String} uid   Block unique ID
  * @return {Object}       Block focus state
  */
 export function getBlockFocus( state, uid ) {
@@ -548,7 +617,7 @@ export function getBlockFocus( state, uid ) {
 		return null;
 	}
 
-	return state.selectedBlock.focus;
+	return state.blockSelection.focus;
 }
 
 /**
@@ -650,13 +719,36 @@ export function getSuggestedPostFormat( state ) {
 	// We only convert to default post formats in core.
 	switch ( name ) {
 		case 'core/image':
-			return 'Image';
+			return 'image';
 		case 'core/quote':
-			return 'Quote';
+			return 'quote';
 	}
 
 	return null;
 }
+
+/**
+ * Returns the content of the post being edited, preferring raw string edit
+ * before falling back to serialization of block state.
+ *
+ * @param  {Object} state Global application state
+ * @return {String}       Post content
+ */
+export const getEditedPostContent = createSelector(
+	( state ) => {
+		const edits = getPostEdits( state );
+		if ( 'content' in edits ) {
+			return edits.content;
+		}
+
+		return serialize( getBlocks( state ) );
+	},
+	( state ) => [
+		state.editor.edits.content,
+		state.editor.blocksByUid,
+		state.editor.blockOrder,
+	],
+);
 
 /**
  * Returns the user notices array
@@ -676,5 +768,5 @@ export function getNotices( state ) {
  */
 export function getRecentlyUsedBlocks( state ) {
 	// resolves the block names in the state to the block type settings
-	return state.editor.recentlyUsedBlocks.map( blockType => getBlockType( blockType ) );
+	return state.userData.recentlyUsedBlocks.map( blockType => getBlockType( blockType ) );
 }

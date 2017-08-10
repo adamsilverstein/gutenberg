@@ -7,8 +7,8 @@ import classnames from 'classnames';
 /**
  * WordPress dependencies
  */
-import { __ } from 'i18n';
-import { Button } from 'components';
+import { __ } from '@wordpress/i18n';
+import { Button } from '@wordpress/components';
 
 /**
  * Internal dependencies
@@ -16,7 +16,7 @@ import { Button } from 'components';
 import { editPost, savePost } from '../../actions';
 import {
 	isSavingPost,
-	isEditedPostPublished,
+	isCurrentPostPublished,
 	isEditedPostBeingScheduled,
 	getEditedPostVisibility,
 	isEditedPostSaveable,
@@ -75,7 +75,7 @@ function PublishButton( {
 export default connect(
 	( state ) => ( {
 		isSaving: isSavingPost( state ),
-		isPublished: isEditedPostPublished( state ),
+		isPublished: isCurrentPostPublished( state ),
 		isBeingScheduled: isEditedPostBeingScheduled( state ),
 		visibility: getEditedPostVisibility( state ),
 		isSaveable: isEditedPostSaveable( state ),

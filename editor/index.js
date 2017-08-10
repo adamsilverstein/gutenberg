@@ -1,18 +1,18 @@
 /**
  * External dependencies
  */
+import { bindActionCreators } from 'redux';
 import { Provider as ReduxProvider } from 'react-redux';
 import { Provider as SlotFillProvider } from 'react-slot-fill';
-import { omit } from 'lodash';
 import moment from 'moment-timezone';
 import 'moment-timezone/moment-timezone-utils';
 
 /**
  * WordPress dependencies
  */
-import { parse } from 'blocks';
-import { render } from 'element';
-import { settings } from 'date';
+import { EditableProvider } from '@wordpress/blocks';
+import { render } from '@wordpress/element';
+import { settings } from '@wordpress/date';
 
 /**
  * Internal dependencies
@@ -20,6 +20,24 @@ import { settings } from 'date';
 import './assets/stylesheets/main.scss';
 import Layout from './layout';
 import { createReduxStore } from './state';
+import { undo } from './actions';
+import EditorSettingsProvider from './settings/provider';
+
+/**
+ * The default editor settings
+ * You can override any default settings when calling createEditorInstance
+ *
+ *  wideImages   boolean   Enable/Disable Wide/Full Alignments
+ *
+ * @var {Object} DEFAULT_SETTINGS
+ */
+const DEFAULT_SETTINGS = {
+	wideImages: false,
+
+	// This is current max width of the block inner area
+	// It's used to constraint image resizing and this value could be overriden later by themes
+	maxWidth: 608,
+};
 
 // Configure moment globally
 moment.locale( settings.l10n.locale );
@@ -44,28 +62,18 @@ if ( settings.timezone.string ) {
  * @param {Object}     post  Bootstrapped post object
  */
 function preparePostState( store, post ) {
+	// Set current post into state
 	store.dispatch( {
 		type: 'RESET_POST',
 		post,
 	} );
 
-	if ( post.content ) {
-		store.dispatch( {
-			type: 'RESET_BLOCKS',
-			blocks: parse( post.content.raw ),
-		} );
-	}
-
-	if ( ! post.id ) {
-		// Each property that is set in `post-content.js` (other than `content`
-		// because it is serialized when a save is requested) needs to be
-		// registered as an edit now.  Otherwise the initial values of these
-		// properties will not be properly saved with the post.
+	// Include auto draft title in edits while not flagging post as dirty
+	if ( post.status === 'auto-draft' ) {
 		store.dispatch( {
 			type: 'SETUP_NEW_POST',
 			edits: {
-				title: post.title ? post.title.raw : undefined,
-				...omit( post, 'title', 'content', 'type' ),
+				title: post.title.raw,
 			},
 		} );
 	}
@@ -74,18 +82,33 @@ function preparePostState( store, post ) {
 /**
  * Initializes and returns an instance of Editor.
  *
- * @param {String} id   Unique identifier for editor instance
- * @param {Object} post API entity for post to edit  (type required)
+ * @param {String} id              Unique identifier for editor instance
+ * @param {Object} post            API entity for post to edit  (type required)
+ * @param {Object} userSettings  Editor settings object
  */
-export function createEditorInstance( id, post ) {
+export function createEditorInstance( id, post, userSettings ) {
+	const editorSettings = Object.assign( {}, DEFAULT_SETTINGS, userSettings );
 	const store = createReduxStore();
+
+	store.dispatch( {
+		type: 'SETUP_EDITOR',
+		settings: editorSettings,
+	} );
 
 	preparePostState( store, post );
 
 	render(
 		<ReduxProvider store={ store }>
 			<SlotFillProvider>
-				<Layout />
+				<EditableProvider {
+					...bindActionCreators( {
+						onUndo: undo,
+					}, store.dispatch ) }
+				>
+					<EditorSettingsProvider settings={ editorSettings }>
+						<Layout />
+					</EditorSettingsProvider>
+				</EditableProvider>
 			</SlotFillProvider>
 		</ReduxProvider>,
 		document.getElementById( id )

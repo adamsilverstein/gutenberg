@@ -1,8 +1,8 @@
 /**
  * WordPress dependencies
  */
-import { Placeholder, Toolbar, Dashicon } from 'components';
-import { __ } from 'i18n';
+import { Placeholder, Toolbar, Dashicon } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 import classnames from 'classnames';
 
 /**
@@ -10,7 +10,7 @@ import classnames from 'classnames';
  */
 import './style.scss';
 import './block.scss';
-import { registerBlockType, query } from '../../api';
+import { registerBlockType, source } from '../../api';
 import Editable from '../../editable';
 import MediaUploadButton from '../../media-upload-button';
 import BlockControls from '../../block-controls';
@@ -19,7 +19,7 @@ import InspectorControls from '../../inspector-controls';
 import ToggleControl from '../../inspector-controls/toggle-control';
 import BlockDescription from '../../block-description';
 
-const { text } = query;
+const { children } = source;
 
 const validAlignments = [ 'left', 'center', 'right', 'wide', 'full' ];
 
@@ -31,7 +31,27 @@ registerBlockType( 'core/cover-image', {
 	category: 'common',
 
 	attributes: {
-		title: text( 'h2' ),
+		title: {
+			type: 'array',
+			source: children( 'h2' ),
+		},
+		url: {
+			type: 'string',
+		},
+		align: {
+			type: 'string',
+		},
+		id: {
+			type: 'number',
+		},
+		hasParallax: {
+			type: 'boolean',
+			default: false,
+		},
+		hasBackgroundDim: {
+			type: 'boolean',
+			default: true,
+		},
 	},
 
 	getEditWrapperProps( attributes ) {
@@ -42,7 +62,7 @@ registerBlockType( 'core/cover-image', {
 	},
 
 	edit( { attributes, setAttributes, focus, setFocus, className } ) {
-		const { url, title, align, id, hasParallax, hasBackgroundDim = true } = attributes;
+		const { url, title, align, id, hasParallax, hasBackgroundDim } = attributes;
 		const updateAlignment = ( nextAlign ) => setAttributes( { align: nextAlign } );
 		const onSelectImage = ( media ) => setAttributes( { url: media.url, id: media.id } );
 
@@ -52,7 +72,6 @@ registerBlockType( 'core/cover-image', {
 					<BlockAlignmentToolbar
 						value={ align }
 						onChange={ updateAlignment }
-						controls={ validAlignments }
 					/>
 
 					<Toolbar>
@@ -82,7 +101,7 @@ registerBlockType( 'core/cover-image', {
 					key="placeholder"
 					instructions={ __( 'Drag image here or insert from media library' ) }
 					icon="format-image"
-					label={ __( 'Image' ) }
+					label={ __( 'Cover Image' ) }
 					className={ className }>
 					<MediaUploadButton
 						buttonProps={ uploadButtonProps }
@@ -96,8 +115,7 @@ registerBlockType( 'core/cover-image', {
 		}
 
 		const style = { backgroundImage: `url(${ url })` };
-		const sectionClasses = classnames( {
-			'cover-image': true,
+		const classes = classnames( className, {
 			'has-parallax': hasParallax,
 			'has-background-dim': hasBackgroundDim,
 		} );
@@ -124,40 +142,40 @@ registerBlockType( 'core/cover-image', {
 					/>
 				</InspectorControls>
 			),
-			<section key="cover-image" className={ className }>
-				<section className={ sectionClasses } data-url={ url } style={ style }>
-					{ title || !! focus ? (
-						<Editable
-							tagName="h2"
-							placeholder={ __( 'Write title…' ) }
-							value={ title }
-							focus={ focus }
-							onFocus={ setFocus }
-							onChange={ ( value ) => setAttributes( { title: value } ) }
-							inlineToolbar
-						/>
-					) : null }
-				</section>
+			<section
+				key="preview"
+				data-url={ url }
+				style={ style }
+				className={ classes }
+			>
+				{ title || !! focus ? (
+					<Editable
+						tagName="h2"
+						placeholder={ __( 'Write title…' ) }
+						value={ title }
+						focus={ focus }
+						onFocus={ setFocus }
+						onChange={ ( value ) => setAttributes( { title: value } ) }
+						inlineToolbar
+					/>
+				) : null }
 			</section>,
 		];
 	},
 
-	save( { attributes } ) {
+	save( { attributes, className } ) {
 		const { url, title, hasParallax, hasBackgroundDim } = attributes;
 		const style = {
 			backgroundImage: `url(${ url })`,
 		};
-		const sectionClasses = classnames( {
-			'cover-image': true,
+		const classes = classnames( className, {
 			'has-parallax': hasParallax,
 			'has-background-dim': hasBackgroundDim,
 		} );
 
 		return (
-			<section>
-				<section className={ sectionClasses } style={ style }>
-					<h2>{ title }</h2>
-				</section>
+			<section className={ classes } style={ style }>
+				<h2>{ title }</h2>
 			</section>
 		);
 	},

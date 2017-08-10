@@ -1,33 +1,40 @@
 /**
  * WordPress
  */
-import { __ } from 'i18n';
+import { __ } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
  */
 import './style.scss';
-import { registerBlockType, createBlock, query } from '../../api';
+import { registerBlockType, createBlock, source } from '../../api';
 import Editable from '../../editable';
+import InspectorControls from '../../inspector-controls';
+import BlockDescription from '../../block-description';
 
-const { children } = query;
+const { children } = source;
 
 registerBlockType( 'core/verse', {
 	title: __( 'Verse' ),
 
-	icon: 'carrot',
+	icon: 'edit',
 
 	category: 'formatting',
 
+	keywords: [ __( 'poetry' ) ],
+
 	attributes: {
-		content: children( 'pre' ),
+		content: {
+			type: 'array',
+			source: children( 'pre' ),
+		},
 	},
 
 	transforms: {
 		from: [
 			{
 				type: 'block',
-				blocks: [ 'core/text' ],
+				blocks: [ 'core/paragraph' ],
 				transform: ( attributes ) =>
 					createBlock( 'core/verse', attributes ),
 			},
@@ -35,9 +42,9 @@ registerBlockType( 'core/verse', {
 		to: [
 			{
 				type: 'block',
-				blocks: [ 'core/text' ],
+				blocks: [ 'core/paragraph' ],
 				transform: ( attributes ) =>
-					createBlock( 'core/text', attributes ),
+					createBlock( 'core/paragraph', attributes ),
 			},
 		],
 	},
@@ -45,9 +52,17 @@ registerBlockType( 'core/verse', {
 	edit( { attributes, setAttributes, focus, setFocus, className } ) {
 		const { content } = attributes;
 
-		return (
+		return [
+			focus && (
+				<InspectorControls key="inspector">
+					<BlockDescription>
+						<p>{ __( 'Write poetry and other literary expressions honoring all spaces and line-breaks.' ) }</p>
+					</BlockDescription>
+				</InspectorControls>
+			),
 			<Editable
 				tagName="pre"
+				key="editable"
 				value={ content }
 				onChange={ ( nextContent ) => {
 					setAttributes( {
@@ -59,8 +74,8 @@ registerBlockType( 'core/verse', {
 				placeholder={ __( 'Write…' ) }
 				className={ className }
 				formattingControls={ [ 'bold', 'italic', 'strikethrough' ] }
-			/>
-		);
+			/>,
+		];
 	},
 
 	save( { attributes, className } ) {

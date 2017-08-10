@@ -10,15 +10,18 @@ import CSSTransitionGroup from 'react-transition-group/CSSTransitionGroup';
 /**
  * WordPress dependencies
  */
-import { Children, Component } from 'element';
-import { IconButton, Toolbar } from 'components';
-import { BACKSPACE, ESCAPE, DELETE, UP, DOWN, LEFT, RIGHT } from 'utils/keycodes';
-import { getBlockType, getBlockDefaultClassname } from 'blocks';
-import { __, sprintf } from 'i18n';
+import { Children, Component } from '@wordpress/element';
+import { IconButton, Toolbar } from '@wordpress/components';
+import { keycodes } from '@wordpress/utils';
+import { getBlockType, getBlockDefaultClassname, createBlock } from '@wordpress/blocks';
+import { __, sprintf } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
  */
+import InvalidBlockWarning from './invalid-block-warning';
+import BlockCrashWarning from './block-crash-warning';
+import BlockCrashBoundary from './block-crash-boundary';
 import BlockMover from '../../block-mover';
 import BlockRightMenu from '../../block-settings-menu';
 import BlockSwitcher from '../../block-switcher';
@@ -31,6 +34,8 @@ import {
 	clearSelectedBlock,
 	startTyping,
 	stopTyping,
+	replaceBlocks,
+	selectBlock,
 } from '../../actions';
 import {
 	getPreviousBlock,
@@ -43,7 +48,10 @@ import {
 	isBlockMultiSelected,
 	isFirstMultiSelectedBlock,
 	isTyping,
+	getMultiSelectedBlockUids,
 } from '../../selectors';
+
+const { BACKSPACE, ESCAPE, DELETE, UP, DOWN, LEFT, RIGHT, ENTER } = keycodes;
 
 function FirstChild( { children } ) {
 	const childrenArray = Children.toArray( children );
@@ -53,9 +61,7 @@ function FirstChild( { children } ) {
 class VisualEditorBlock extends Component {
 	constructor() {
 		super( ...arguments );
-		this.state = {
-			showMobileControls: false,
-		};
+
 		this.bindBlockNode = this.bindBlockNode.bind( this );
 		this.setAttributes = this.setAttributes.bind( this );
 		this.maybeHover = this.maybeHover.bind( this );
@@ -69,12 +75,23 @@ class VisualEditorBlock extends Component {
 		this.onKeyUp = this.onKeyUp.bind( this );
 		this.handleArrowKey = this.handleArrowKey.bind( this );
 		this.toggleMobileControls = this.toggleMobileControls.bind( this );
+		this.onBlockError = this.onBlockError.bind( this );
+
 		this.previousOffset = null;
+
+		this.state = {
+			showMobileControls: false,
+			error: null,
+		};
 	}
 
 	componentDidMount() {
 		if ( this.props.focus ) {
 			this.node.focus();
+		}
+
+		if ( this.props.isTyping ) {
+			document.addEventListener( 'mousemove', this.stopTypingOnMouseMove );
 		}
 	}
 
@@ -173,7 +190,6 @@ class VisualEditorBlock extends Component {
 		const { keyCode, target } = event;
 		const {
 			uid,
-			multiSelectedBlockUids,
 			previousBlock,
 			onRemove,
 			onFocus,
@@ -181,19 +197,15 @@ class VisualEditorBlock extends Component {
 		} = this.props;
 
 		// Remove block on backspace.
-		if ( BACKSPACE === keyCode || DELETE === keyCode ) {
-			if ( target === this.node ) {
-				event.preventDefault();
-				onRemove( [ uid ] );
+		if (
+			target === this.node &&
+			( BACKSPACE === keyCode || DELETE === keyCode )
+		) {
+			event.preventDefault();
+			onRemove( [ uid ] );
 
-				if ( previousBlock ) {
-					onFocus( previousBlock.uid, { offset: -1 } );
-				}
-			}
-
-			if ( multiSelectedBlockUids.length ) {
-				event.preventDefault();
-				onRemove( multiSelectedBlockUids );
+			if ( previousBlock ) {
+				onFocus( previousBlock.uid, { offset: -1 } );
 			}
 		}
 
@@ -238,13 +250,21 @@ class VisualEditorBlock extends Component {
 	}
 
 	onKeyDown( event ) {
-		const { keyCode } = event;
+		const { keyCode, target } = event;
 
 		this.handleArrowKey( event );
 
 		if ( keyCode === UP || keyCode === LEFT || keyCode === DOWN || keyCode === RIGHT ) {
 			const selection = window.getSelection();
 			this.lastRange = selection.rangeCount ? selection.getRangeAt( 0 ) : null;
+		}
+
+		if ( ENTER === keyCode && target === this.node ) {
+			event.preventDefault();
+
+			this.props.onInsertBlocksAfter( [
+				createBlock( 'core/paragraph' ),
+			] );
 		}
 	}
 
@@ -257,12 +277,13 @@ class VisualEditorBlock extends Component {
 		const { keyCode, target } = event;
 		const moveUp = ( keyCode === UP || keyCode === LEFT );
 		const moveDown = ( keyCode === DOWN || keyCode === RIGHT );
+		const wrapperClassname = '.editor-visual-editor';
 		const selectors = [
 			'*[contenteditable="true"]',
 			'*[tabindex]',
 			'textarea',
 			'input',
-		].join( ',' );
+		].map( ( selector ) => `${ wrapperClassname } ${ selector }` ).join( ',' );
 
 		if ( moveUp || moveDown ) {
 			const selection = window.getSelection();
@@ -300,12 +321,16 @@ class VisualEditorBlock extends Component {
 		} );
 	}
 
+	onBlockError( error ) {
+		this.setState( { error } );
+	}
+
 	render() {
 		const { block, multiSelectedBlockUids } = this.props;
-		const blockType = getBlockType( block.name );
+		const { name: blockName, isValid } = block;
+		const blockType = getBlockType( blockName );
 		// translators: %s: Type of block (i.e. Text, Image etc)
 		const blockLabel = sprintf( __( 'Block: %s' ), blockType.title );
-		const { className = getBlockDefaultClassname( block.name ) } = blockType;
 		// The block as rendered in the editor is composed of general block UI
 		// (mover, toolbar, wrapper) and the display of the block content, which
 		// is referred to as <BlockEdit />.
@@ -325,21 +350,26 @@ class VisualEditorBlock extends Component {
 		// Generate the wrapper class names handling the different states of the block.
 		const { isHovered, isSelected, isMultiSelected, isFirstMultiSelected, focus } = this.props;
 		const showUI = isSelected && ( ! this.props.isTyping || focus.collapsed === false );
-		const { showMobileControls } = this.state;
+		const { error, showMobileControls } = this.state;
 		const wrapperClassname = classnames( 'editor-visual-editor__block', {
+			'has-warning': ! isValid || !! error,
 			'is-selected': showUI,
 			'is-multi-selected': isMultiSelected,
 			'is-hovered': isHovered,
 			'is-showing-mobile-controls': showMobileControls,
 		} );
 
-		const { onMouseLeave, onFocus, onInsertBlocksAfter } = this.props;
+		const { onMouseLeave, onFocus, onInsertBlocksAfter, onReplace } = this.props;
 
 		// Determine whether the block has props to apply to the wrapper.
 		let wrapperProps;
 		if ( blockType.getEditWrapperProps ) {
 			wrapperProps = blockType.getEditWrapperProps( block.attributes );
 		}
+
+		// Generate a class name for the block's editable form
+		let { className = getBlockDefaultClassname( block.name ) } = blockType;
+		className = classnames( className, block.attributes.className );
 
 		// Disable reason: Each block can be selected by clicking on it
 		/* eslint-disable jsx-a11y/no-static-element-interactions, jsx-a11y/onclick-has-role, jsx-a11y/click-events-have-key-events */
@@ -360,7 +390,7 @@ class VisualEditorBlock extends Component {
 			>
 				{ ( showUI || isHovered ) && <BlockMover uids={ [ block.uid ] } /> }
 				{ ( showUI || isHovered ) && <BlockRightMenu uid={ block.uid } /> }
-				{ showUI &&
+				{ showUI && isValid &&
 					<CSSTransitionGroup
 						transitionName={ { appear: 'is-appearing', appearActive: 'is-appearing-active' } }
 						transitionAppear={ true }
@@ -394,18 +424,32 @@ class VisualEditorBlock extends Component {
 					onDragStart={ ( event ) => event.preventDefault() }
 					onMouseDown={ this.onPointerDown }
 					onTouchStart={ this.onPointerDown }
+					className="editor-visual-editor__block-edit"
 				>
-					<BlockEdit
-						focus={ focus }
-						attributes={ block.attributes }
-						setAttributes={ this.setAttributes }
-						insertBlocksAfter={ onInsertBlocksAfter }
-						setFocus={ partial( onFocus, block.uid ) }
-						mergeBlocks={ this.mergeBlocks }
-						className={ classnames( className, block.attributes.className ) }
-						id={ block.uid }
-					/>
+					{ isValid && ! error && (
+						<BlockCrashBoundary onError={ this.onBlockError }>
+							<BlockEdit
+								focus={ focus }
+								attributes={ block.attributes }
+								setAttributes={ this.setAttributes }
+								insertBlocksAfter={ onInsertBlocksAfter }
+								onReplace={ onReplace }
+								setFocus={ partial( onFocus, block.uid ) }
+								mergeBlocks={ this.mergeBlocks }
+								className={ className }
+								id={ block.uid }
+							/>
+						</BlockCrashBoundary>
+					) }
+					{ ! isValid && (
+						blockType.save( {
+							attributes: block.attributes,
+							className,
+						} )
+					) }
 				</div>
+				{ !! error && <BlockCrashWarning /> }
+				{ ! isValid && <InvalidBlockWarning block={ block } /> }
 			</div>
 		);
 		/* eslint-enable jsx-a11y/no-static-element-interactions, jsx-a11y/onclick-has-role, jsx-a11y/click-events-have-key-events */
@@ -425,6 +469,7 @@ export default connect(
 			focus: getBlockFocus( state, ownProps.uid ),
 			isTyping: isTyping( state ),
 			order: getBlockIndex( state, ownProps.uid ),
+			multiSelectedBlockUids: getMultiSelectedBlockUids( state ),
 		};
 	},
 	( dispatch, ownProps ) => ( {
@@ -433,11 +478,7 @@ export default connect(
 		},
 
 		onSelect() {
-			dispatch( {
-				type: 'TOGGLE_BLOCK_SELECTED',
-				selected: true,
-				uid: ownProps.uid,
-			} );
+			dispatch( selectBlock( ownProps.uid ) );
 		},
 		onDeselect() {
 			dispatch( clearSelectedBlock() );
@@ -480,6 +521,10 @@ export default connect(
 
 		onMerge( ...args ) {
 			dispatch( mergeBlocks( ...args ) );
+		},
+
+		onReplace( blocks ) {
+			dispatch( replaceBlocks( [ ownProps.uid ], blocks ) );
 		},
 	} )
 )( VisualEditorBlock );

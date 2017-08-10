@@ -1,18 +1,33 @@
 /**
  * WordPress dependencies
  */
-import { createElement, Component } from 'element';
+import { createElement, Component } from '@wordpress/element';
 
 /**
  * Internal dependencies
  */
-import serialize, { getCommentAttributes, getSaveContent, serializeAttributes } from '../serializer';
+import { text } from '../source';
+import serialize, {
+	getCommentAttributes,
+	getBeautifulContent,
+	getSaveContent,
+	serializeAttributes,
+} from '../serializer';
 import { getBlockTypes, registerBlockType, unregisterBlockType } from '../registration';
+import { createBlock } from '../';
 
 describe( 'block serializer', () => {
 	afterEach( () => {
 		getBlockTypes().forEach( block => {
 			unregisterBlockType( block.name );
+		} );
+	} );
+
+	describe( 'getBeautifulContent()', () => {
+		it( 'returns beautiful content', () => {
+			const content = getBeautifulContent( '<div><div>Beautiful</div></div>' );
+
+			expect( content ).toBe( '<div>\n    <div>Beautiful</div>\n</div>' );
 		} );
 	} );
 
@@ -125,13 +140,22 @@ describe( 'block serializer', () => {
 			expect( attributes ).toEqual( {} );
 		} );
 
-		it( 'should only return attributes which cannot be inferred from the content', () => {
+		it( 'should only return attributes which are not matched from content', () => {
 			const attributes = getCommentAttributes( {
 				fruit: 'bananas',
 				category: 'food',
 				ripeness: 'ripe',
 			}, {
-				fruit: 'bananas',
+				fruit: {
+					type: 'string',
+					source: text(),
+				},
+				category: {
+					type: 'string',
+				},
+				ripeness: {
+					type: 'string',
+				},
 			} );
 
 			expect( attributes ).toEqual( {
@@ -144,7 +168,14 @@ describe( 'block serializer', () => {
 			const attributes = getCommentAttributes( {
 				fruit: 'bananas',
 				ripeness: undefined,
-			}, {} );
+			}, {
+				fruit: {
+					type: 'string',
+				},
+				ripeness: {
+					type: 'string',
+				},
+			} );
 
 			expect( attributes ).toEqual( { fruit: 'bananas' } );
 		} );
@@ -168,28 +199,38 @@ describe( 'block serializer', () => {
 	describe( 'serialize()', () => {
 		it( 'should serialize the post content properly', () => {
 			const blockType = {
-				attributes: ( rawContent ) => {
-					return {
-						content: rawContent,
-					};
+				attributes: {
+					foo: {
+						type: 'string',
+						default: true,
+					},
+					bar: {
+						type: 'string',
+						default: false,
+					},
+					content: {
+						type: 'string',
+						source: text(),
+					},
+					stuff: {
+						type: 'string',
+					},
 				},
 				save( { attributes } ) {
 					return <p dangerouslySetInnerHTML={ { __html: attributes.content } } />;
 				},
+				category: 'common',
 			};
 			registerBlockType( 'core/test-block', blockType );
-			const blockList = [
-				{
-					name: 'core/test-block',
-					attributes: {
-						content: 'Ribs & Chicken',
-						stuff: 'left & right -- but <not>',
-					},
-				},
-			];
-			const expectedPostContent = '<!-- wp:core/test-block {"stuff":"left \\u0026 right \\u002d\\u002d but \\u003cnot\\u003e"} -->\n<p class="wp-block-test-block">Ribs & Chicken</p>\n<!-- /wp:core/test-block -->';
 
-			expect( serialize( blockList ) ).toEqual( expectedPostContent );
+			const block = createBlock( 'core/test-block', {
+				foo: false,
+				content: 'Ribs & Chicken',
+				stuff: 'left & right -- but <not>',
+			} );
+			const expectedPostContent = '<!-- wp:core/test-block {"foo":false,"stuff":"left \\u0026 right \\u002d\\u002d but \\u003cnot\\u003e"} -->\n<p class="wp-block-test-block">Ribs & Chicken</p>\n<!-- /wp:core/test-block -->';
+
+			expect( serialize( [ block ] ) ).toEqual( expectedPostContent );
 		} );
 	} );
 } );

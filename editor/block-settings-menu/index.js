@@ -6,18 +6,19 @@ import { connect } from 'react-redux';
 /**
  * WordPress dependencies
  */
-import { __ } from 'i18n';
-import { IconButton } from 'components';
+import { __ } from '@wordpress/i18n';
+import { IconButton } from '@wordpress/components';
 
 /**
  * Internal dependencies
  */
 import './style.scss';
-import { isEditorSidebarOpened } from 'editor/selectors';
+import { isEditorSidebarOpened } from '../selectors';
+import { selectBlock } from '../actions';
 
-function BlockSettingsMenu( { onDelete, selectBlock, isSidebarOpened, toggleSidebar, setActivePanel } ) {
+function BlockSettingsMenu( { onDelete, onSelect, isSidebarOpened, toggleSidebar, setActivePanel } ) {
 	const toggleInspector = () => {
-		selectBlock();
+		onSelect();
 		setActivePanel();
 		if ( ! isSidebarOpened ) {
 			toggleSidebar();
@@ -53,12 +54,8 @@ export default connect(
 				uids: [ ownProps.uid ],
 			} );
 		},
-		selectBlock() {
-			dispatch( {
-				type: 'TOGGLE_BLOCK_SELECTED',
-				selected: true,
-				uid: ownProps.uid,
-			} );
+		onSelect() {
+			dispatch( selectBlock( ownProps.uid ) );
 		},
 		setActivePanel() {
 			dispatch( {

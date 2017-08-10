@@ -1,16 +1,16 @@
 /**
  * WordPress
  */
-import { __ } from 'i18n';
+import { __ } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
  */
 import './style.scss';
-import { registerBlockType, createBlock, query } from '../../api';
+import { registerBlockType, createBlock, source } from '../../api';
 import Editable from '../../editable';
 
-const { children } = query;
+const { children } = source;
 
 registerBlockType( 'core/preformatted', {
 	title: __( 'Preformatted' ),
@@ -20,14 +20,17 @@ registerBlockType( 'core/preformatted', {
 	category: 'formatting',
 
 	attributes: {
-		content: children( 'pre' ),
+		content: {
+			type: 'array',
+			source: children( 'pre' ),
+		},
 	},
 
 	transforms: {
 		from: [
 			{
 				type: 'block',
-				blocks: [ 'core/text' ],
+				blocks: [ 'core/paragraph' ],
 				transform: ( attributes ) =>
 					createBlock( 'core/preformatted', attributes ),
 			},
@@ -35,9 +38,9 @@ registerBlockType( 'core/preformatted', {
 		to: [
 			{
 				type: 'block',
-				blocks: [ 'core/text' ],
+				blocks: [ 'core/paragraph' ],
 				transform: ( attributes ) =>
-					createBlock( 'core/text', attributes ),
+					createBlock( 'core/paragraph', attributes ),
 			},
 		],
 	},

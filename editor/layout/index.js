@@ -5,9 +5,9 @@ import { connect } from 'react-redux';
 import classnames from 'classnames';
 
 /**
- * WordPress Dependencie
+ * WordPress dependencies
  */
-import { NoticeList } from 'components';
+import { NoticeList } from '@wordpress/components';
 
 /**
  * Internal dependencies
@@ -18,6 +18,8 @@ import Sidebar from '../sidebar';
 import TextEditor from '../modes/text-editor';
 import VisualEditor from '../modes/visual-editor';
 import UnsavedChangesWarning from '../unsaved-changes-warning';
+import DocumentTitle from '../document-title';
+import AutosaveMonitor from '../autosave-monitor';
 import { removeNotice } from '../actions';
 import {
 	getEditorMode,
@@ -32,8 +34,10 @@ function Layout( { mode, isSidebarOpened, notices, ...props } ) {
 
 	return (
 		<div className={ className }>
+			<DocumentTitle />
 			<NoticeList onRemove={ props.removeNotice } notices={ notices } />
 			<UnsavedChangesWarning />
+			<AutosaveMonitor />
 			<Header />
 			<div className="editor-layout__content">
 				{ mode === 'text' && <TextEditor /> }
