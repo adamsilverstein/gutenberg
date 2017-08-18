@@ -6,7 +6,7 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import './style.scss';
+import './editor.scss';
 import { registerBlockType, createBlock, source } from '../../api';
 import Editable from '../../editable';
 
@@ -33,6 +33,16 @@ registerBlockType( 'core/preformatted', {
 				blocks: [ 'core/paragraph' ],
 				transform: ( attributes ) =>
 					createBlock( 'core/preformatted', attributes ),
+			},
+			{
+				type: 'raw',
+				isMatch: ( node ) => (
+					node.nodeName === 'PRE' &&
+					! (
+						node.children === 1 &&
+						node.firstChild.nodeName === 'CODE'
+					)
+				),
 			},
 		],
 		to: [

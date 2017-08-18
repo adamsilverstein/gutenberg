@@ -11,7 +11,7 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import './style.scss';
+import './editor.scss';
 import { registerBlockType, source, createBlock } from '../../api';
 
 const { prop } = source;
@@ -37,6 +37,14 @@ registerBlockType( 'core/code', {
 				trigger: 'enter',
 				regExp: /^```$/,
 				transform: () => createBlock( 'core/code' ),
+			},
+			{
+				type: 'raw',
+				isMatch: ( node ) => (
+					node.nodeName === 'PRE' &&
+					node.children === 1 &&
+					node.firstChild.nodeName === 'CODE'
+				),
 			},
 		],
 	},

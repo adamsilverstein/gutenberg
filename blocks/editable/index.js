@@ -55,6 +55,18 @@ export default class Editable extends Component {
 	constructor( props ) {
 		super( ...arguments );
 
+		const { value } = props;
+		if ( 'production' !== process.env.NODE_ENV && undefined !== value &&
+					! Array.isArray( value ) ) {
+			// eslint-disable-next-line no-console
+			console.error(
+				`Invalid value of type ${ typeof value } passed to Editable ` +
+				'(expected array). Attribute values should be sourced using ' +
+				'the `children` source when used with Editable.\n\n' +
+				'See: http://gutenberg-devdoc.surge.sh/reference/attribute-sources/#children'
+			);
+		}
+
 		this.onInit = this.onInit.bind( this );
 		this.getSettings = this.getSettings.bind( this );
 		this.onSetup = this.onSetup.bind( this );
@@ -67,12 +79,13 @@ export default class Editable extends Component {
 		this.changeFormats = this.changeFormats.bind( this );
 		this.onSelectionChange = this.onSelectionChange.bind( this );
 		this.maybePropagateUndo = this.maybePropagateUndo.bind( this );
+		this.onBeforePastePreProcess = this.onBeforePastePreProcess.bind( this );
 		this.onPastePostProcess = this.onPastePostProcess.bind( this );
 
 		this.state = {
 			formats: {},
-			bookmark: null,
-			empty: ! props.value || ! props.value.length,
+			empty: ! value || ! value.length,
+			selectedNodeId: 0,
 		};
 	}
 
@@ -94,6 +107,7 @@ export default class Editable extends Component {
 		editor.on( 'keyup', this.onKeyUp );
 		editor.on( 'selectionChange', this.onSelectionChange );
 		editor.on( 'BeforeExecCommand', this.maybePropagateUndo );
+		editor.on( 'BeforePastePreProcess', this.onBeforePastePreProcess );
 		editor.on( 'PastePostProcess', this.onPastePostProcess );
 
 		patterns.apply( this, [ editor ] );
@@ -160,7 +174,15 @@ export default class Editable extends Component {
 		}
 	}
 
+	onBeforePastePreProcess( event ) {
+		// Allows us to ask for this information when we get a report.
+		window.console.log( 'Received HTML:\n\n', event.content );
+	}
+
 	onPastePostProcess( event ) {
+		// Allows us to ask for this information when we get a report.
+		window.console.log( 'MCE processed HTML:\n\n', event.node.innerHTML );
+
 		const childNodes = Array.from( event.node.childNodes );
 		const isBlockDelimiter = ( node ) =>
 			node.nodeType === 8 && /^ wp:/.test( node.nodeValue );
@@ -202,8 +224,9 @@ export default class Editable extends Component {
 		this.props.onChange( this.savedContent );
 	}
 
-	getRelativePosition( node ) {
-		const position = node.getBoundingClientRect();
+	getFocusPosition() {
+		const range = this.editor.selection.getRng();
+		const position = range.getBoundingClientRect();
 
 		// Find the parent "relative" positioned container
 		const container = this.props.inlineToolbar
@@ -403,7 +426,7 @@ export default class Editable extends Component {
 		);
 	}
 
-	onNodeChange( { element, parents } ) {
+	onNodeChange( { parents } ) {
 		const formats = {};
 		const link = find( parents, ( node ) => node.nodeName.toLowerCase() === 'a' );
 		if ( link ) {
@@ -412,9 +435,8 @@ export default class Editable extends Component {
 		const activeFormats = this.editor.formatter.matchAll( [	'bold', 'italic', 'strikethrough' ] );
 		activeFormats.forEach( ( activeFormat ) => formats[ activeFormat ] = true );
 
-		const focusPosition = this.getRelativePosition( element );
-		const bookmark = this.editor.selection.getBookmark( 2, true );
-		this.setState( { bookmark, formats, focusPosition } );
+		const focusPosition = this.getFocusPosition();
+		this.setState( { formats, focusPosition, selectedNodeId: this.state.selectedNodeId + 1 } );
 	}
 
 	updateContent() {
@@ -485,28 +507,33 @@ export default class Editable extends Component {
 		return !! this.state.formats[ format ];
 	}
 
+	removeFormat( format ) {
+		this.editor.focus();
+		this.editor.formatter.remove( format );
+	}
+	applyFormat( format, args, node ) {
+		this.editor.focus();
+		this.editor.formatter.apply( format, args, node );
+	}
+
 	changeFormats( formats ) {
 		forEach( formats, ( formatValue, format ) => {
 			if ( format === 'link' ) {
-				if ( this.state.bookmark ) {
-					this.editor.selection.moveToBookmark( this.state.bookmark );
-				}
-
 				if ( formatValue !== undefined ) {
 					const anchor = this.editor.dom.getParent( this.editor.selection.getNode(), 'a' );
 					if ( ! anchor ) {
-						this.editor.formatter.remove( 'link' );
+						this.removeFormat( 'link' );
 					}
-					this.editor.formatter.apply( 'link', { href: formatValue.value }, anchor );
+					this.applyFormat( 'link', { href: formatValue.value }, anchor );
 				} else {
 					this.editor.execCommand( 'Unlink' );
 				}
 			} else {
 				const isActive = this.isFormatActive( format );
 				if ( isActive && ! formatValue ) {
-					this.editor.formatter.remove( format );
+					this.removeFormat( format );
 				} else if ( ! isActive && formatValue ) {
-					this.editor.formatter.apply( format );
+					this.applyFormat( format );
 				}
 			}
 		} );
@@ -540,6 +567,7 @@ export default class Editable extends Component {
 
 		const formatToolbar = (
 			<FormatToolbar
+				selectedNodeId={ this.state.selectedNodeId }
 				focusPosition={ this.state.focusPosition }
 				formats={ this.state.formats }
 				onChange={ this.changeFormats }

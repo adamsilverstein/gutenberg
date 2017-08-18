@@ -7,7 +7,7 @@ import { concatChildren } from '@wordpress/element';
 /**
  * Internal dependencies
  */
-import './block.scss';
+import './style.scss';
 import { registerBlockType, createBlock, source, setDefaultBlock } from '../../api';
 import AlignmentToolbar from '../../alignment-toolbar';
 import BlockControls from '../../block-controls';
@@ -50,14 +50,11 @@ registerBlockType( 'core/paragraph', {
 		from: [
 			{
 				type: 'raw',
-				source: ( node ) => (
+				isMatch: ( node ) => (
 					node.nodeName === 'P' &&
 					// Do not allow embedded content.
 					! node.querySelector( 'audio, canvas, embed, iframe, img, math, object, svg, video' )
 				),
-				attributes: {
-					content: children( 'p' ),
-				},
 			},
 		],
 	},
@@ -116,7 +113,7 @@ registerBlockType( 'core/paragraph', {
 				onMerge={ mergeBlocks }
 				onReplace={ onReplace }
 				style={ { textAlign: align } }
-				className={ dropCap && 'has-drop-cap' }
+				className={ dropCap ? 'has-drop-cap' : null }
 				placeholder={ placeholder || __( 'New Paragraph' ) }
 			/>,
 		];

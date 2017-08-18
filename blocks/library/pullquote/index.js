@@ -6,8 +6,8 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
+import './editor.scss';
 import './style.scss';
-import './block.scss';
 import { registerBlockType, source } from '../../api';
 import Editable from '../../editable';
 import BlockControls from '../../block-controls';
@@ -95,7 +95,7 @@ registerBlockType( 'core/pullquote', {
 
 		return (
 			<blockquote className={ `align${ align }` }>
-				{ value.map( ( paragraph, i ) => <p key={ i }>{ paragraph.props.children }</p> ) }
+				{ value && value.map( ( paragraph, i ) => <p key={ i }>{ paragraph.props.children }</p> ) }
 				{ citation && citation.length > 0 && (
 					<footer>{ citation }</footer>
 				) }

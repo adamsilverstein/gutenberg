@@ -6,7 +6,7 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
-import './block.scss';
+import './style.scss';
 import { registerBlockType, createBlock } from '../../api';
 
 registerBlockType( 'core/separator', {
@@ -25,6 +25,10 @@ registerBlockType( 'core/separator', {
 				trigger: 'enter',
 				regExp: /^-{3,}$/,
 				transform: () => createBlock( 'core/separator' ),
+			},
+			{
+				type: 'raw',
+				isMatch: ( node ) => node.nodeName === 'HR',
 			},
 		],
 	},

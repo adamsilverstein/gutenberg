@@ -8,7 +8,7 @@ import { Toolbar } from '@wordpress/components';
 /**
  * Internal dependencies
  */
-import './style.scss';
+import './editor.scss';
 import { registerBlockType, createBlock, source } from '../../api';
 import Editable from '../../editable';
 import BlockControls from '../../block-controls';
@@ -28,6 +28,8 @@ registerBlockType( 'core/heading', {
 	keywords: [ __( 'title' ), __( 'subtitle' ) ],
 
 	className: false,
+
+	supportAnchor: true,
 
 	attributes: {
 		content: {
@@ -60,11 +62,7 @@ registerBlockType( 'core/heading', {
 			},
 			{
 				type: 'raw',
-				source: ( node ) => /H\d/.test( node.nodeName ),
-				attributes: {
-					content: children( 'h1,h2,h3,h4,h5,h6' ),
-					nodeName: prop( 'h1,h2,h3,h4,h5,h6', 'nodeName' ),
-				},
+				isMatch: ( node ) => /H\d/.test( node.nodeName ),
 			},
 			{
 				type: 'pattern',

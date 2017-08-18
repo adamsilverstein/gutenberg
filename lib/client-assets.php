@@ -318,7 +318,7 @@ function gutenberg_register_vendor_script( $handle, $src, $deps = array() ) {
 		if ( ! $f ) {
 			// Failed to open the file for writing, probably due to server
 			// permissions.  Enqueue the script directly from the URL instead.
-			wp_register_script( $handle, $src, $deps );
+			wp_register_script( $handle, $src, $deps, null );
 			return;
 		}
 		fclose( $f );
@@ -327,7 +327,7 @@ function gutenberg_register_vendor_script( $handle, $src, $deps = array() ) {
 			// The request failed; just enqueue the script directly from the
 			// URL.  This will probably fail too, but surfacing the error to
 			// the browser is probably the best we can do.
-			wp_register_script( $handle, $src, $deps );
+			wp_register_script( $handle, $src, $deps, null );
 			// If our file was newly created above, it will have a size of
 			// zero, and we need to delete it so that we don't think it's
 			// already cached on the next request.
@@ -344,7 +344,8 @@ function gutenberg_register_vendor_script( $handle, $src, $deps = array() ) {
 	wp_register_script(
 		$handle,
 		gutenberg_url( 'vendor/' . $filename ),
-		$deps
+		$deps,
+		null
 	);
 }
 
@@ -356,24 +357,46 @@ function gutenberg_register_vendor_script( $handle, $src, $deps = array() ) {
  * @link https://core.trac.wordpress.org/ticket/41111
  */
 function gutenberg_extend_wp_api_backbone_client() {
+	// Post Types Mapping.
 	$post_type_rest_base_mapping = array();
 	foreach ( get_post_types( array(), 'objects' ) as $post_type_object ) {
 		$rest_base = ! empty( $post_type_object->rest_base ) ? $post_type_object->rest_base : $post_type_object->name;
 		$post_type_rest_base_mapping[ $post_type_object->name ] = $rest_base;
 	}
+
+	// Taxonomies Mapping.
+	$taxonomy_rest_base_mapping = array();
+	foreach ( get_taxonomies( array(), 'objects' ) as $taxonomy_object ) {
+		$rest_base = ! empty( $taxonomy_object->rest_base ) ? $taxonomy_object->rest_base : $taxonomy_object->name;
+		$taxonomy_rest_base_mapping[ $taxonomy_object->name ] = $rest_base;
+	}
+
 	$script = sprintf( 'wp.api.postTypeRestBaseMapping = %s;', wp_json_encode( $post_type_rest_base_mapping ) );
+	$script .= sprintf( 'wp.api.taxonomyRestBaseMapping = %s;', wp_json_encode( $taxonomy_rest_base_mapping ) );
 	$script .= <<<JS
 		wp.api.getPostTypeModel = function( postType ) {
 			var route = '/' + wpApiSettings.versionString + this.postTypeRestBaseMapping[ postType ] + '/(?P<id>[\\\\d]+)';
-			return _.first( _.filter( wp.api.models, function( model ) {
+			return _.find( wp.api.models, function( model ) {
 				return model.prototype.route && route === model.prototype.route.index;
-			} ) );
+			} );
 		};
 		wp.api.getPostTypeRevisionsCollection = function( postType ) {
 			var route = '/' + wpApiSettings.versionString + this.postTypeRestBaseMapping[ postType ] + '/(?P<parent>[\\\\d]+)/revisions';
-			return _.first( _.filter( wp.api.collections, function( model ) {
+			return _.find( wp.api.collections, function( model ) {
 				return model.prototype.route && route === model.prototype.route.index;
-			} ) );
+			} );
+		};
+		wp.api.getTaxonomyModel = function( taxonomy ) {
+			var route = '/' + wpApiSettings.versionString + this.taxonomyRestBaseMapping[ taxonomy ] + '/(?P<id>[\\\\d]+)';
+			return _.find( wp.api.models, function( model ) {
+				return model.prototype.route && route === model.prototype.route.index;
+			} );
+		};
+		wp.api.getTaxonomyCollection = function( taxonomy ) {
+			var route = '/' + wpApiSettings.versionString + this.taxonomyRestBaseMapping[ taxonomy ];
+			return _.find( wp.api.collections, function( model ) {
+				return model.prototype.route && route === model.prototype.route.index;
+			} );
 		};
 JS;
 	wp_add_inline_script( 'wp-api', $script );
@@ -468,7 +491,7 @@ add_action( 'admin_enqueue_scripts', 'gutenberg_common_scripts_and_styles' );
 function gutenberg_color_palette() {
 	return array(
 		'#f78da7',
-		'#eb144c',
+		'#cf2e2e',
 		'#ff6900',
 		'#fcb900',
 		'#7bdcb5',
@@ -477,8 +500,7 @@ function gutenberg_color_palette() {
 		'#0693e3',
 		'#eee',
 		'#abb8c3',
-		'#444',
-		'#111',
+		'#313131',
 	);
 }
 

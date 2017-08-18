@@ -112,6 +112,20 @@ describe( 'block serializer', () => {
 
 				expect( saved ).toBe( '<div>Bananas</div>' );
 			} );
+
+			it( 'should add an id if the block supports anchors', () => {
+				const saved = getSaveContent(
+					{
+						save: ( { attributes } ) => createElement( 'div', null, attributes.fruit ),
+						supportAnchor: true,
+						name: 'myplugin/fruit',
+						className: false,
+					},
+					{ fruit: 'Bananas', anchor: 'my-fruit' }
+				);
+
+				expect( saved ).toBe( '<div id="my-fruit">Bananas</div>' );
+			} );
 		} );
 
 		describe( 'component save', () => {
@@ -231,6 +245,7 @@ describe( 'block serializer', () => {
 			const expectedPostContent = '<!-- wp:core/test-block {"foo":false,"stuff":"left \\u0026 right \\u002d\\u002d but \\u003cnot\\u003e"} -->\n<p class="wp-block-test-block">Ribs & Chicken</p>\n<!-- /wp:core/test-block -->';
 
 			expect( serialize( [ block ] ) ).toEqual( expectedPostContent );
+			expect( serialize( block ) ).toEqual( expectedPostContent );
 		} );
 	} );
 } );

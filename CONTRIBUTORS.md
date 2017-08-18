@@ -43,7 +43,7 @@ This list is manually curated to include valuable contributions by volunteers th
 | @lamosty | |
 | @willybahuaud | |
 | @maurobringolf | |
-| @aaronjorbin | |
+| @aaronjorbin | @jorbin |
 | @spocke | |
 | @androb | |
 | @annaephox | |
@@ -81,3 +81,4 @@ This list is manually curated to include valuable contributions by volunteers th
 | @ameeker | |
 | @StaggerLeee | |
 | @jblz | |
+| | @nicbertino |

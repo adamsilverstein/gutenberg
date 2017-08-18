@@ -6,8 +6,8 @@ import { __ } from '@wordpress/i18n';
 /**
  * Internal dependencies
  */
+import './editor.scss';
 import './style.scss';
-import './block.scss';
 import { registerBlockType, source } from '../../api';
 import TableBlock from './table-block';
 import BlockControls from '../../block-controls';
@@ -34,6 +34,15 @@ registerBlockType( 'core/table', {
 		align: {
 			type: 'string',
 		},
+	},
+
+	transforms: {
+		from: [
+			{
+				type: 'raw',
+				isMatch: ( node ) => node.nodeName === 'TABLE',
+			},
+		],
 	},
 
 	getEditWrapperProps( attributes ) {
@@ -71,7 +80,7 @@ registerBlockType( 'core/table', {
 	save( { attributes } ) {
 		const { content, align } = attributes;
 		return (
-			<table className={ align && `align${ align }` }>
+			<table className={ align ? `align${ align }` : null }>
 				{ content }
 			</table>
 		);

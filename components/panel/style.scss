@@ -57,13 +57,17 @@
 	margin: -15px;
 	font-size: inherit;
 }
+.components-panel__body.is-opened .components-panel__body-title {
+	margin-bottom: 0;
+}
 
-.components-panel__body-toggle.components-icon-button {
+.components-panel__body-toggle.components-button {
 	position: relative;
 	padding: 15px;
 	outline: none;
 	width: 100%;
 	font-weight: 600;
+	text-align: left;
 
 	.dashicon {
 		position: absolute;

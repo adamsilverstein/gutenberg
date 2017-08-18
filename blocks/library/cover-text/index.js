@@ -1,4 +1,9 @@
 /**
+ * External dependencies
+ */
+import classnames from 'classnames';
+
+/**
  * WordPress dependencies
  */
 import { __ } from '@wordpress/i18n';
@@ -7,7 +12,8 @@ import { concatChildren } from '@wordpress/element';
 /**
  * Internal dependencies
  */
-import './block.scss';
+import './style.scss';
+import './editor.scss';
 import { registerBlockType, source } from '../../api';
 import AlignmentToolbar from '../../alignment-toolbar';
 import BlockControls from '../../block-controls';
@@ -15,6 +21,7 @@ import BlockAlignmentToolbar from '../../block-alignment-toolbar';
 import ColorPalette from '../../color-palette';
 import Editable from '../../editable';
 import InspectorControls from '../../inspector-controls';
+import RangeControl from '../../inspector-controls/range-control';
 import ToggleControl from '../../inspector-controls/toggle-control';
 import BlockDescription from '../../block-description';
 
@@ -53,6 +60,9 @@ registerBlockType( 'core/cover-text', {
 		backgroundColor: {
 			type: 'string',
 		},
+		fontSize: {
+			type: 'number',
+		},
 	},
 
 	getEditWrapperProps( attributes ) {
@@ -69,7 +79,17 @@ registerBlockType( 'core/cover-text', {
 	},
 
 	edit( { attributes, setAttributes, className, focus, setFocus, mergeBlocks } ) {
-		const { align, width, content, dropCap, placeholder, textColor, backgroundColor } = attributes;
+		const {
+			align,
+			width,
+			content,
+			dropCap,
+			placeholder,
+			textColor,
+			backgroundColor,
+			fontSize,
+		} = attributes;
+
 		const toggleDropCap = () => setAttributes( { dropCap: ! dropCap } );
 
 		return [
@@ -97,19 +117,38 @@ registerBlockType( 'core/cover-text', {
 						checked={ !! dropCap }
 						onChange={ toggleDropCap }
 					/>
+					<RangeControl
+						label={ __( 'Font Size' ) }
+						value={ fontSize }
+						onChange={ ( value ) => setAttributes( { fontSize: value } ) }
+						min={ 10 }
+						max={ 200 }
+						beforeIcon="editor-textcolor"
+					/>
 					<h3>{ __( 'Background Color' ) }</h3>
 					<ColorPalette
-						color={ backgroundColor }
-						onChange={ ( colorValue ) => setAttributes( { backgroundColor: colorValue.hex } ) }
+						value={ backgroundColor }
+						onChange={ ( colorValue ) => setAttributes( { backgroundColor: colorValue } ) }
 					/>
 					<h3>{ __( 'Text Color' ) }</h3>
 					<ColorPalette
-						color={ textColor }
-						onChange={ ( colorValue ) => setAttributes( { textColor: colorValue.hex } ) }
+						value={ textColor }
+						onChange={ ( colorValue ) => setAttributes( { textColor: colorValue } ) }
 					/>
 				</InspectorControls>
 			),
-			<div className={ `${ className } align${ width }` } style={ { backgroundColor: backgroundColor, color: textColor } } key="block">
+			<div
+				key="block"
+				className={ classnames( className, {
+					[ `align${ width }` ]: width,
+					'has-background': backgroundColor,
+				} ) }
+				style={ {
+					backgroundColor: backgroundColor,
+					color: textColor,
+					fontSize: fontSize,
+				} }
+			>
 				<Editable
 					tagName="p"
 					value={ content }
@@ -122,7 +161,7 @@ registerBlockType( 'core/cover-text', {
 					onFocus={ setFocus }
 					onMerge={ mergeBlocks }
 					style={ { textAlign: align } }
-					className={ dropCap && 'has-drop-cap' }
+					className={ dropCap ? 'has-drop-cap' : null }
 					placeholder={ placeholder || __( 'New Paragraph' ) }
 				/>
 			</div>,
@@ -130,20 +169,34 @@ registerBlockType( 'core/cover-text', {
 	},
 
 	save( { attributes } ) {
-		const { width, align, content, dropCap, backgroundColor, textColor } = attributes;
-		const className = dropCap && 'has-drop-cap';
-		const wrapperClassName = width && `align${ width }`;
+		const { width, align, content, dropCap, backgroundColor, textColor, fontSize } = attributes;
+		const className = dropCap ? 'has-drop-cap' : null;
+		const wrapperClassName = classnames( className, {
+			[ `align${ width }` ]: width,
+			'has-background': backgroundColor,
+		} );
+		const styles = {
+			backgroundColor: backgroundColor,
+			color: textColor,
+			fontSize: fontSize,
+		};
 
 		if ( ! align ) {
 			return (
-				<div className={ wrapperClassName } style={ { backgroundColor: backgroundColor, color: textColor } }>
+				<div
+					className={ wrapperClassName }
+					style={ styles }
+				>
 					<p className={ className }>{ content }</p>
 				</div>
 			);
 		}
 
 		return (
-			<div className={ wrapperClassName } style={ { backgroundColor: backgroundColor, color: textColor } }>
+			<div
+				className={ wrapperClassName }
+				style={ styles }
+			>
 				<p style={ { textAlign: align } } className={ className }>{ content }</p>
 			</div>
 		);

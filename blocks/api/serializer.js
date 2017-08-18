@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { isEmpty, reduce, isObject } from 'lodash';
+import { isEmpty, reduce, isObject, castArray } from 'lodash';
 import { html as beautifyHtml } from 'js-beautify';
 import classnames from 'classnames';
 
@@ -50,20 +50,28 @@ export function getSaveContent( blockType, attributes ) {
 	}
 
 	// Adding a generic classname
-	const addClassnameToElement = ( element ) => {
-		if ( ! element || ! isObject( element ) || ! className ) {
+	const addAdvancedAttributes = ( element ) => {
+		if ( ! element || ! isObject( element ) ) {
 			return element;
 		}
 
-		const updatedClassName = classnames(
-			className,
-			element.props.className,
-			attributes.className
-		);
+		const extraProps = {};
+		if ( !! className ) {
+			const updatedClassName = classnames(
+				className,
+				element.props.className,
+				attributes.className
+			);
+			extraProps.className = updatedClassName;
+		}
 
-		return cloneElement( element, { className: updatedClassName } );
+		if ( blockType.supportAnchor && attributes.anchor ) {
+			extraProps.id = attributes.anchor;
+		}
+
+		return cloneElement( element, extraProps );
 	};
-	const contentWithClassname = Children.map( rawContent, addClassnameToElement );
+	const contentWithClassname = Children.map( rawContent, addAdvancedAttributes );
 
 	// Otherwise, infer as element
 	return renderToString( contentWithClassname );
@@ -166,11 +174,11 @@ export function serializeBlock( block ) {
 }
 
 /**
- * Takes a block list and returns the serialized post content.
+ * Takes a block or set of blocks and returns the serialized post content.
  *
- * @param  {Array}  blocks Block list
+ * @param  {Array}  blocks Block(s) to serialize
  * @return {String}        The post content
  */
 export default function serialize( blocks ) {
-	return blocks.map( serializeBlock ).join( '\n\n' );
+	return castArray( blocks ).map( serializeBlock ).join( '\n\n' );
 }

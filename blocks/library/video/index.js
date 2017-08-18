@@ -20,7 +20,7 @@ const { attr, children } = source;
 registerBlockType( 'core/video', {
 	title: __( 'Video' ),
 
-	icon: 'media-video',
+	icon: 'format-video',
 
 	category: 'common',
 
@@ -52,7 +52,7 @@ registerBlockType( 'core/video', {
 					key="placeholder"
 					icon="media-video"
 					label={ __( 'Video' ) }
-					instructions={ __( 'Select a video file from your library, or paste a URL below:' ) }
+					instructions={ __( 'Select a video file from your library:' ) }
 					className={ className }>
 					<MediaUploadButton
 						buttonProps={ { isLarge: true } }
