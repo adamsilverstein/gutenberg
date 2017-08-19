@@ -24,6 +24,8 @@
     "moment": "^2.18.1",
     "moment-timezone": "^0.5.13",
     "mousetrap": "^1.6.1",
+    "preact": "^8.2.1",
+    "preact-compat": "^3.17.0",
     "prop-types": "^15.5.10",
     "react": "^15.5.4",
     "react-autosize-textarea": "^0.4.2",
