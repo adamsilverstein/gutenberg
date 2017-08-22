@@ -47,9 +47,6 @@ const entryPointNames = [
 ];
 
 const externals = {
-	react: 'React',
-	'react-dom': 'ReactDOM',
-	'react-dom/server': 'ReactDOMServer',
 	tinymce: 'tinymce',
 	moment: 'moment',
 };
@@ -82,7 +79,8 @@ const config = {
 			// when imported as native ES module
 			'react-slot-fill': 'react-slot-fill/lib/rsf.js',
 			'react': 'preact-compat',
-			'react-dom': 'preact-compat'
+			'react-dom': 'preact-compat',
+			'react-dom/server': 'preact-compat',
 		},
 	},
 	module: {
