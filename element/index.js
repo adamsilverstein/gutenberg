@@ -1,9 +1,12 @@
 /**
  * External dependencies
  */
-import { createElement, Component, cloneElement, Children } from 'react';
-import { render, findDOMNode, unstable_createPortal } from 'react-dom'; // eslint-disable-line camelcase
-import { renderToStaticMarkup } from 'react-dom/server';
+import { createElement, Component, cloneElement, Children } from 'preact-compat';
+import { render, findDOMNode } from 'preact-compat';
+
+//
+import { render as renderToStaticMarkup } from 'preact-render-to-string';
+
 import { isString } from 'lodash';
 
 /**
@@ -59,7 +62,6 @@ export { Children };
  * @param {Component} component Component
  * @param {Element}   target    DOM node into which element should be rendered
  */
-export { unstable_createPortal as createPortal }; // eslint-disable-line camelcase
 
 /**
  * Renders a given element into a string

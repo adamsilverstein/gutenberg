@@ -8,6 +8,7 @@ import { isEqual, noop } from 'lodash';
  * WordPress dependencies
  */
 import { createPortal, Component } from '@wordpress/element';
+import { Portal } from 'preact-portal';
 
 /**
  * Internal dependencies
@@ -164,7 +165,7 @@ export class Popover extends Component {
 
 		return (
 			<span ref={ this.bindNode( 'anchor' ) }>
-				{ createPortal(
+				<Portal into={ popoverTarget }>
 					<PopoverDetectOutside onClickOutside={ onClose }>
 						<div
 							ref={ this.bindNode( 'popover' ) }
@@ -180,8 +181,7 @@ export class Popover extends Component {
 							</div>
 						</div>
 					</PopoverDetectOutside>,
-					popoverTarget
-				) }
+				</Portal>
 			</span>
 		);
 	}
