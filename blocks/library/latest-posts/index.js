@@ -4,6 +4,7 @@
 import { Component } from '@wordpress/element';
 import { Placeholder, Toolbar, Spinner } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
+import { decodeEntities } from '@wordpress/utils';
 import moment from 'moment';
 import classnames from 'classnames';
 
@@ -34,28 +35,6 @@ registerBlockType( 'core/latest-posts', {
 	category: 'widgets',
 
 	keywords: [ __( 'recent posts' ) ],
-
-	attributes: {
-		postsToShow: {
-			type: 'number',
-			default: 5,
-		},
-		displayPostDate: {
-			type: 'boolean',
-			default: false,
-		},
-		layout: {
-			type: 'string',
-			default: 'list',
-		},
-		columns: {
-			type: 'number',
-			default: 3,
-		},
-		align: {
-			type: 'string',
-		},
-	},
 
 	getEditWrapperProps( attributes ) {
 		const { align } = attributes;
@@ -203,7 +182,7 @@ registerBlockType( 'core/latest-posts', {
 				>
 					{ latestPosts.map( ( post, i ) =>
 						<li key={ i }>
-							<a href={ post.link } target="_blank">{ post.title.rendered.trim() || __( '(Untitled)' ) }</a>
+							<a href={ post.link } target="_blank">{ decodeEntities( post.title.rendered.trim() ) || __( '(Untitled)' ) }</a>
 							{ displayPostDate && post.date_gmt &&
 								<time dateTime={ moment( post.date_gmt ).utc().format() } className={ `${ this.props.className }__post-date` }>
 									{ moment( post.date_gmt ).local().format( 'MMMM DD, Y' ) }

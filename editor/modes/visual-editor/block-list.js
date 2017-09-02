@@ -10,7 +10,7 @@ import { throttle, reduce, noop } from 'lodash';
  */
 import { __ } from '@wordpress/i18n';
 import { Component } from '@wordpress/element';
-import { serialize, getDefaultBlock, createBlock } from '@wordpress/blocks';
+import { serialize, getDefaultBlockName, createBlock } from '@wordpress/blocks';
 import { IconButton } from '@wordpress/components';
 import { keycodes } from '@wordpress/utils';
 
@@ -18,6 +18,7 @@ import { keycodes } from '@wordpress/utils';
  * Internal dependencies
  */
 import VisualEditorBlock from './block';
+import BlockDropZone from './block-drop-zone';
 import Inserter from '../../inserter';
 import {
 	getBlockUids,
@@ -194,7 +195,7 @@ class VisualEditorBlockList extends Component {
 	}
 
 	appendDefaultBlock() {
-		const newBlock = createBlock( getDefaultBlock() );
+		const newBlock = createBlock( getDefaultBlockName() );
 		this.props.onInsertBlock( newBlock );
 	}
 
@@ -214,12 +215,11 @@ class VisualEditorBlockList extends Component {
 			insertionPoint,
 		} = this.props;
 
-		const insertionPointIndex = blocks.indexOf( insertionPoint );
 		const blocksWithInsertionPoint = showInsertionPoint
 			? [
-				...blocks.slice( 0, insertionPointIndex + 1 ),
+				...blocks.slice( 0, insertionPoint ),
 				INSERTION_POINT_PLACEHOLDER,
-				...blocks.slice( insertionPointIndex + 1 ),
+				...blocks.slice( insertionPoint ),
 			]
 			: blocks;
 		const continueWritingClassname = classnames( 'editor-visual-editor__continue-writing', {
@@ -249,6 +249,7 @@ class VisualEditorBlockList extends Component {
 				} ) }
 				{ ! blocks.length &&
 					<div className="editor-visual-editor__placeholder">
+						<BlockDropZone />
 						<input
 							type="text"
 							readOnly
