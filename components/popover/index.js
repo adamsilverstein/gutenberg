@@ -8,6 +8,7 @@ import { isEqual, noop } from 'lodash';
  * WordPress dependencies
  */
 import { createPortal, Component } from '@wordpress/element';
+import { focus } from '@wordpress/utils';
 
 /**
  * Internal dependencies
@@ -15,10 +16,16 @@ import { createPortal, Component } from '@wordpress/element';
 import './style.scss';
 import PopoverDetectOutside from './detect-outside';
 
+/**
+ * module constants
+ */
+const ARROW_OFFSET = 20;
+
 export class Popover extends Component {
 	constructor() {
 		super( ...arguments );
 
+		this.focus = this.focus.bind( this );
 		this.bindNode = this.bindNode.bind( this );
 		this.setOffset = this.setOffset.bind( this );
 		this.throttledSetOffset = this.throttledSetOffset.bind( this );
@@ -53,6 +60,10 @@ export class Popover extends Component {
 		const { isOpen: prevIsOpen, position: prevPosition } = prevProps;
 		if ( isOpen !== prevIsOpen ) {
 			this.toggleWindowEvents( isOpen );
+
+			if ( isOpen ) {
+				this.focus();
+			}
 		}
 
 		if ( ! isOpen ) {
@@ -80,6 +91,22 @@ export class Popover extends Component {
 		window[ handler ]( 'scroll', this.throttledSetOffset );
 	}
 
+	focus() {
+		const { content, popover } = this.nodes;
+		if ( ! content ) {
+			return;
+		}
+
+		// Find first tabbable node within content and shift focus, falling
+		// back to the popover panel itself.
+		const firstTabbable = focus.tabbable.find( content )[ 0 ];
+		if ( firstTabbable ) {
+			firstTabbable.focus();
+		} else if ( popover ) {
+			popover.focus();
+		}
+	}
+
 	throttledSetOffset() {
 		this.rafHandle = window.requestAnimationFrame( this.setOffset );
 	}
@@ -92,8 +119,10 @@ export class Popover extends Component {
 		}
 
 		const rect = parentNode.getBoundingClientRect();
-		const [ yAxis ] = this.getPositions();
+		const [ yAxis, xAxis ] = this.getPositions();
 		const isTop = 'top' === yAxis;
+		const isLeft = 'left' === xAxis;
+		const isRight = 'right' === xAxis;
 
 		// Offset top positioning by padding
 		const { paddingTop, paddingBottom } = window.getComputedStyle( parentNode );
@@ -102,8 +131,14 @@ export class Popover extends Component {
 			topOffset *= -1;
 		}
 
-		// Set popover at parent node center
-		popover.style.left = Math.round( rect.left + ( rect.width / 2 ) ) + 'px';
+		if ( isRight ) {
+			popover.style.left = rect.left + ARROW_OFFSET + 'px';
+		} else if ( isLeft ) {
+			popover.style.left = ( rect.right - ARROW_OFFSET ) + 'px';
+		} else {
+			// Set popover at parent node center
+			popover.style.left = Math.round( rect.left + ( rect.width / 2 ) ) + 'px';
+		}
 
 		// Set at top or bottom of parent node based on popover position
 		popover.style.top = ( rect[ yAxis ] + topOffset ) + 'px';

@@ -5,6 +5,7 @@ import { connect } from 'react-redux';
 import clickOutside from 'react-click-outside';
 import DatePicker from 'react-datepicker';
 import moment from 'moment';
+import { flowRight } from 'lodash';
 
 /**
  * WordPress dependencies
@@ -12,7 +13,7 @@ import moment from 'moment';
 import { __ } from '@wordpress/i18n';
 import { Component } from '@wordpress/element';
 import { dateI18n, settings } from '@wordpress/date';
-import { PanelRow } from '@wordpress/components';
+import { PanelRow, Popover, withAPIData } from '@wordpress/components';
 
 /**
  * Internal dependencies
@@ -22,11 +23,11 @@ import PostScheduleClock from './clock';
 import { getEditedPostAttribute } from '../../selectors';
 import { editPost } from '../../actions';
 
-class PostSchedule extends Component {
+export class PostSchedule extends Component {
 	constructor() {
 		super( ...arguments );
 		this.state = {
-			open: false,
+			opened: false,
 		};
 		this.toggleDialog = this.toggleDialog.bind( this );
 	}
@@ -40,7 +41,12 @@ class PostSchedule extends Component {
 	}
 
 	render() {
-		const { date, onUpdateDate } = this.props;
+		const { date, onUpdateDate, user } = this.props;
+
+		if ( ! user.data || ! user.data.capabilities.publish_posts ) {
+			return null;
+		}
+
 		const momentDate = date ? moment( date ) : moment();
 		const label = date
 			? dateI18n( settings.formats.datetime, date )
@@ -68,11 +74,11 @@ class PostSchedule extends Component {
 					aria-expanded={ this.state.opened }
 				>
 					{ label }
-				</button>
-
-				{ this.state.opened &&
-					<div className="editor-post-schedule__dialog">
-						<div className="editor-post-schedule__dialog-arrow" />
+					<Popover
+						position="bottom left"
+						isOpen={ this.state.opened }
+						className="editor-post-schedule__dialog"
+					>
 						<DatePicker
 							inline
 							selected={ momentDate }
@@ -84,14 +90,14 @@ class PostSchedule extends Component {
 							onChange={ handleChange }
 							is12Hour={ is12HourTime }
 						/>
-					</div>
-				}
+					</Popover>
+				</button>
 			</PanelRow>
 		);
 	}
 }
 
-export default connect(
+const applyConnect = connect(
 	( state ) => {
 		return {
 			date: getEditedPostAttribute( state, 'date' ),
@@ -104,4 +110,16 @@ export default connect(
 			},
 		};
 	}
-)( clickOutside( PostSchedule ) );
+);
+
+const applyWithAPIData = withAPIData( () => {
+	return {
+		user: '/wp/v2/users/me?context=edit',
+	};
+} );
+
+export default flowRight(
+	applyConnect,
+	applyWithAPIData,
+	clickOutside
+)( PostSchedule );

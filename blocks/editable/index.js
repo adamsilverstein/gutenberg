@@ -32,6 +32,7 @@ import { pasteHandler } from '../api';
 import FormatToolbar from './format-toolbar';
 import TinyMCE from './tinymce';
 import patterns from './patterns';
+import { EVENTS } from './constants';
 
 const { BACKSPACE, DELETE, ENTER } = keycodes;
 
@@ -103,6 +104,11 @@ export default class Editable extends Component {
 
 	onSetup( editor ) {
 		this.editor = editor;
+
+		EVENTS.forEach( ( name ) => {
+			editor.on( name, this.proxyPropHandler( name ) );
+		} );
+
 		editor.on( 'init', this.onInit );
 		editor.on( 'focusout', this.onChange );
 		editor.on( 'NewBlock', this.onNewBlock );
@@ -119,6 +125,18 @@ export default class Editable extends Component {
 		if ( this.props.onSetup ) {
 			this.props.onSetup( editor );
 		}
+	}
+
+	proxyPropHandler( name ) {
+		return ( event ) => {
+			// Allow props an opportunity to handle the event, before default
+			// Editable behavior takes effect. Should the event be handled by a
+			// prop, it should `stopImmediatePropagation` on the event to stop
+			// continued event handling.
+			if ( 'function' === typeof this.props[ 'on' + name ] ) {
+				this.props[ 'on' + name ]( event );
+			}
+		};
 	}
 
 	onInit() {
@@ -448,7 +466,7 @@ export default class Editable extends Component {
 		const formats = {};
 		const link = find( parents, ( node ) => node.nodeName.toLowerCase() === 'a' );
 		if ( link ) {
-			formats.link = { value: link.getAttribute( 'href' ) || '', node: link };
+			formats.link = { value: link.getAttribute( 'href' ) || '', target: link.getAttribute( 'target' ) || '', node: link };
 		}
 		const activeFormats = this.editor.formatter.matchAll( [	'bold', 'italic', 'strikethrough' ] );
 		activeFormats.forEach( ( activeFormat ) => formats[ activeFormat ] = true );
@@ -542,7 +560,7 @@ export default class Editable extends Component {
 					if ( ! anchor ) {
 						this.removeFormat( 'link' );
 					}
-					this.applyFormat( 'link', { href: formatValue.value }, anchor );
+					this.applyFormat( 'link', { href: formatValue.value, target: formatValue.target }, anchor );
 				} else {
 					this.editor.execCommand( 'Unlink' );
 				}
@@ -575,13 +593,14 @@ export default class Editable extends Component {
 			formattingControls,
 			placeholder,
 			multiline: MultilineTag,
+			keepPlaceholderOnFocus = false,
 		} = this.props;
 
 		// Generating a key that includes `tagName` ensures that if the tag
 		// changes, we unmount and destroy the previous TinyMCE element, then
 		// mount and initialize a new child element in its place.
 		const key = [ 'editor', Tagname ].join();
-		const isPlaceholderVisible = placeholder && ! focus && this.state.empty;
+		const isPlaceholderVisible = placeholder && ( ! focus || keepPlaceholderOnFocus ) && this.state.empty;
 		const classes = classnames( wrapperClassname, 'blocks-editable' );
 
 		const formatToolbar = (
@@ -619,7 +638,7 @@ export default class Editable extends Component {
 				/>
 				{ isPlaceholderVisible &&
 					<Tagname
-						className="blocks-editable__tinymce"
+						className={ classnames( 'blocks-editable__tinymce', className ) }
 						style={ style }
 					>
 						{ MultilineTag ? <MultilineTag>{ placeholder }</MultilineTag> : placeholder }
