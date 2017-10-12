@@ -23,6 +23,7 @@ import {
 	saving,
 	notices,
 	showInsertionPoint,
+	blocksMode,
 } from '../reducer';
 
 describe( 'state', () => {
@@ -118,6 +119,33 @@ describe( 'state', () => {
 			expect( values( state.blocksByUid )[ 0 ].name ).toBe( 'core/freeform' );
 			expect( values( state.blocksByUid )[ 0 ].uid ).toBe( 'wings' );
 			expect( state.blockOrder ).toEqual( [ 'wings' ] );
+		} );
+
+		it( 'should update the block', () => {
+			const original = editor( undefined, {
+				type: 'RESET_BLOCKS',
+				blocks: [ {
+					uid: 'chicken',
+					name: 'core/test-block',
+					attributes: {},
+					isValid: false,
+				} ],
+			} );
+			const state = editor( deepFreeze( original ), {
+				type: 'UPDATE_BLOCK',
+				uid: 'chicken',
+				updates: {
+					attributes: { content: 'ribs' },
+					isValid: true,
+				},
+			} );
+
+			expect( state.blocksByUid.chicken ).toEqual( {
+				uid: 'chicken',
+				name: 'core/test-block',
+				attributes: { content: 'ribs' },
+				isValid: true,
+			} );
 		} );
 
 		it( 'should move the block up', () => {
@@ -665,13 +693,14 @@ describe( 'state', () => {
 		} );
 
 		it( 'should set multi selection', () => {
-			const state = blockSelection( undefined, {
+			const original = deepFreeze( { focus: { editable: 'citation' } } );
+			const state = blockSelection( original, {
 				type: 'MULTI_SELECT',
 				start: 'ribs',
 				end: 'chicken',
 			} );
 
-			expect( state ).toEqual( { start: 'ribs', end: 'chicken', focus: null } );
+			expect( state ).toEqual( { start: 'ribs', end: 'chicken', focus: { editable: 'citation' } } );
 		} );
 
 		it( 'should not update the state if the block is already selected', () => {
@@ -703,24 +732,6 @@ describe( 'state', () => {
 			} );
 
 			expect( state3 ).toEqual( { start: 'ribs', end: 'ribs', focus: {} } );
-		} );
-
-		it( 'should return with block moved up', () => {
-			const state = blockSelection( undefined, {
-				type: 'MOVE_BLOCKS_UP',
-				uids: [ 'ribs' ],
-			} );
-
-			expect( state ).toEqual( { start: 'ribs', end: 'ribs', focus: {} } );
-		} );
-
-		it( 'should return with block moved down', () => {
-			const state = blockSelection( undefined, {
-				type: 'MOVE_BLOCKS_DOWN',
-				uids: [ 'chicken' ],
-			} );
-
-			expect( state ).toEqual( { start: 'chicken', end: 'chicken', focus: {} } );
 		} );
 
 		it( 'should not update the state if the block moved is already selected', () => {
@@ -987,6 +998,28 @@ describe( 'state', () => {
 			expect( state ).toEqual( {
 				b: originalState.b,
 			} );
+		} );
+	} );
+
+	describe( 'blocksMode', () => {
+		it( 'should set mode to html if not set', () => {
+			const action = {
+				type: 'TOGGLE_BLOCK_MODE',
+				uid: 'chicken',
+			};
+			const value = blocksMode( deepFreeze( {} ), action );
+
+			expect( value ).toEqual( { chicken: 'html' } );
+		} );
+
+		it( 'should toggle mode to visual if set as html', () => {
+			const action = {
+				type: 'TOGGLE_BLOCK_MODE',
+				uid: 'chicken',
+			};
+			const value = blocksMode( deepFreeze( { chicken: 'html' } ), action );
+
+			expect( value ).toEqual( { chicken: 'visual' } );
 		} );
 	} );
 } );

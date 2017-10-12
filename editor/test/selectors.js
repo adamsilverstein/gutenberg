@@ -54,6 +54,7 @@ import {
 	isFirstMultiSelectedBlock,
 	isBlockHovered,
 	getBlockFocus,
+	getBlockMode,
 	isTyping,
 	getBlockInsertionPoint,
 	isBlockInsertionPointVisible,
@@ -62,6 +63,7 @@ import {
 	didPostSaveRequestFail,
 	getSuggestedPostFormat,
 	getNotices,
+	getMostFrequentlyUsedBlocks,
 } from '../selectors';
 
 describe( 'selectors', () => {
@@ -1491,6 +1493,30 @@ describe( 'selectors', () => {
 			expect( getBlockFocus( state, 123 ) ).toEqual( { editable: 'cite' } );
 		} );
 
+		it( 'should return the block focus for the start if the block is multi-selected', () => {
+			const state = {
+				blockSelection: {
+					start: 123,
+					end: 124,
+					focus: { editable: 'cite' },
+				},
+			};
+
+			expect( getBlockFocus( state, 123 ) ).toEqual( { editable: 'cite' } );
+		} );
+
+		it( 'should return null for the end if the block is multi-selected', () => {
+			const state = {
+				blockSelection: {
+					start: 123,
+					end: 124,
+					focus: { editable: 'cite' },
+				},
+			};
+
+			expect( getBlockFocus( state, 124 ) ).toEqual( null );
+		} );
+
 		it( 'should return null if the block is not selected', () => {
 			const state = {
 				blockSelection: {
@@ -1501,6 +1527,26 @@ describe( 'selectors', () => {
 			};
 
 			expect( getBlockFocus( state, 23 ) ).toEqual( null );
+		} );
+	} );
+
+	describe( 'geteBlockMode', () => {
+		it( 'should return "visual" if unset', () => {
+			const state = {
+				blocksMode: {},
+			};
+
+			expect( getBlockMode( state, 123 ) ).toEqual( 'visual' );
+		} );
+
+		it( 'should return the block mode', () => {
+			const state = {
+				blocksMode: {
+					123: 'html',
+				},
+			};
+
+			expect( getBlockMode( state, 123 ) ).toEqual( 'html' );
 		} );
 	} );
 
@@ -1725,6 +1771,34 @@ describe( 'selectors', () => {
 				state.notices.b,
 				state.notices.a,
 			] );
+		} );
+	} );
+
+	describe( 'getMostFrequentlyUsedBlocks', () => {
+		it( 'should have paragraph and image to bring frequently used blocks up to three blocks', () => {
+			const noUsage = { preferences: { blockUsage: {} } };
+			const someUsage = { preferences: { blockUsage: { 'core/paragraph': 1 } } };
+
+			expect( getMostFrequentlyUsedBlocks( noUsage ).map( ( block ) => block.name ) )
+				.toEqual( [ 'core/paragraph', 'core/image' ] );
+
+			expect( getMostFrequentlyUsedBlocks( someUsage ).map( ( block ) => block.name ) )
+				.toEqual( [ 'core/paragraph', 'core/image' ] );
+		} );
+		it( 'should return the top 3 most recently used blocks', () => {
+			const state = {
+				preferences: {
+					blockUsage: {
+						'core/paragraph': 4,
+						'core/image': 11,
+						'core/quote': 2,
+						'core/gallery': 1,
+					},
+				},
+			};
+
+			expect( getMostFrequentlyUsedBlocks( state ).map( ( block ) => block.name ) )
+				.toEqual( [ 'core/image', 'core/paragraph', 'core/quote' ] );
 		} );
 	} );
 } );

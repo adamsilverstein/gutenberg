@@ -11,6 +11,8 @@ import {
 	reduce,
 	some,
 	values,
+	keys,
+	without,
 } from 'lodash';
 import createSelector from 'rememo';
 
@@ -20,6 +22,11 @@ import createSelector from 'rememo';
 import { serialize, getBlockType } from '@wordpress/blocks';
 import { __ } from '@wordpress/i18n';
 import { addQueryArgs } from '@wordpress/url';
+
+/***
+ * Module constants
+ */
+const MAX_FREQUENT_BLOCKS = 3;
 
 /**
  * Returns the current editing mode.
@@ -444,10 +451,26 @@ export const getBlocks = createSelector(
  * Returns the number of blocks currently present in the post.
  *
  * @param  {Object} state Global application state
- * @return {Object}       Number of blocks in the post
+ * @return {Number}       Number of blocks in the post
  */
 export function getBlockCount( state ) {
 	return getBlockUids( state ).length;
+}
+
+/**
+ * Returns the number of blocks currently selected in the post.
+ *
+ * @param  {Object} state Global application state
+ * @return {Number}       Number of blocks selected in the post
+ */
+export function getSelectedBlockCount( state ) {
+	const multiSelectedBlockCount = getMultiSelectedBlockUids( state ).length;
+
+	if ( multiSelectedBlockCount ) {
+		return multiSelectedBlockCount;
+	}
+
+	return state.blockSelection.start ? 1 : 0;
 }
 
 /**
@@ -698,11 +721,33 @@ export function isBlockHovered( state, uid ) {
  * @return {Object}       Block focus state
  */
 export function getBlockFocus( state, uid ) {
-	if ( ! isBlockSelected( state, uid ) ) {
+	// If there is multi-selection, keep returning the focus object for the start block.
+	if ( ! isBlockSelected( state, uid ) && state.blockSelection.start !== uid ) {
 		return null;
 	}
 
 	return state.blockSelection.focus;
+}
+
+/**
+ * Whether in the process of multi-selecting or not.
+ *
+ * @param  {Object} state Global application state
+ * @return {Boolean}      True if multi-selecting, false if not.
+ */
+export function isMultiSelecting( state ) {
+	return !! state.blockSelection.isMultiSelecting;
+}
+
+/**
+ * Returns thee block's editing mode
+ *
+ * @param  {Object} state Global application state
+ * @param  {String} uid   Block unique ID
+ * @return {Object}       Block editing mode
+ */
+export function getBlockMode( state, uid ) {
+	return state.blocksMode[ uid ] || 'visual';
 }
 
 /**
@@ -854,3 +899,23 @@ export function getRecentlyUsedBlocks( state ) {
 	// resolves the block names in the state to the block type settings
 	return state.preferences.recentlyUsedBlocks.map( blockType => getBlockType( blockType ) );
 }
+
+/**
+ * Resolves the block usage stats into a list of the most frequently used blocks.
+ * Memoized so we're not generating block lists every time we render the list
+ * in the inserter.
+ *
+ * @param {Object} state Global application state
+ * @return {Array}       List of block type settings
+ */
+export const getMostFrequentlyUsedBlocks = createSelector(
+	( state ) => {
+		const { blockUsage } = state.preferences;
+		const orderedByUsage = keys( blockUsage ).sort( ( a, b ) => blockUsage[ b ] - blockUsage[ a ] );
+		// add in paragraph and image blocks if they're not already in the usage data
+		return [ ...orderedByUsage, ...without( [ 'core/paragraph', 'core/image' ], ...orderedByUsage ) ]
+			.slice( 0, MAX_FREQUENT_BLOCKS )
+			.map( blockType => getBlockType( blockType ) );
+	},
+	( state ) => state.preferences.blockUsage
+);

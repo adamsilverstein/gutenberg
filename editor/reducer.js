@@ -135,6 +135,20 @@ export const editor = combineUndoableReducers( {
 					},
 				};
 
+			case 'UPDATE_BLOCK':
+				// Ignore updates if block isn't known
+				if ( ! state[ action.uid ] ) {
+					return state;
+				}
+
+				return {
+					...state,
+					[ action.uid ]: {
+						...state[ action.uid ],
+						...action.updates,
+					},
+				};
+
 			case 'INSERT_BLOCKS':
 				return {
 					...state,
@@ -300,11 +314,18 @@ export function blockSelection( state = { start: null, end: null, focus: null },
 				end: null,
 				focus: null,
 			};
+		case 'START_MULTI_SELECT':
+			return {
+				...state,
+				isMultiSelecting: true,
+			};
+		case 'STOP_MULTI_SELECT':
+			return omit( state, 'isMultiSelecting' );
 		case 'MULTI_SELECT':
 			return {
 				start: action.start,
 				end: action.end,
-				focus: null,
+				focus: state.focus,
 			};
 		case 'SELECT_BLOCK':
 			if ( action.uid === state.start && action.uid === state.end ) {
@@ -336,17 +357,6 @@ export function blockSelection( state = { start: null, end: null, focus: null },
 				end: action.blocks[ 0 ].uid,
 				focus: {},
 			};
-		case 'MOVE_BLOCKS_UP':
-		case 'MOVE_BLOCKS_DOWN': {
-			const firstUid = first( action.uids );
-			return firstUid === state.start
-				? state
-				: {
-					start: firstUid,
-					end: firstUid,
-					focus: {},
-				};
-		}
 	}
 
 	return state;
@@ -373,6 +383,18 @@ export function hoveredBlock( state = null, action ) {
 			}
 
 			return action.blocks[ 0 ].uid;
+	}
+
+	return state;
+}
+
+export function blocksMode( state = {}, action ) {
+	if ( action.type === 'TOGGLE_BLOCK_MODE' ) {
+		const { uid } = action;
+		return {
+			...state,
+			[ uid ]: state[ uid ] && state[ uid ] === 'html' ? 'visual' : 'html',
+		};
 	}
 
 	return state;
@@ -530,6 +552,7 @@ export default optimist( combineReducers( {
 	isTyping,
 	blockSelection,
 	hoveredBlock,
+	blocksMode,
 	showInsertionPoint,
 	preferences,
 	panel,

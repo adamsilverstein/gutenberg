@@ -20,6 +20,7 @@ import InvalidBlockWarning from './invalid-block-warning';
 import BlockCrashWarning from './block-crash-warning';
 import BlockCrashBoundary from './block-crash-boundary';
 import BlockDropZone from './block-drop-zone';
+import BlockHtml from './block-html';
 import BlockMover from '../../block-mover';
 import BlockRightMenu from '../../block-settings-menu';
 import BlockToolbar from '../../block-toolbar';
@@ -39,6 +40,7 @@ import {
 import {
 	getBlock,
 	getBlockFocus,
+	isMultiSelecting,
 	getBlockIndex,
 	getEditedPostAttribute,
 	getMultiSelectedBlockUids,
@@ -49,6 +51,7 @@ import {
 	isBlockSelected,
 	isFirstMultiSelectedBlock,
 	isTyping,
+	getBlockMode,
 } from '../../selectors';
 
 const { BACKSPACE, ESCAPE, DELETE, ENTER } = keycodes;
@@ -85,6 +88,9 @@ class VisualEditorBlock extends Component {
 		if ( this.props.isTyping ) {
 			document.addEventListener( 'mousemove', this.stopTypingOnMouseMove );
 		}
+
+		// Not Ideal, but it's the easiest way to get the scrollable container
+		this.editorLayout = document.querySelector( '.editor-layout__editor' );
 	}
 
 	componentWillReceiveProps( newProps ) {
@@ -100,10 +106,9 @@ class VisualEditorBlock extends Component {
 	componentDidUpdate( prevProps ) {
 		// Preserve scroll prosition when block rearranged
 		if ( this.previousOffset ) {
-			window.scrollTo(
-				window.scrollX,
-				window.scrollY + this.node.getBoundingClientRect().top - this.previousOffset
-			);
+			this.editorLayout.scrollTop = this.editorLayout.scrollTop
+				+ this.node.getBoundingClientRect().top
+				- this.previousOffset;
 			this.previousOffset = null;
 		}
 
@@ -132,7 +137,6 @@ class VisualEditorBlock extends Component {
 
 	bindBlockNode( node ) {
 		this.node = node;
-		this.props.blockRef( node );
 	}
 
 	setAttributes( attributes ) {
@@ -252,8 +256,9 @@ class VisualEditorBlock extends Component {
 	}
 
 	onPointerDown( event ) {
-		// Not the main button (usually the left button on pointer device).
-		if ( event.buttons !== 1 ) {
+		// Not the main button.
+		// https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/button
+		if ( event.button !== 0 ) {
 			return;
 		}
 
@@ -278,7 +283,7 @@ class VisualEditorBlock extends Component {
 	}
 
 	render() {
-		const { block, multiSelectedBlockUids, order } = this.props;
+		const { block, multiSelectedBlockUids, order, mode } = this.props;
 		const { name: blockName, isValid } = block;
 		const blockType = getBlockType( blockName );
 		// translators: %s: Type of block (i.e. Text, Image etc)
@@ -302,12 +307,13 @@ class VisualEditorBlock extends Component {
 		// Generate the wrapper class names handling the different states of the block.
 		const { isHovered, isSelected, isMultiSelected, isFirstMultiSelected, focus } = this.props;
 		const showUI = isSelected && ( ! this.props.isTyping || focus.collapsed === false );
+		const isProperlyHovered = isHovered && ! this.props.isSelecting;
 		const { error } = this.state;
 		const wrapperClassname = classnames( 'editor-visual-editor__block', {
 			'has-warning': ! isValid || !! error,
 			'is-selected': showUI,
 			'is-multi-selected': isMultiSelected,
-			'is-hovered': isHovered,
+			'is-hovered': isProperlyHovered,
 		} );
 
 		const { onMouseLeave, onFocus, onReplace } = this.props;
@@ -326,59 +332,66 @@ class VisualEditorBlock extends Component {
 		/* eslint-disable jsx-a11y/no-static-element-interactions, jsx-a11y/onclick-has-role, jsx-a11y/click-events-have-key-events */
 		return (
 			<div
-				ref={ this.bindBlockNode }
-				onKeyDown={ this.onKeyDown }
-				onFocus={ this.onFocus }
+				ref={ this.props.blockRef }
 				onMouseMove={ this.maybeHover }
 				onMouseEnter={ this.maybeHover }
 				onMouseLeave={ onMouseLeave }
 				className={ wrapperClassname }
 				data-type={ block.name }
-				tabIndex="0"
-				aria-label={ blockLabel }
 				{ ...wrapperProps }
 			>
 				<BlockDropZone index={ order } />
-				{ ( showUI || isHovered ) && <BlockMover uids={ [ block.uid ] } /> }
-				{ ( showUI || isHovered ) && <BlockRightMenu uid={ block.uid } /> }
-				{ showUI && isValid && <BlockToolbar uid={ block.uid } /> }
-
-				{ isFirstMultiSelected && (
+				{ ( showUI || isProperlyHovered ) && <BlockMover uids={ [ block.uid ] } /> }
+				{ ( showUI || isProperlyHovered ) && <BlockRightMenu uids={ [ block.uid ] } /> }
+				{ showUI && isValid && mode === 'visual' && <BlockToolbar uid={ block.uid } /> }
+				{ isFirstMultiSelected && ! this.props.isSelecting &&
 					<BlockMover uids={ multiSelectedBlockUids } />
-				) }
+				}
+				{ isFirstMultiSelected && ! this.props.isSelecting &&
+					<BlockRightMenu
+						uids={ multiSelectedBlockUids }
+						focus={ true }
+					/>
+				}
 				<div
+					ref={ this.bindBlockNode }
 					onKeyPress={ this.maybeStartTyping }
 					onDragStart={ ( event ) => event.preventDefault() }
 					onMouseDown={ this.onPointerDown }
+					onKeyDown={ this.onKeyDown }
+					onFocus={ this.onFocus }
 					className="editor-visual-editor__block-edit"
+					tabIndex="0"
+					aria-label={ blockLabel }
 				>
 					<BlockCrashBoundary onError={ this.onBlockError }>
-						{ isValid
-							? (
-								<BlockEdit
-									focus={ focus }
-									attributes={ block.attributes }
-									setAttributes={ this.setAttributes }
-									insertBlocksAfter={ this.insertBlocksAfter }
-									onReplace={ onReplace }
-									setFocus={ partial( onFocus, block.uid ) }
-									mergeBlocks={ this.mergeBlocks }
-									className={ className }
-									id={ block.uid }
-								/>
-							)
-							: [
-								createElement( blockType.save, {
-									key: 'invalid-preview',
-									attributes: block.attributes,
-									className,
-								} ),
-								<InvalidBlockWarning
-									key="invalid-warning"
-									block={ block }
-								/>,
-							]
-						}
+						{ isValid && mode === 'visual' && (
+							<BlockEdit
+								focus={ focus }
+								attributes={ block.attributes }
+								setAttributes={ this.setAttributes }
+								insertBlocksAfter={ this.insertBlocksAfter }
+								onReplace={ onReplace }
+								setFocus={ partial( onFocus, block.uid ) }
+								mergeBlocks={ this.mergeBlocks }
+								className={ className }
+								id={ block.uid }
+							/>
+						) }
+						{ isValid && mode === 'html' && (
+							<BlockHtml uid={ block.uid } />
+						) }
+						{ ! isValid && [
+							createElement( blockType.save, {
+								key: 'invalid-preview',
+								attributes: block.attributes,
+								className,
+							} ),
+							<InvalidBlockWarning
+								key="invalid-warning"
+								block={ block }
+							/>,
+						] }
 					</BlockCrashBoundary>
 				</div>
 				{ !! error && <BlockCrashWarning /> }
@@ -399,10 +412,12 @@ export default connect(
 			isFirstMultiSelected: isFirstMultiSelectedBlock( state, ownProps.uid ),
 			isHovered: isBlockHovered( state, ownProps.uid ),
 			focus: getBlockFocus( state, ownProps.uid ),
+			isSelecting: isMultiSelecting( state ),
 			isTyping: isTyping( state ),
 			order: getBlockIndex( state, ownProps.uid ),
 			multiSelectedBlockUids: getMultiSelectedBlockUids( state ),
 			meta: getEditedPostAttribute( state, 'meta' ),
+			mode: getBlockMode( state, ownProps.uid ),
 		};
 	},
 	( dispatch, ownProps ) => ( {

@@ -1,6 +1,7 @@
 /**
  * External dependencies
  */
+import classnames from 'classnames';
 import { connect } from 'react-redux';
 
 /**
@@ -8,63 +9,63 @@ import { connect } from 'react-redux';
  */
 import { __ } from '@wordpress/i18n';
 import { IconButton } from '@wordpress/components';
+import { Component } from '@wordpress/element';
 
 /**
  * Internal dependencies
  */
 import './style.scss';
-import { isEditorSidebarOpened } from '../selectors';
+import BlockSettingsMenuContent from './content';
 import { selectBlock } from '../actions';
 
-function BlockSettingsMenu( { onDelete, onSelect, isSidebarOpened, toggleSidebar, setActivePanel } ) {
-	const toggleInspector = () => {
-		onSelect();
-		setActivePanel();
-		if ( ! isSidebarOpened ) {
-			toggleSidebar();
-		}
-	};
+class BlockSettingsMenu extends Component {
+	constructor() {
+		super( ...arguments );
+		this.toggleMenu = this.toggleMenu.bind( this );
+		this.state = {
+			opened: false,
+		};
+	}
 
-	return (
-		<div className="editor-block-settings-menu">
-			<IconButton
-				className="editor-block-settings-menu__control"
-				onClick={ toggleInspector }
-				icon="admin-generic"
-				label={ __( 'Show inspector' ) }
-			/>
-			<IconButton
-				className="editor-block-settings-menu__control"
-				onClick={ onDelete }
-				icon="trash"
-				label={ __( 'Delete the block' ) }
-			/>
-		</div>
-	);
+	toggleMenu() {
+		// Block could be hovered, not selected.
+		if ( this.props.uids.length === 1 ) {
+			this.props.onSelect( this.props.uids[ 0 ] );
+		}
+
+		this.setState( ( state ) => ( {
+			opened: ! state.opened,
+		} ) );
+	}
+
+	render() {
+		const { opened } = this.state;
+		const { uids, focus } = this.props;
+		const toggleClassname = classnames( 'editor-block-settings-menu__toggle', 'editor-block-settings-menu__control', {
+			'is-opened': opened,
+		} );
+
+		return (
+			<div className="editor-block-settings-menu">
+				<IconButton
+					className={ toggleClassname }
+					onClick={ this.toggleMenu }
+					icon="ellipsis"
+					label={ opened ? __( 'Close Settings Menu' ) : __( 'Open Settings Menu' ) }
+					focus={ focus }
+				/>
+
+				{ opened && <BlockSettingsMenuContent uids={ uids } /> }
+			</div>
+		);
+	}
 }
 
 export default connect(
-	( state ) => ( {
-		isSidebarOpened: isEditorSidebarOpened( state ),
-	} ),
-	( dispatch, ownProps ) => ( {
-		onDelete() {
-			dispatch( {
-				type: 'REMOVE_BLOCKS',
-				uids: [ ownProps.uid ],
-			} );
-		},
-		onSelect() {
-			dispatch( selectBlock( ownProps.uid ) );
-		},
-		setActivePanel() {
-			dispatch( {
-				type: 'SET_ACTIVE_PANEL',
-				panel: 'block',
-			} );
-		},
-		toggleSidebar() {
-			dispatch( { type: 'TOGGLE_SIDEBAR' } );
+	undefined,
+	( dispatch ) => ( {
+		onSelect( uid ) {
+			dispatch( selectBlock( uid ) );
 		},
 	} )
 )( BlockSettingsMenu );
