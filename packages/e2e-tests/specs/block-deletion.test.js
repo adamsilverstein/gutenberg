@@ -1,4 +1,9 @@
 /**
+ * External dependencies
+ */
+import delay from 'delay';
+
+/**
  * WordPress dependencies
  */
 import {
@@ -37,6 +42,9 @@ describe( 'block deletion -', () => {
 			await page.mouse.move( 200, 300, { steps: 10 } );
 
 			await clickOnBlockSettingsMenuItem( 'Remove Block' );
+
+			await delay( 110 );
+
 			expect( await getEditedPostContent() ).toMatchSnapshot();
 
 			// Type additional text and assert that caret position is correct by comparing to snapshot.

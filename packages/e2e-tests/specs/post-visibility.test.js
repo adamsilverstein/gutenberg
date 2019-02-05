@@ -1,4 +1,9 @@
 /**
+ * External dependencies
+ */
+import delay from 'delay';
+
+/**
  * WordPress dependencies
  */
 import {
@@ -17,6 +22,7 @@ describe( 'Post visibility', () => {
 			await openDocumentSettingsSidebar();
 
 			await page.click( '.edit-post-post-visibility__toggle' );
+			await delay( 50 );
 
 			const [ privateLabel ] = await page.$x( '//label[text()="Private"]' );
 			await privateLabel.click();
