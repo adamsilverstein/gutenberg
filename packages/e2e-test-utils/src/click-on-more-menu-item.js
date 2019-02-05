@@ -14,11 +14,8 @@ import { first } from 'lodash';
  * @param {string} buttonLabel The label to search the button for.
  */
 export async function clickOnMoreMenuItem( buttonLabel ) {
-	await expect( page ).toClick(
-		'.edit-post-more-menu [aria-label="Show more tools & options"]'
-	);
-	await delay( 110 );
-
+	await page.click( '.edit-post-more-menu [aria-label="Show more tools & options"]' );
+	await delay( 150 );
 	const moreMenuContainerSelector =
 		'//*[contains(concat(" ", @class, " "), " edit-post-more-menu__content ")]';
 	let elementToClick = first( await page.$x(
