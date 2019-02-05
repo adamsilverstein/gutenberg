@@ -13,6 +13,6 @@ export async function transformBlockTo( name ) {
 	await page.mouse.move( 250, 350, { steps: 10 } );
 	await page.click( '.editor-block-switcher__toggle' );
 	// Pause for -block-switcher opening animation.
-	await delay( 150 );
+	await delay( 110 );
 	await page.click( `.editor-block-types-list__item[aria-label="${ name }"]` );
 }

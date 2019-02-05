@@ -15,7 +15,7 @@ import { first } from 'lodash';
  */
 export async function clickOnMoreMenuItem( buttonLabel ) {
 	await page.click( '.edit-post-more-menu [aria-label="Show more tools & options"]' );
-	await delay( 150 );
+	await delay( 110 );
 	const moreMenuContainerSelector =
 		'//*[contains(concat(" ", @class, " "), " edit-post-more-menu__content ")]';
 	let elementToClick = first( await page.$x(
