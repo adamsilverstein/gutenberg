@@ -1,4 +1,9 @@
 /**
+ * External dependencies
+ */
+import delay from 'delay';
+
+/**
  * WordPress dependencies
  */
 import {
@@ -88,6 +93,7 @@ describe( 'Reusable Blocks', () => {
 		// Convert block to a reusable block
 		await page.waitForSelector( 'button[aria-label="More options"]' );
 		await page.click( 'button[aria-label="More options"]' );
+		await delay( 150 );
 		const convertButton = await page.waitForXPath( '//button[text()="Add to Reusable Blocks"]' );
 		await convertButton.click();
 
@@ -165,6 +171,7 @@ describe( 'Reusable Blocks', () => {
 
 		// Convert block to a regular block
 		await page.click( 'button[aria-label="More options"]' );
+		await delay( 150 );
 		const convertButton = await page.waitForXPath(
 			'//button[text()="Convert to Regular Block"]'
 		);
