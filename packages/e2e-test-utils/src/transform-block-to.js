@@ -9,8 +9,7 @@ import delay from 'delay';
  * @param {string} name Block name.
  */
 export async function transformBlockTo( name ) {
-	await page.mouse.move( 200, 300, { steps: 10 } );
-	await page.mouse.move( 250, 350, { steps: 10 } );
+	await page.keyboard.press( 'Escape' );
 	await page.click( '.editor-block-switcher__toggle' );
 	// Pause for -block-switcher opening animation.
 	await delay( 50 );
