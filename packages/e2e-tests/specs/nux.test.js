@@ -56,7 +56,7 @@ describe( 'New User Experience (NUX)', () => {
 
 	it( 'should show "Got it" once all tips have been displayed', async () => {
 		await clickAllTips( page );
-		await delay( 50 );
+		await delay( 110 );
 
 		// Make sure "Got it" button appears on the last tip.
 		const gotItButton = await page.$x( "//button[contains(text(), 'Got it')]" );
