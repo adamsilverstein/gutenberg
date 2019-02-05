@@ -17,7 +17,7 @@ export async function clickOnMoreMenuItem( buttonLabel ) {
 	await expect( page ).toClick(
 		'.edit-post-more-menu [aria-label="Show more tools & options"]'
 	);
-	await delay( 50 );
+	await delay( 110 );
 
 	const moreMenuContainerSelector =
 		'//*[contains(concat(" ", @class, " "), " edit-post-more-menu__content ")]';

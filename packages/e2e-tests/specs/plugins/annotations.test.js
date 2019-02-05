@@ -1,9 +1,4 @@
 /**
- * External dependencies
- */
-import delay from 'delay';
-
-/**
  * WordPress dependencies
  */
 import {
@@ -43,7 +38,6 @@ describe( 'Using Plugins API', () => {
 	 * @return {void}
 	 */
 	async function annotateFirstBlock( start, end ) {
-		await delay( 50 );
 		await page.focus( '#annotations-tests-range-start' );
 		await page.keyboard.press( 'Backspace' );
 		await page.keyboard.type( start + '' );
