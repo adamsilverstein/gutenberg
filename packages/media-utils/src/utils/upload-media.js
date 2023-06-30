@@ -228,5 +228,8 @@ function createMediaFromFile( file, additionalData ) {
 		path: '/wp/v2/media',
 		body: data,
 		method: 'POST',
+		headers: {
+			'Content-Disposition': `attachment; filename="${ file.name }"`,
+		},
 	} );
 }
