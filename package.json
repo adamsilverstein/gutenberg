@@ -267,13 +267,14 @@
 		"webdriverio": "8.16.20",
 		"webpack": "5.95.0",
 		"webpack-bundle-analyzer": "4.9.1",
+		"wireit": "0.14.9",
 		"worker-farm": "1.7.0"
 	},
 	"overrides": {
 		"jsdom": "25.0.1"
 	},
 	"scripts": {
-		"build": "npm run build:packages && wp-scripts build",
+		"build": "wireit",
 		"build:analyze-bundles": "npm run build -- --webpack-bundle-analyzer",
 		"build:package-types": "node ./bin/packages/validate-typescript-version.js && ( tsc --build || ( echo 'tsc failed. Try cleaning up first: `npm run clean:package-types`'; exit 1 ) ) && node ./bin/packages/check-build-type-declaration-files.js",
 		"prebuild:packages": "npm run clean:packages && lerna run build",
@@ -359,6 +360,11 @@
 		"test:unit:update": "npm run test:unit -- --updateSnapshot",
 		"test:unit:watch": "npm run test:unit -- --watch",
 		"wp-env": "wp-env"
+	},
+	"wireit": {
+		"build": {
+			"command": "npm run build:packages && wp-scripts build"
+		}
 	},
 	"lint-staged": {
 		"*.{js,json,ts,tsx,yml,yaml}": [
