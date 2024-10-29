@@ -51,7 +51,7 @@ export function FormFileUpload( {
 	// from the file upload. See https://core.trac.wordpress.org/ticket/62268#comment:4.
 	// This can be removed once the Chromium fix is in the stable channel.
 	const compatAccept = !! accept?.includes( 'image/*' )
-		? `${ accept }, image/heic`
+		? `${ accept }, image/heic, image/heif`
 		: accept;
 
 	return (
