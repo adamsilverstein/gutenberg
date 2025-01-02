@@ -3,37 +3,38 @@
  * registered to a hook of the specified type, optionally returning the final
  * value of the call chain.
  *
- * @param  {Object}   hooks          Stored hooks, keyed by hook name.
- * @param  {?boolean}    returnFirstArg Whether each hook callback is expected to
- *                                   return its first argument.
+ * @param {import('.').Hooks}    hooks          Hooks instance.
+ * @param {import('.').StoreKey} storeKey
+ * @param {boolean}              returnFirstArg Whether each hook callback is expected to return its first argument.
+ * @param {boolean}              async          Whether the hook callback should be run asynchronously
  *
- * @return {Function}                Function that runs hook callbacks.
+ * @return {(hookName:string, ...args: unknown[]) => undefined|unknown} Function that runs hook callbacks.
  */
-function createRunHook( hooks, returnFirstArg ) {
-	/**
-	 * Runs all callbacks for the specified hook.
-	 *
-	 * @param  {string} hookName The name of the hook to run.
-	 * @param  {...*}   args     Arguments to pass to the hook callbacks.
-	 *
-	 * @return {*}               Return value of runner, if applicable.
-	 */
-	return function runHooks( hookName, ...args ) {
-		if ( ! hooks[ hookName ] ) {
-			hooks[ hookName ] = {
+function createRunHook( hooks, storeKey, returnFirstArg, async ) {
+	return function runHook( hookName, ...args ) {
+		const hooksStore = hooks[ storeKey ];
+
+		if ( ! hooksStore[ hookName ] ) {
+			hooksStore[ hookName ] = {
 				handlers: [],
 				runs: 0,
 			};
 		}
 
-		hooks[ hookName ].runs++;
+		hooksStore[ hookName ].runs++;
 
-		const handlers = hooks[ hookName ].handlers;
+		const handlers = hooksStore[ hookName ].handlers;
+
+		// The following code is stripped from production builds.
+		if ( 'production' !== process.env.NODE_ENV ) {
+			// Handle any 'all' hooks registered.
+			if ( 'hookAdded' !== hookName && hooksStore.all ) {
+				handlers.push( ...hooksStore.all.handlers );
+			}
+		}
 
 		if ( ! handlers || ! handlers.length ) {
-			return returnFirstArg ?
-				args[ 0 ] :
-				undefined;
+			return returnFirstArg ? args[ 0 ] : undefined;
 		}
 
 		const hookInfo = {
@@ -41,24 +42,43 @@ function createRunHook( hooks, returnFirstArg ) {
 			currentIndex: 0,
 		};
 
-		hooks.__current.push( hookInfo );
-
-		while ( hookInfo.currentIndex < handlers.length ) {
-			const handler = handlers[ hookInfo.currentIndex ];
-
-			const result = handler.callback.apply( null, args );
-			if ( returnFirstArg ) {
-				args[ 0 ] = result;
+		async function asyncRunner() {
+			try {
+				hooksStore.__current.add( hookInfo );
+				let result = returnFirstArg ? args[ 0 ] : undefined;
+				while ( hookInfo.currentIndex < handlers.length ) {
+					const handler = handlers[ hookInfo.currentIndex ];
+					result = await handler.callback.apply( null, args );
+					if ( returnFirstArg ) {
+						args[ 0 ] = result;
+					}
+					hookInfo.currentIndex++;
+				}
+				return returnFirstArg ? result : undefined;
+			} finally {
+				hooksStore.__current.delete( hookInfo );
 			}
-
-			hookInfo.currentIndex++;
 		}
 
-		hooks.__current.pop();
-
-		if ( returnFirstArg ) {
-			return args[ 0 ];
+		function syncRunner() {
+			try {
+				hooksStore.__current.add( hookInfo );
+				let result = returnFirstArg ? args[ 0 ] : undefined;
+				while ( hookInfo.currentIndex < handlers.length ) {
+					const handler = handlers[ hookInfo.currentIndex ];
+					result = handler.callback.apply( null, args );
+					if ( returnFirstArg ) {
+						args[ 0 ] = result;
+					}
+					hookInfo.currentIndex++;
+				}
+				return returnFirstArg ? result : undefined;
+			} finally {
+				hooksStore.__current.delete( hookInfo );
+			}
 		}
+
+		return ( async ? asyncRunner : syncRunner )();
 	};
 }
 

@@ -1,16 +1,17 @@
 /**
+ * External dependencies
+ */
+import deepFreeze from 'deep-freeze';
+
+/**
  * Internal dependencies
  */
-import plugin, {
-	createPersistenceInterface,
-	withInitialState,
-	withLazySameState,
-} from '../';
+import plugin, { createPersistenceInterface, withLazySameState } from '../';
 import objectStorage from '../storage/object';
 import { createRegistry } from '../../../';
 
 describe( 'persistence', () => {
-	let registry, originalRegisterStore;
+	let registry;
 
 	beforeAll( () => {
 		jest.spyOn( objectStorage, 'setItem' );
@@ -20,34 +21,155 @@ describe( 'persistence', () => {
 		objectStorage.clear();
 		objectStorage.setItem.mockClear();
 
-		// Since the exposed `registerStore` is a proxying function, mimic
-		// intercept of original call by adding an initial plugin.
 		// TODO: Remove the `use` function in favor of `registerGenericStore`
-		registry = createRegistry()
-			.use( ( originalRegistry ) => {
-				originalRegisterStore = jest.spyOn( originalRegistry, 'registerStore' );
-				return {};
-			} )
-			.use( plugin, { storage: objectStorage } );
+		registry = createRegistry().use( plugin, { storage: objectStorage } );
 	} );
 
 	it( 'should not mutate options', () => {
-		const options = Object.freeze( { persist: true, reducer() {} } );
-
-		registry.registerStore( 'test', options );
+		expect( () => {
+			const options = Object.freeze( { persist: true, reducer() {} } );
+			registry.registerStore( 'test', options );
+		} ).not.toThrow( /object is not extensible/ );
 	} );
 
-	it( 'override values passed to registerStore', () => {
-		const options = { persist: true, reducer() {} };
-
-		registry.registerStore( 'test', options );
-
-		expect( originalRegisterStore ).toHaveBeenCalledWith( 'test', {
-			persist: true,
-			reducer: expect.any( Function ),
+	it( 'should load a persisted value as initialState', () => {
+		registry = createRegistry().use( plugin, {
+			storage: {
+				getItem: () => JSON.stringify( { test: { a: 1 } } ),
+				setItem() {},
+			},
 		} );
-		// Replaced reducer:
-		expect( originalRegisterStore.mock.calls[ 0 ][ 1 ].reducer ).not.toBe( options.reducer );
+
+		registry.registerStore( 'test', {
+			persist: true,
+			reducer: ( state = {} ) => state,
+			selectors: {
+				getState: ( state ) => state,
+			},
+		} );
+
+		expect( registry.select( 'test' ).getState() ).toEqual( { a: 1 } );
+	} );
+
+	it( 'should load a persisted subset value as initialState', () => {
+		const DEFAULT_STATE = { a: null, b: null };
+
+		registry = createRegistry().use( plugin, {
+			storage: {
+				getItem: () => JSON.stringify( { test: { a: 1 } } ),
+				setItem() {},
+			},
+		} );
+
+		registry.registerStore( 'test', {
+			persist: [ 'a' ],
+			reducer: ( state = DEFAULT_STATE ) => state,
+			selectors: {
+				getState: ( state ) => state,
+			},
+		} );
+
+		expect( registry.select( 'test' ).getState() ).toEqual( {
+			a: 1,
+			b: null,
+		} );
+	} );
+
+	it( 'should merge persisted value with default if object-like', () => {
+		const DEFAULT_STATE = deepFreeze( {
+			preferences: { useFoo: true, useBar: true },
+		} );
+
+		registry = createRegistry().use( plugin, {
+			storage: {
+				getItem: () =>
+					JSON.stringify( {
+						test: {
+							preferences: {
+								useFoo: false,
+							},
+						},
+					} ),
+				setItem() {},
+			},
+		} );
+
+		registry.registerStore( 'test', {
+			persist: [ 'preferences' ],
+			reducer: ( state = DEFAULT_STATE ) => state,
+			selectors: {
+				getState: ( state ) => state,
+			},
+		} );
+
+		expect( registry.select( 'test' ).getState() ).toEqual( {
+			preferences: {
+				useFoo: false,
+				useBar: true,
+			},
+		} );
+	} );
+
+	it( 'should defer to persisted state if mismatch of object-like (persisted object-like)', () => {
+		registry = createRegistry().use( plugin, {
+			storage: {
+				getItem: () => JSON.stringify( { test: { persisted: true } } ),
+				setItem() {},
+			},
+		} );
+
+		registry.registerStore( 'test', {
+			persist: true,
+			reducer: ( state = null ) => state,
+			selectors: {
+				getState: ( state ) => state,
+			},
+		} );
+
+		expect( registry.select( 'test' ).getState() ).toEqual( {
+			persisted: true,
+		} );
+	} );
+
+	it( 'should defer to persisted state if mismatch of object-like (initial object-like)', () => {
+		registry = createRegistry().use( plugin, {
+			storage: {
+				getItem: () => JSON.stringify( { test: null } ),
+				setItem() {},
+			},
+		} );
+
+		registry.registerStore( 'test', {
+			persist: true,
+			reducer: ( state = {} ) => state,
+			selectors: {
+				getState: ( state ) => state,
+			},
+		} );
+
+		expect( registry.select( 'test' ).getState() ).toBe( null );
+	} );
+
+	it( 'should be reasonably tolerant to a non-object persisted state', () => {
+		registry = createRegistry().use( plugin, {
+			storage: {
+				getItem: () =>
+					JSON.stringify( {
+						test: 1,
+					} ),
+				setItem() {},
+			},
+		} );
+
+		registry.registerStore( 'test', {
+			persist: true,
+			reducer: ( state = null ) => state,
+			selectors: {
+				getState: ( state ) => state,
+			},
+		} );
+
+		expect( registry.select( 'test' ).getState() ).toBe( 1 );
 	} );
 
 	it( 'should not persist if option not passed', () => {
@@ -115,7 +237,10 @@ describe( 'persistence', () => {
 
 		registry.dispatch( 'test' ).setState( { ok: true } );
 
-		expect( objectStorage.setItem ).toHaveBeenCalledWith( 'WP_DATA', '{"test":{"ok":true}}' );
+		expect( objectStorage.setItem ).toHaveBeenCalledWith(
+			'WP_DATA',
+			'{"test":{"ok":true}}'
+		);
 	} );
 
 	it( 'should persist a subset of keys', () => {
@@ -136,7 +261,10 @@ describe( 'persistence', () => {
 
 		registry.dispatch( 'test' ).setState( { foo: 1, baz: 2 } );
 
-		expect( objectStorage.setItem ).toHaveBeenCalledWith( 'WP_DATA', '{"test":{"foo":1}}' );
+		expect( objectStorage.setItem ).toHaveBeenCalledWith(
+			'WP_DATA',
+			'{"test":{"foo":1}}'
+		);
 	} );
 
 	it( 'should not persist an unchanging subset', () => {
@@ -173,7 +301,10 @@ describe( 'persistence', () => {
 
 		let get, set;
 		beforeEach( () => {
-			( { get, set } = createPersistenceInterface( { storage, storageKey } ) );
+			( { get, set } = createPersistenceInterface( {
+				storage,
+				storageKey,
+			} ) );
 		} );
 
 		describe( 'get', () => {
@@ -195,38 +326,33 @@ describe( 'persistence', () => {
 			it( 'sets JSON by object', () => {
 				set( 'test', {} );
 
-				expect( objectStorage.setItem ).toHaveBeenCalledWith( storageKey, '{"test":{}}' );
+				expect( objectStorage.setItem ).toHaveBeenCalledWith(
+					storageKey,
+					'{"test":{}}'
+				);
 			} );
 
 			it( 'merges to existing', () => {
 				set( 'test1', {} );
 				set( 'test2', {} );
 
-				expect( objectStorage.setItem ).toHaveBeenCalledWith( storageKey, '{"test1":{}}' );
-				expect( objectStorage.setItem ).toHaveBeenCalledWith( storageKey, '{"test1":{},"test2":{}}' );
+				expect( objectStorage.setItem ).toHaveBeenCalledWith(
+					storageKey,
+					'{"test1":{}}'
+				);
+				expect( objectStorage.setItem ).toHaveBeenCalledWith(
+					storageKey,
+					'{"test1":{},"test2":{}}'
+				);
 			} );
-		} );
-	} );
-
-	describe( 'withInitialState', () => {
-		it( 'should return a reducer function', () => {
-			const reducer = ( state = 1 ) => state;
-			const enhanced = withInitialState( reducer );
-
-			expect( enhanced() ).toBe( 1 );
-		} );
-
-		it( 'should assign a default state by argument', () => {
-			const reducer = ( state = 1 ) => state;
-			const enhanced = withInitialState( reducer, 2 );
-
-			expect( enhanced() ).toBe( 2 );
 		} );
 	} );
 
 	describe( 'withLazySameState', () => {
 		it( 'should call the original reducer if action.nextState differs from state', () => {
-			const reducer = jest.fn().mockImplementation( ( state, action ) => action.nextState );
+			const reducer = jest
+				.fn()
+				.mockImplementation( ( state, action ) => action.nextState );
 			const enhanced = withLazySameState( reducer );
 
 			reducer.mockClear();
@@ -238,7 +364,9 @@ describe( 'persistence', () => {
 		} );
 
 		it( 'should not call the original reducer if action.nextState equals state', () => {
-			const reducer = jest.fn().mockImplementation( ( state, action ) => action.nextState );
+			const reducer = jest
+				.fn()
+				.mockImplementation( ( state, action ) => action.nextState );
 			const enhanced = withLazySameState( reducer );
 
 			reducer.mockClear();

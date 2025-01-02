@@ -7,25 +7,17 @@ const { sync: resolveBin } = require( 'resolve-bin' );
 /**
  * Internal dependencies
  */
-const {
-	getCliArgs,
-	hasCliArg,
-	hasProjectFile,
-} = require( '../utils' );
+const { getWebpackArgs, hasArgInCLI } = require( '../utils' );
+const EXIT_ERROR_CODE = 1;
 
-const hasWebpackConfig = hasCliArg( '--config' ) ||
-	hasProjectFile( 'webpack.config.js' ) ||
-	hasProjectFile( 'webpack.config.babel.js' );
-
-if ( hasWebpackConfig ) {
-	const { status } = spawn(
-		resolveBin( 'webpack' ),
-		[ '--watch', ...getCliArgs() ],
-		{ stdio: 'inherit' }
-	);
-	process.exit( status );
-} else {
-	// eslint-disable-next-line no-console
-	console.log( 'Webpack config file is missing.' );
-	process.exit( 1 );
+const webpackArgs = getWebpackArgs();
+if ( hasArgInCLI( '--hot' ) ) {
+	webpackArgs.unshift( 'serve' );
+} else if ( ! hasArgInCLI( '--no-watch' ) ) {
+	webpackArgs.unshift( 'watch' );
 }
+
+const { status } = spawn( resolveBin( 'webpack' ), webpackArgs, {
+	stdio: 'inherit',
+} );
+process.exit( status === null ? EXIT_ERROR_CODE : status );

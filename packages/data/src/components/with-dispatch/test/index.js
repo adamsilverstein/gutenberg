@@ -1,185 +1,173 @@
 /**
  * External dependencies
  */
-import TestRenderer from 'react-test-renderer';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+
+/**
+ * WordPress dependencies
+ */
+import { memo } from '@wordpress/element';
 
 /**
  * Internal dependencies
  */
 import withDispatch from '../';
 import { createRegistry } from '../../../registry';
-import RegistryProvider from '../../registry-provider';
+import { RegistryProvider } from '../../registry-provider';
 
 describe( 'withDispatch', () => {
-	let registry;
-	beforeEach( () => {
-		registry = createRegistry();
-	} );
+	const storeOptions = {
+		reducer: ( state = 0, action ) => {
+			if ( action.type === 'inc' ) {
+				return state + action.count;
+			}
+			return state;
+		},
+		actions: {
+			increment: ( count = 1 ) => ( { type: 'inc', count } ),
+		},
+		selectors: {
+			getCount: ( state ) => state,
+		},
+	};
 
-	it( 'passes the relevant data to the component', () => {
-		const store = registry.registerStore( 'counter', {
-			reducer: ( state = 0, action ) => {
-				if ( action.type === 'increment' ) {
-					return state + action.count;
-				}
-				return state;
-			},
-			actions: {
-				increment: ( count = 1 ) => ( { type: 'increment', count } ),
-			},
-		} );
+	it( 'passes the relevant data to the component', async () => {
+		const user = userEvent.setup();
+		const registry = createRegistry();
+		registry.registerStore( 'counter', storeOptions );
 
-		const Component = withDispatch( ( _dispatch, ownProps ) => {
+		const ButtonSpy = jest.fn( ( { onClick } ) => (
+			<button onClick={ onClick } />
+		) );
+		const Button = memo( ButtonSpy );
+
+		const Component = withDispatch( ( dispatch, ownProps ) => {
 			const { count } = ownProps;
 
 			return {
 				increment: () => {
-					const actionReturnedFromDispatch = _dispatch( 'counter' ).increment( count );
-					expect( actionReturnedFromDispatch ).toBe( undefined );
+					const actionReturnedFromDispatch = Promise.resolve(
+						dispatch( 'counter' ).increment( count )
+					);
+					return expect(
+						actionReturnedFromDispatch
+					).resolves.toEqual( {
+						type: 'inc',
+						count,
+					} );
 				},
 			};
-		} )( ( props ) => <button onClick={ props.increment } /> );
+		} )( ( props ) => (
+			<Button __next40pxDefaultSize onClick={ props.increment } />
+		) );
 
-		const testRenderer = TestRenderer.create(
+		const { rerender } = render(
 			<RegistryProvider value={ registry }>
 				<Component count={ 0 } />
 			</RegistryProvider>
 		);
-		const testInstance = testRenderer.root;
-
-		const incrementBeforeSetProps = testInstance.findByType( 'button' ).props.onClick;
 
 		// Verify that dispatch respects props at the time of being invoked by
 		// changing props after the initial mount.
-		testRenderer.update(
+		rerender(
 			<RegistryProvider value={ registry }>
 				<Component count={ 2 } />
 			</RegistryProvider>
 		);
 
 		// Function value reference should not have changed in props update.
-		expect( testInstance.findByType( 'button' ).props.onClick ).toBe( incrementBeforeSetProps );
+		// The spy method is only called during inital render.
+		expect( ButtonSpy ).toHaveBeenCalledTimes( 1 );
 
-		incrementBeforeSetProps();
-
-		expect( store.getState() ).toBe( 2 );
+		await user.click( screen.getByRole( 'button' ) );
+		expect( registry.select( 'counter' ).getCount() ).toBe( 2 );
 	} );
 
-	it( 'calls dispatch on the correct registry if updated', () => {
-		const reducer = ( state = null ) => state;
-		const noop = () => ( { type: '__INERT__' } );
-		const firstRegistryAction = jest.fn().mockImplementation( noop );
-		const secondRegistryAction = jest.fn().mockImplementation( noop );
+	it( 'calls dispatch on the correct registry if updated', async () => {
+		const user = userEvent.setup();
 
-		const firstRegistry = registry;
-		firstRegistry.registerStore( 'demo', {
-			reducer,
-			actions: {
-				noop: firstRegistryAction,
-			},
-		} );
+		const firstRegistry = createRegistry();
+		firstRegistry.registerStore( 'demo', storeOptions );
 
-		const Component = withDispatch( ( _dispatch ) => {
-			const noopByReference = _dispatch( 'demo' ).noop;
+		const secondRegistry = createRegistry();
+		secondRegistry.registerStore( 'demo', storeOptions );
 
+		const Component = withDispatch( ( dispatch ) => {
 			return {
-				noop() {
-					_dispatch( 'demo' ).noop();
-					noopByReference();
+				increment() {
+					dispatch( 'demo' ).increment();
 				},
 			};
-		} )( ( props ) => <button onClick={ props.noop } /> );
+		} )( ( props ) => <button onClick={ props.increment } /> );
 
-		const testRenderer = TestRenderer.create(
+		const { rerender } = render(
 			<RegistryProvider value={ firstRegistry }>
 				<Component />
 			</RegistryProvider>
 		);
-		const testInstance = testRenderer.root;
 
-		testInstance.findByType( 'button' ).props.onClick();
-		expect( firstRegistryAction ).toHaveBeenCalledTimes( 2 );
-		expect( secondRegistryAction ).toHaveBeenCalledTimes( 0 );
+		await user.click( screen.getByRole( 'button' ) );
+		expect( firstRegistry.select( 'demo' ).getCount() ).toBe( 1 );
+		expect( secondRegistry.select( 'demo' ).getCount() ).toBe( 0 );
 
-		const secondRegistry = createRegistry();
-		secondRegistry.registerStore( 'demo', {
-			reducer,
-			actions: {
-				noop: secondRegistryAction,
-			},
-		} );
-
-		testRenderer.update(
+		rerender(
 			<RegistryProvider value={ secondRegistry }>
 				<Component />
 			</RegistryProvider>
 		);
-
-		testInstance.findByType( 'button' ).props.onClick();
-		expect( firstRegistryAction ).toHaveBeenCalledTimes( 2 );
-		expect( secondRegistryAction ).toHaveBeenCalledTimes( 2 );
+		await user.click( screen.getByRole( 'button' ) );
+		expect( firstRegistry.select( 'demo' ).getCount() ).toBe( 1 );
+		expect( secondRegistry.select( 'demo' ).getCount() ).toBe( 1 );
 	} );
 
-	it( 'always calls select with the latest state in the handler passed to the component', () => {
-		const store = registry.registerStore( 'counter', {
-			reducer: ( state = 0, action ) => {
-				if ( action.type === 'update' ) {
-					return action.count;
-				}
-				return state;
-			},
-			actions: {
-				update: ( count ) => ( { type: 'update', count } ),
-			},
-			selectors: {
-				getCount: ( state ) => state,
-			},
-		} );
+	it( 'always calls select with the latest state in the handler passed to the component', async () => {
+		const user = userEvent.setup();
+		const registry = createRegistry();
+		registry.registerStore( 'counter', storeOptions );
 
-		const Component = withDispatch( ( _dispatch, ownProps, { select: _select } ) => {
-			const outerCount = _select( 'counter' ).getCount();
+		const Component = withDispatch( ( dispatch, ownProps, { select } ) => {
 			return {
 				update: () => {
-					const innerCount = _select( 'counter' ).getCount();
-					expect( innerCount ).toBe( outerCount );
-					const actionReturnedFromDispatch = _dispatch( 'counter' ).update( innerCount + 1 );
-					expect( actionReturnedFromDispatch ).toBe( undefined );
+					const currentCount = select( 'counter' ).getCount();
+					dispatch( 'counter' ).increment( currentCount + 1 );
 				},
 			};
 		} )( ( props ) => <button onClick={ props.update } /> );
 
-		const testRenderer = TestRenderer.create(
+		render(
 			<RegistryProvider value={ registry }>
 				<Component />
 			</RegistryProvider>
 		);
 
-		const counterUpdateHandler = testRenderer.root.findByType( 'button' ).props.onClick;
+		await user.click( screen.getByRole( 'button' ) );
+		// expectedValue = 2 * currentValue + 1.
+		expect( registry.select( 'counter' ).getCount() ).toBe( 1 );
 
-		counterUpdateHandler();
-		expect( store.getState() ).toBe( 1 );
+		await user.click( screen.getByRole( 'button' ) );
+		expect( registry.select( 'counter' ).getCount() ).toBe( 3 );
 
-		counterUpdateHandler();
-		expect( store.getState() ).toBe( 2 );
-
-		counterUpdateHandler();
-		expect( store.getState() ).toBe( 3 );
+		await user.click( screen.getByRole( 'button' ) );
+		expect( registry.select( 'counter' ).getCount() ).toBe( 7 );
 	} );
 
 	it( 'warns when mapDispatchToProps returns non-function property', () => {
+		const registry = createRegistry();
 		const Component = withDispatch( () => {
 			return {
 				count: 3,
 			};
 		} )( () => null );
 
-		TestRenderer.create(
+		render(
 			<RegistryProvider value={ registry }>
 				<Component />
 			</RegistryProvider>
 		);
+
 		expect( console ).toHaveWarnedWith(
-			'Property count returned from mapDispatchToProps in withDispatch must be a function.'
+			'Property count returned from dispatchMap in useDispatchWithMap must be a function.'
 		);
 	} );
 } );

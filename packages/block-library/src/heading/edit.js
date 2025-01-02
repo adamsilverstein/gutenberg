@@ -1,69 +1,129 @@
 /**
- * Internal dependencies
+ * External dependencies
  */
-import HeadingToolbar from './heading-toolbar';
+import clsx from 'clsx';
 
 /**
  * WordPress dependencies
  */
 import { __ } from '@wordpress/i18n';
-import { Fragment } from '@wordpress/element';
-import { PanelBody } from '@wordpress/components';
-import { createBlock } from '@wordpress/blocks';
-import { RichText, BlockControls, InspectorControls, AlignmentToolbar } from '@wordpress/editor';
+import { useEffect, Platform } from '@wordpress/element';
+import { useDispatch, useSelect } from '@wordpress/data';
+import {
+	AlignmentControl,
+	BlockControls,
+	RichText,
+	useBlockProps,
+	store as blockEditorStore,
+	HeadingLevelDropdown,
+	useBlockEditingMode,
+} from '@wordpress/block-editor';
 
-export default function HeadingEdit( {
+/**
+ * Internal dependencies
+ */
+import { generateAnchor, setAnchor } from './autogenerate-anchors';
+
+function HeadingEdit( {
 	attributes,
 	setAttributes,
 	mergeBlocks,
-	insertBlocksAfter,
 	onReplace,
-	className,
+	style,
+	clientId,
 } ) {
-	const { align, content, level, placeholder } = attributes;
+	const { textAlign, content, level, levelOptions, placeholder, anchor } =
+		attributes;
 	const tagName = 'h' + level;
+	const blockProps = useBlockProps( {
+		className: clsx( {
+			[ `has-text-align-${ textAlign }` ]: textAlign,
+		} ),
+		style,
+	} );
+	const blockEditingMode = useBlockEditingMode();
+
+	const { canGenerateAnchors } = useSelect( ( select ) => {
+		const { getGlobalBlockCount, getSettings } = select( blockEditorStore );
+		const settings = getSettings();
+
+		return {
+			canGenerateAnchors:
+				!! settings.generateAnchors ||
+				getGlobalBlockCount( 'core/table-of-contents' ) > 0,
+		};
+	}, [] );
+
+	const { __unstableMarkNextChangeAsNotPersistent } =
+		useDispatch( blockEditorStore );
+
+	// Initially set anchor for headings that have content but no anchor set.
+	// This is used when transforming a block to heading, or for legacy anchors.
+	useEffect( () => {
+		if ( ! canGenerateAnchors ) {
+			return;
+		}
+
+		if ( ! anchor && content ) {
+			// This side-effect should not create an undo level.
+			__unstableMarkNextChangeAsNotPersistent();
+			setAttributes( {
+				anchor: generateAnchor( clientId, content ),
+			} );
+		}
+		setAnchor( clientId, anchor );
+
+		// Remove anchor map when block unmounts.
+		return () => setAnchor( clientId, null );
+	}, [ anchor, content, clientId, canGenerateAnchors ] );
+
+	const onContentChange = ( value ) => {
+		const newAttrs = { content: value };
+		if (
+			canGenerateAnchors &&
+			( ! anchor ||
+				! value ||
+				generateAnchor( clientId, content ) === anchor )
+		) {
+			newAttrs.anchor = generateAnchor( clientId, value );
+		}
+		setAttributes( newAttrs );
+	};
 
 	return (
-		<Fragment>
-			<BlockControls>
-				<HeadingToolbar minLevel={ 2 } maxLevel={ 5 } selectedLevel={ level } onChange={ ( newLevel ) => setAttributes( { level: newLevel } ) } />
-			</BlockControls>
-			<InspectorControls>
-				<PanelBody title={ __( 'Heading Settings' ) }>
-					<p>{ __( 'Level' ) }</p>
-					<HeadingToolbar minLevel={ 1 } maxLevel={ 7 } selectedLevel={ level } onChange={ ( newLevel ) => setAttributes( { level: newLevel } ) } />
-					<p>{ __( 'Text Alignment' ) }</p>
-					<AlignmentToolbar
-						value={ align }
+		<>
+			{ blockEditingMode === 'default' && (
+				<BlockControls group="block">
+					<HeadingLevelDropdown
+						value={ level }
+						options={ levelOptions }
+						onChange={ ( newLevel ) =>
+							setAttributes( { level: newLevel } )
+						}
+					/>
+					<AlignmentControl
+						value={ textAlign }
 						onChange={ ( nextAlign ) => {
-							setAttributes( { align: nextAlign } );
+							setAttributes( { textAlign: nextAlign } );
 						} }
 					/>
-				</PanelBody>
-			</InspectorControls>
+				</BlockControls>
+			) }
 			<RichText
 				identifier="content"
-				wrapperClassName="wp-block-heading"
 				tagName={ tagName }
 				value={ content }
-				onChange={ ( value ) => setAttributes( { content: value } ) }
+				onChange={ onContentChange }
 				onMerge={ mergeBlocks }
-				unstableOnSplit={
-					insertBlocksAfter ?
-						( before, after, ...blocks ) => {
-							setAttributes( { content: before } );
-							insertBlocksAfter( [
-								...blocks,
-								createBlock( 'core/paragraph', { content: after } ),
-							] );
-						} :
-						undefined
-				}
+				onReplace={ onReplace }
 				onRemove={ () => onReplace( [] ) }
-				style={ { textAlign: align } }
-				className={ className }
-				placeholder={ placeholder || __( 'Write heading…' ) }
+				placeholder={ placeholder || __( 'Heading' ) }
+				textAlign={ textAlign }
+				{ ...( Platform.isNative && { deleteEnter: true } ) } // setup RichText on native mobile to delete the "Enter" key as it's handled by the JS/RN side
+				{ ...blockProps }
 			/>
-		</Fragment>
+		</>
 	);
 }
+
+export default HeadingEdit;

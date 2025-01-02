@@ -2,81 +2,94 @@
  * WordPress dependencies
  */
 import { __ } from '@wordpress/i18n';
-import { PanelBody, ToggleControl } from '@wordpress/components';
-import { Component, Fragment } from '@wordpress/element';
-import { InspectorControls } from '@wordpress/editor';
-import { ENTER } from '@wordpress/keycodes';
 import {
-	getDefaultBlockName,
-	createBlock,
-} from '@wordpress/blocks';
+	__experimentalToolsPanel as ToolsPanel,
+	__experimentalToolsPanelItem as ToolsPanelItem,
+	ToggleControl,
+} from '@wordpress/components';
+import { InspectorControls, useBlockProps } from '@wordpress/block-editor';
+import { ENTER } from '@wordpress/keycodes';
+import { getDefaultBlockName, createBlock } from '@wordpress/blocks';
+/**
+ * Internal dependencies
+ */
+import { useToolsPanelDropdownMenuProps } from '../utils/hooks';
 
-export default class MoreEdit extends Component {
-	constructor() {
-		super( ...arguments );
-		this.onChangeInput = this.onChangeInput.bind( this );
-		this.onKeyDown = this.onKeyDown.bind( this );
+const DEFAULT_TEXT = __( 'Read more' );
 
-		this.state = {
-			defaultText: __( 'Read more' ),
-		};
-	}
-
-	onChangeInput( event ) {
-		// Set defaultText to an empty string, allowing the user to clear/replace the input field's text
-		this.setState( {
-			defaultText: '',
+export default function MoreEdit( {
+	attributes: { customText, noTeaser },
+	insertBlocksAfter,
+	setAttributes,
+} ) {
+	const onChangeInput = ( event ) => {
+		setAttributes( {
+			customText: event.target.value,
 		} );
+	};
 
-		const value = event.target.value.length === 0 ? undefined : event.target.value;
-		this.props.setAttributes( { customText: value } );
-	}
-
-	onKeyDown( event ) {
-		const { keyCode } = event;
-		const { insertBlocksAfter } = this.props;
+	const onKeyDown = ( { keyCode } ) => {
 		if ( keyCode === ENTER ) {
 			insertBlocksAfter( [ createBlock( getDefaultBlockName() ) ] );
 		}
-	}
+	};
 
-	getHideExcerptHelp( checked ) {
-		return checked ?
-			__( 'The excerpt is hidden.' ) :
-			__( 'The excerpt is visible.' );
-	}
+	const getHideExcerptHelp = ( checked ) =>
+		checked
+			? __( 'The excerpt is hidden.' )
+			: __( 'The excerpt is visible.' );
 
-	render() {
-		const { customText, noTeaser } = this.props.attributes;
-		const { setAttributes } = this.props;
+	const toggleHideExcerpt = () => setAttributes( { noTeaser: ! noTeaser } );
 
-		const toggleHideExcerpt = () => setAttributes( { noTeaser: ! noTeaser } );
-		const { defaultText } = this.state;
-		const value = customText !== undefined ? customText : defaultText;
-		const inputLength = value.length + 1;
+	const style = {
+		width: `${ ( customText ? customText : DEFAULT_TEXT ).length + 1.2 }em`,
+	};
 
-		return (
-			<Fragment>
-				<InspectorControls>
-					<PanelBody>
+	const dropdownMenuProps = useToolsPanelDropdownMenuProps();
+
+	return (
+		<>
+			<InspectorControls>
+				<ToolsPanel
+					label={ __( 'Settings' ) }
+					resetAll={ () => {
+						setAttributes( {
+							noTeaser: false,
+						} );
+					} }
+					dropdownMenuProps={ dropdownMenuProps }
+				>
+					<ToolsPanelItem
+						label={ __( 'Hide excerpt' ) }
+						isShownByDefault
+						hasValue={ () => noTeaser }
+						onDeselect={ () =>
+							setAttributes( { noTeaser: false } )
+						}
+					>
 						<ToggleControl
-							label={ __( 'Hide the excerpt on the full content page' ) }
+							__nextHasNoMarginBottom
+							label={ __(
+								'Hide the excerpt on the full content page'
+							) }
 							checked={ !! noTeaser }
 							onChange={ toggleHideExcerpt }
-							help={ this.getHideExcerptHelp }
+							help={ getHideExcerptHelp }
 						/>
-					</PanelBody>
-				</InspectorControls>
-				<div className="wp-block-more">
-					<input
-						type="text"
-						value={ value }
-						size={ inputLength }
-						onChange={ this.onChangeInput }
-						onKeyDown={ this.onKeyDown }
-					/>
-				</div>
-			</Fragment>
-		);
-	}
+					</ToolsPanelItem>
+				</ToolsPanel>
+			</InspectorControls>
+			<div { ...useBlockProps() }>
+				<input
+					aria-label={ __( '“Read more” link text' ) }
+					type="text"
+					value={ customText }
+					placeholder={ DEFAULT_TEXT }
+					onChange={ onChangeInput }
+					onKeyDown={ onKeyDown }
+					style={ style }
+				/>
+			</div>
+		</>
+	);
 }

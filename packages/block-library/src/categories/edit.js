@@ -1,213 +1,265 @@
 /**
  * External dependencies
  */
-import { times, unescape } from 'lodash';
+import clsx from 'clsx';
 
 /**
  * WordPress dependencies
  */
-import { PanelBody, Placeholder, Spinner, ToggleControl } from '@wordpress/components';
-import { compose, withInstanceId } from '@wordpress/compose';
-import { withSelect } from '@wordpress/data';
-import { InspectorControls } from '@wordpress/editor';
-import { Component, Fragment } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import {
+	PanelBody,
+	Placeholder,
+	SelectControl,
+	Spinner,
+	ToggleControl,
+	VisuallyHidden,
+} from '@wordpress/components';
+import { useInstanceId } from '@wordpress/compose';
+import {
+	InspectorControls,
+	useBlockProps,
+	RichText,
+} from '@wordpress/block-editor';
+import { decodeEntities } from '@wordpress/html-entities';
+import { __, sprintf } from '@wordpress/i18n';
+import { pin } from '@wordpress/icons';
+import { useEntityRecords } from '@wordpress/core-data';
 
-class CategoriesEdit extends Component {
-	constructor() {
-		super( ...arguments );
+export default function CategoriesEdit( {
+	attributes: {
+		displayAsDropdown,
+		showHierarchy,
+		showPostCounts,
+		showOnlyTopLevel,
+		showEmpty,
+		label,
+		showLabel,
+		taxonomy: taxonomySlug,
+	},
+	setAttributes,
+	className,
+} ) {
+	const selectId = useInstanceId( CategoriesEdit, 'blocks-category-select' );
 
-		this.toggleDisplayAsDropdown = this.toggleDisplayAsDropdown.bind( this );
-		this.toggleShowPostCounts = this.toggleShowPostCounts.bind( this );
-		this.toggleShowHierarchy = this.toggleShowHierarchy.bind( this );
+	const { records: allTaxonomies, isResolvingTaxonomies } = useEntityRecords(
+		'root',
+		'taxonomy'
+	);
+
+	const taxonomies = allTaxonomies?.filter( ( t ) => t.visibility.public );
+
+	const taxonomy = taxonomies?.find( ( t ) => t.slug === taxonomySlug );
+
+	const isHierarchicalTaxonomy =
+		! isResolvingTaxonomies && taxonomy?.hierarchical;
+
+	const query = { per_page: -1, hide_empty: ! showEmpty, context: 'view' };
+	if ( isHierarchicalTaxonomy && showOnlyTopLevel ) {
+		query.parent = 0;
 	}
 
-	toggleDisplayAsDropdown() {
-		const { attributes, setAttributes } = this.props;
-		const { displayAsDropdown } = attributes;
+	const { records: categories, isResolving } = useEntityRecords(
+		'taxonomy',
+		taxonomySlug,
+		query
+	);
 
-		setAttributes( { displayAsDropdown: ! displayAsDropdown } );
-	}
-
-	toggleShowPostCounts() {
-		const { attributes, setAttributes } = this.props;
-		const { showPostCounts } = attributes;
-
-		setAttributes( { showPostCounts: ! showPostCounts } );
-	}
-
-	toggleShowHierarchy() {
-		const { attributes, setAttributes } = this.props;
-		const { showHierarchy } = attributes;
-
-		setAttributes( { showHierarchy: ! showHierarchy } );
-	}
-
-	getCategories( parentId = null ) {
-		const categories = this.props.categories;
-		if ( ! categories || ! categories.length ) {
+	const getCategoriesList = ( parentId ) => {
+		if ( ! categories?.length ) {
 			return [];
 		}
-
 		if ( parentId === null ) {
 			return categories;
 		}
+		return categories.filter( ( { parent } ) => parent === parentId );
+	};
 
-		return categories.filter( ( category ) => category.parent === parentId );
-	}
+	const toggleAttribute = ( attributeName ) => ( newValue ) =>
+		setAttributes( { [ attributeName ]: newValue } );
 
-	getCategoryListClassName( level ) {
-		return `wp-block-categories__list wp-block-categories__list-level-${ level }`;
-	}
+	const renderCategoryName = ( name ) =>
+		! name ? __( '(Untitled)' ) : decodeEntities( name ).trim();
 
-	renderCategoryName( category ) {
-		if ( ! category.name ) {
-			return __( '(Untitled)' );
-		}
-
-		return unescape( category.name ).trim();
-	}
-
-	renderCategoryList() {
-		const { showHierarchy } = this.props.attributes;
-		const parentId = showHierarchy ? 0 : null;
-		const categories = this.getCategories( parentId );
-
-		return (
-			<ul className={ this.getCategoryListClassName( 0 ) }>
-				{ categories.map( ( category ) => this.renderCategoryListItem( category, 0 ) ) }
-			</ul>
+	const renderCategoryList = () => {
+		const parentId = isHierarchicalTaxonomy && showHierarchy ? 0 : null;
+		const categoriesList = getCategoriesList( parentId );
+		return categoriesList.map( ( category ) =>
+			renderCategoryListItem( category )
 		);
-	}
+	};
 
-	renderCategoryListItem( category, level ) {
-		const { showHierarchy, showPostCounts } = this.props.attributes;
-		const childCategories = this.getCategories( category.id );
-
+	const renderCategoryListItem = ( category ) => {
+		const childCategories = getCategoriesList( category.id );
+		const { id, link, count, name } = category;
 		return (
-			<li key={ category.id }>
-				<a href={ category.link } target="_blank">{ this.renderCategoryName( category ) }</a>
-				{ showPostCounts &&
-					<span className="wp-block-categories__post-count">
-						{ ' ' }({ category.count })
-					</span>
-				}
-
-				{
+			<li key={ id } className={ `cat-item cat-item-${ id }` }>
+				<a href={ link } target="_blank" rel="noreferrer noopener">
+					{ renderCategoryName( name ) }
+				</a>
+				{ showPostCounts && ` (${ count })` }
+				{ isHierarchicalTaxonomy &&
 					showHierarchy &&
 					!! childCategories.length && (
-						<ul className={ this.getCategoryListClassName( level + 1 ) }>
-							{ childCategories.map( ( childCategory ) => this.renderCategoryListItem( childCategory, level + 1 ) ) }
+						<ul className="children">
+							{ childCategories.map( ( childCategory ) =>
+								renderCategoryListItem( childCategory )
+							) }
 						</ul>
-					)
-				}
+					) }
 			</li>
 		);
-	}
+	};
 
-	renderCategoryDropdown() {
-		const { instanceId } = this.props;
-		const { showHierarchy } = this.props.attributes;
-		const parentId = showHierarchy ? 0 : null;
-		const categories = this.getCategories( parentId );
-		const selectId = `blocks-category-select-${ instanceId }`;
+	const renderCategoryDropdown = () => {
+		const parentId = isHierarchicalTaxonomy && showHierarchy ? 0 : null;
+		const categoriesList = getCategoriesList( parentId );
 		return (
-			<Fragment>
-				<label htmlFor={ selectId } className="screen-reader-text">
-					{ __( 'Categories' ) }
-				</label>
-				<select id={ selectId } className="wp-block-categories__dropdown">
-					{ categories.map( ( category ) => this.renderCategoryDropdownItem( category, 0 ) ) }
+			<>
+				{ showLabel ? (
+					<RichText
+						className="wp-block-categories__label"
+						aria-label={ __( 'Label text' ) }
+						placeholder={ taxonomy.name }
+						withoutInteractiveFormatting
+						value={ label }
+						onChange={ ( html ) =>
+							setAttributes( { label: html } )
+						}
+					/>
+				) : (
+					<VisuallyHidden as="label" htmlFor={ selectId }>
+						{ label ? label : taxonomy.name }
+					</VisuallyHidden>
+				) }
+				<select id={ selectId }>
+					<option>
+						{ sprintf(
+							/* translators: %s: taxonomy's singular name */
+							__( 'Select %s' ),
+							taxonomy.labels.singular_name
+						) }
+					</option>
+					{ categoriesList.map( ( category ) =>
+						renderCategoryDropdownItem( category, 0 )
+					) }
 				</select>
-			</Fragment>
+			</>
 		);
-	}
+	};
 
-	renderCategoryDropdownItem( category, level ) {
-		const { showHierarchy, showPostCounts } = this.props.attributes;
-		const childCategories = this.getCategories( category.id );
-
+	const renderCategoryDropdownItem = ( category, level ) => {
+		const { id, count, name } = category;
+		const childCategories = getCategoriesList( id );
 		return [
-			<option key={ category.id }>
-				{ times( level * 3, () => '\xa0' ) }
-				{ this.renderCategoryName( category ) }
-				{
-					!! showPostCounts ?
-						` (${ category.count })` :
-						''
-				}
+			<option key={ id } className={ `level-${ level }` }>
+				{ Array.from( { length: level * 3 } ).map( () => '\xa0' ) }
+				{ renderCategoryName( name ) }
+				{ showPostCounts && ` (${ count })` }
 			</option>,
-			showHierarchy &&
-			!! childCategories.length && (
-				childCategories.map( ( childCategory ) => this.renderCategoryDropdownItem( childCategory, level + 1 ) )
-			),
+			isHierarchicalTaxonomy &&
+				showHierarchy &&
+				!! childCategories.length &&
+				childCategories.map( ( childCategory ) =>
+					renderCategoryDropdownItem( childCategory, level + 1 )
+				),
 		];
-	}
+	};
 
-	render() {
-		const { attributes, isRequesting } = this.props;
-		const { displayAsDropdown, showHierarchy, showPostCounts } = attributes;
+	const TagName =
+		!! categories?.length && ! displayAsDropdown && ! isResolving
+			? 'ul'
+			: 'div';
 
-		const inspectorControls = (
+	const classes = clsx( className, {
+		'wp-block-categories-list':
+			!! categories?.length && ! displayAsDropdown && ! isResolving,
+		'wp-block-categories-dropdown':
+			!! categories?.length && displayAsDropdown && ! isResolving,
+	} );
+
+	const blockProps = useBlockProps( {
+		className: classes,
+	} );
+
+	return (
+		<TagName { ...blockProps }>
 			<InspectorControls>
-				<PanelBody title={ __( 'Categories Settings' ) }>
+				<PanelBody title={ __( 'Settings' ) }>
+					{ Array.isArray( taxonomies ) && (
+						<SelectControl
+							__nextHasNoMarginBottom
+							__next40pxDefaultSize
+							label={ __( 'Taxonomy' ) }
+							options={ taxonomies.map( ( t ) => ( {
+								label: t.name,
+								value: t.slug,
+							} ) ) }
+							value={ taxonomySlug }
+							onChange={ ( selectedTaxonomy ) =>
+								setAttributes( {
+									taxonomy: selectedTaxonomy,
+								} )
+							}
+						/>
+					) }
 					<ToggleControl
-						label={ __( 'Display as Dropdown' ) }
+						__nextHasNoMarginBottom
+						label={ __( 'Display as dropdown' ) }
 						checked={ displayAsDropdown }
-						onChange={ this.toggleDisplayAsDropdown }
+						onChange={ toggleAttribute( 'displayAsDropdown' ) }
 					/>
+					{ displayAsDropdown && (
+						<ToggleControl
+							__nextHasNoMarginBottom
+							className="wp-block-categories__indentation"
+							label={ __( 'Show label' ) }
+							checked={ showLabel }
+							onChange={ toggleAttribute( 'showLabel' ) }
+						/>
+					) }
 					<ToggleControl
-						label={ __( 'Show Hierarchy' ) }
-						checked={ showHierarchy }
-						onChange={ this.toggleShowHierarchy }
-					/>
-					<ToggleControl
-						label={ __( 'Show Post Counts' ) }
+						__nextHasNoMarginBottom
+						label={ __( 'Show post counts' ) }
 						checked={ showPostCounts }
-						onChange={ this.toggleShowPostCounts }
+						onChange={ toggleAttribute( 'showPostCounts' ) }
 					/>
+					{ isHierarchicalTaxonomy && (
+						<ToggleControl
+							__nextHasNoMarginBottom
+							label={ __( 'Show only top level terms' ) }
+							checked={ showOnlyTopLevel }
+							onChange={ toggleAttribute( 'showOnlyTopLevel' ) }
+						/>
+					) }
+					<ToggleControl
+						__nextHasNoMarginBottom
+						label={ __( 'Show empty terms' ) }
+						checked={ showEmpty }
+						onChange={ toggleAttribute( 'showEmpty' ) }
+					/>
+					{ isHierarchicalTaxonomy && ! showOnlyTopLevel && (
+						<ToggleControl
+							__nextHasNoMarginBottom
+							label={ __( 'Show hierarchy' ) }
+							checked={ showHierarchy }
+							onChange={ toggleAttribute( 'showHierarchy' ) }
+						/>
+					) }
 				</PanelBody>
 			</InspectorControls>
-		);
-
-		if ( isRequesting ) {
-			return (
-				<Fragment>
-					{ inspectorControls }
-					<Placeholder
-						icon="admin-post"
-						label={ __( 'Categories' ) }
-					>
-						<Spinner />
-					</Placeholder>
-				</Fragment>
-			);
-		}
-
-		return (
-			<Fragment>
-				{ inspectorControls }
-				<div className={ this.props.className }>
-					{
-						displayAsDropdown ?
-							this.renderCategoryDropdown() :
-							this.renderCategoryList()
-					}
-				</div>
-			</Fragment>
-		);
-	}
+			{ isResolving && (
+				<Placeholder icon={ pin } label={ __( 'Terms' ) }>
+					<Spinner />
+				</Placeholder>
+			) }
+			{ ! isResolving && categories?.length === 0 && (
+				<p>{ taxonomy.labels.no_terms }</p>
+			) }
+			{ ! isResolving &&
+				categories?.length > 0 &&
+				( displayAsDropdown
+					? renderCategoryDropdown()
+					: renderCategoryList() ) }
+		</TagName>
+	);
 }
-export default compose(
-	withSelect( ( select ) => {
-		const { getEntityRecords } = select( 'core' );
-		const { isResolving } = select( 'core/data' );
-		const query = { per_page: -1, hide_empty: true };
-
-		return {
-			categories: getEntityRecords( 'taxonomy', 'category', query ),
-			isRequesting: isResolving( 'core', 'getEntityRecords', [ 'taxonomy', 'category', query ] ),
-		};
-	} ),
-	withInstanceId
-)( CategoriesEdit );

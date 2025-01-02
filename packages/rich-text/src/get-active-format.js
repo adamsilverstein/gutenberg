@@ -1,8 +1,10 @@
 /**
- * External dependencies
+ * Internal dependencies
  */
+import { getActiveFormats } from './get-active-formats';
 
-import { find } from 'lodash';
+/** @typedef {import('./types').RichTextValue} RichTextValue */
+/** @typedef {import('./types').RichTextFormat} RichTextFormat */
 
 /**
  * Gets the format object by type at the start of the selection. This can be
@@ -10,15 +12,14 @@ import { find } from 'lodash';
  * to check if a format is active at the selection. Returns undefined if there
  * is no format at the selection.
  *
- * @param {Object} value      Value to inspect.
- * @param {string} formatType Format type to look for.
+ * @param {RichTextValue} value      Value to inspect.
+ * @param {string}        formatType Format type to look for.
  *
- * @return {?Object} Active format object of the specified type, or undefined.
+ * @return {RichTextFormat|undefined} Active format object of the specified
+ *                                    type, or undefined.
  */
-export function getActiveFormat( { formats, start }, formatType ) {
-	if ( start === undefined ) {
-		return;
-	}
-
-	return find( formats[ start ], { type: formatType } );
+export function getActiveFormat( value, formatType ) {
+	return getActiveFormats( value ).find(
+		( { type } ) => type === formatType
+	);
 }

@@ -1,6 +1,16 @@
-import { setup, speak } from '../';
+/**
+ * WordPress dependencies
+ */
+import domReady from '@wordpress/dom-ready';
 
-jest.mock( '../clear', () => {
+/**
+ * Internal dependencies
+ */
+import { setup, speak } from '../';
+import clear from '../shared/clear';
+import filterMessage from '../shared/filter-message';
+
+jest.mock( '../shared/clear', () => {
 	return jest.fn();
 } );
 jest.mock( '@wordpress/dom-ready', () => {
@@ -8,15 +18,11 @@ jest.mock( '@wordpress/dom-ready', () => {
 		callback();
 	} );
 } );
-jest.mock( '../filterMessage', () => {
+jest.mock( '../shared/filter-message', () => {
 	return jest.fn( ( message ) => {
 		return message;
 	} );
 } );
-
-import clear from '../clear';
-import domReady from '@wordpress/dom-ready';
-import filterMessage from '../filterMessage';
 
 describe( 'speak', () => {
 	let containerPolite = document.getElementById( 'a11y-speak-polite' );
@@ -36,8 +42,8 @@ describe( 'speak', () => {
 	describe( 'in default mode', () => {
 		it( 'should set the textcontent of the polite aria-live region', () => {
 			speak( 'default message' );
-			expect( containerPolite.textContent ).toBe( 'default message' );
-			expect( containerAssertive.textContent ).toBe( '' );
+			expect( containerPolite ).toHaveTextContent( 'default message' );
+			expect( containerAssertive ).toBeEmptyDOMElement();
 			expect( clear ).toHaveBeenCalled();
 			expect( filterMessage ).toHaveBeenCalledWith( 'default message' );
 		} );
@@ -46,16 +52,18 @@ describe( 'speak', () => {
 	describe( 'in assertive mode', () => {
 		it( 'should set the textcontent of the assertive aria-live region', () => {
 			speak( 'assertive message', 'assertive' );
-			expect( containerPolite.textContent ).toBe( '' );
-			expect( containerAssertive.textContent ).toBe( 'assertive message' );
+			expect( containerPolite ).toBeEmptyDOMElement();
+			expect( containerAssertive ).toHaveTextContent(
+				'assertive message'
+			);
 		} );
 	} );
 
 	describe( 'in explicit polite mode', () => {
 		it( 'should set the textcontent of the polite aria-live region', () => {
 			speak( 'polite message', 'polite' );
-			expect( containerPolite.textContent ).toBe( 'polite message' );
-			expect( containerAssertive.textContent ).toBe( '' );
+			expect( containerPolite ).toHaveTextContent( 'polite message' );
+			expect( containerAssertive ).toBeEmptyDOMElement();
 		} );
 	} );
 
@@ -66,13 +74,17 @@ describe( 'speak', () => {
 
 		afterEach( () => {
 			setup();
-			containerAssertive = document.getElementById( 'a11y-speak-assertive' );
+			containerAssertive = document.getElementById(
+				'a11y-speak-assertive'
+			);
 		} );
 
 		it( 'should set the textcontent of the polite aria-live region', () => {
 			speak( 'message', 'assertive' );
-			expect( containerPolite.textContent ).toBe( 'message' );
-			expect( document.getElementById( 'a11y-speak-assertive' ) ).toBe( null );
+			expect( containerPolite ).toHaveTextContent( 'message' );
+			expect(
+				document.getElementById( 'a11y-speak-assertive' )
+			).toBeNull();
 		} );
 	} );
 
@@ -85,20 +97,26 @@ describe( 'speak', () => {
 		afterEach( () => {
 			setup();
 			containerPolite = document.getElementById( 'a11y-speak-polite' );
-			containerAssertive = document.getElementById( 'a11y-speak-assertive' );
+			containerAssertive = document.getElementById(
+				'a11y-speak-assertive'
+			);
 		} );
 
 		it( 'should set the textcontent of the polite aria-live region', () => {
-			expect( document.getElementById( 'a11y-speak-polite' ) ).toBe( null );
-			expect( document.getElementById( 'a11y-speak-assertive' ) ).toBe( null );
+			expect( document.getElementById( 'a11y-speak-polite' ) ).toBeNull();
+			expect(
+				document.getElementById( 'a11y-speak-assertive' )
+			).toBeNull();
 		} );
 	} );
 
 	describe( 'setup when the elements already exist', () => {
 		it( 'should not create the aria live regions again', () => {
-			const before = document.getElementsByClassName( 'a11y-speak-region' ).length;
+			const before =
+				document.getElementsByClassName( 'a11y-speak-region' ).length;
 			setup();
-			const after = document.getElementsByClassName( 'a11y-speak-region' ).length;
+			const after =
+				document.getElementsByClassName( 'a11y-speak-region' ).length;
 
 			expect( before ).toBe( after );
 		} );

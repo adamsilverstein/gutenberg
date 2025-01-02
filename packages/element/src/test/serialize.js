@@ -1,7 +1,4 @@
-/**
- * External dependencies
- */
-import { noop } from 'lodash';
+/* eslint-disable testing-library/render-result-naming-convention */
 
 /**
  * Internal dependencies
@@ -12,6 +9,7 @@ import {
 	createElement,
 	Fragment,
 	StrictMode,
+	forwardRef,
 } from '../react';
 import RawHTML from '../raw-html';
 import serialize, {
@@ -23,17 +21,16 @@ import serialize, {
 	renderStyle,
 } from '../serialize';
 
+const noop = () => {};
+
 describe( 'serialize()', () => {
 	it( 'should allow only valid attribute names', () => {
-		const element = createElement(
-			'div',
-			{
-				'notok\u007F': 'bad',
-				'notok"': 'bad',
-				ok: 'good',
-				'notok\uFDD0': 'bad',
-			},
-		);
+		const element = createElement( 'div', {
+			'notok\u007F': 'bad',
+			'notok"': 'bad',
+			ok: 'good',
+			'notok\uFDD0': 'bad',
+		} );
 
 		const result = serialize( element );
 
@@ -79,9 +76,18 @@ describe( 'serialize()', () => {
 		);
 
 		expect( result ).toBe(
-			'FunctionComponent: Hello!' +
-			'ClassComponent: Hello!'
+			'FunctionComponent: Hello!' + 'ClassComponent: Hello!'
 		);
+	} );
+
+	it( 'should render with forwardRef', () => {
+		const ForwardedComponent = forwardRef( () => {
+			return <div>test</div>;
+		} );
+
+		const result = serialize( <ForwardedComponent /> );
+
+		expect( result ).toBe( '<div>test</div>' );
 	} );
 
 	describe( 'empty attributes', () => {
@@ -113,7 +119,9 @@ describe( 'serialize()', () => {
 	describe( 'boolean attributes', () => {
 		it( 'should render elements with false boolean attributes', () => {
 			[ false, null, undefined ].forEach( ( controls ) => {
-				const result = serialize( <video src="/" controls={ controls } /> );
+				const result = serialize(
+					<video src="/" controls={ controls } />
+				);
 
 				expect( result ).toBe( '<video src="/"></video>' );
 			} );
@@ -121,7 +129,9 @@ describe( 'serialize()', () => {
 
 		it( 'should render elements with true boolean attributes', () => {
 			[ true, 'true', 'false', '' ].forEach( ( controls ) => {
-				const result = serialize( <video src="/" controls={ controls } /> );
+				const result = serialize(
+					<video src="/" controls={ controls } />
+				);
 
 				expect( result ).toBe( '<video src="/" controls></video>' );
 			} );
@@ -168,6 +178,42 @@ describe( 'renderElement()', () => {
 		const result = renderElement( [ 'hello', <div key="div" /> ] );
 
 		expect( result ).toBe( 'hello<div></div>' );
+	} );
+
+	it( 'SVG attributes with dashes should be rendered as such - even with wrong casing', () => {
+		const result = renderElement(
+			<svg>
+				<rect x="0" y="0" strokeWidth="5" STROKELinejoin="miter"></rect>
+			</svg>
+		);
+
+		expect( result ).toBe(
+			'<svg><rect x="0" y="0" stroke-width="5" stroke-linejoin="miter"></rect></svg>'
+		);
+	} );
+
+	it( 'Case sensitive attributes should have the right casing - even with wrong casing', () => {
+		const result = renderElement(
+			<svg ViEWBOx="0 0 1 1" preserveAsPECTRatio="slice"></svg>
+		);
+
+		expect( result ).toBe(
+			'<svg viewBox="0 0 1 1" preserveAspectRatio="slice"></svg>'
+		);
+	} );
+
+	it( 'SVG attributes with colons should be rendered as such - even with wrong casing', () => {
+		const result = renderElement(
+			<svg
+				viewBox="0 0 1 1"
+				XLINKROLE="some-role"
+				xlinkShow="hello"
+			></svg>
+		);
+
+		expect( result ).toBe(
+			'<svg viewBox="0 0 1 1" xlink:role="some-role" xlink:show="hello"></svg>'
+		);
 	} );
 
 	it( 'renders escaped string element', () => {
@@ -246,9 +292,7 @@ describe( 'renderElement()', () => {
 		} );
 
 		const result = renderElement(
-			<Consumer>
-				{ ( context ) => context.value }
-			</Consumer>
+			<Consumer>{ ( context ) => context.value }</Consumer>
 		);
 
 		expect( result ).toBe( 'default' );
@@ -261,9 +305,7 @@ describe( 'renderElement()', () => {
 
 		const result = renderElement(
 			<Provider value={ { value: 'provided' } }>
-				<Consumer>
-					{ ( context ) => context.value }
-				</Consumer>
+				<Consumer>{ ( context ) => context.value }</Consumer>
 			</Provider>
 		);
 
@@ -278,20 +320,13 @@ describe( 'renderElement()', () => {
 		const result = renderElement(
 			<Fragment>
 				<Provider value={ { value: '1st provided' } }>
-					<Consumer>
-						{ ( context ) => context.value }
-					</Consumer>
+					<Consumer>{ ( context ) => context.value }</Consumer>
 				</Provider>
-				{ '|' }
+				|
 				<Provider value={ { value: '2nd provided' } }>
-					<Consumer>
-						{ ( context ) => context.value }
-					</Consumer>
+					<Consumer>{ ( context ) => context.value }</Consumer>
 				</Provider>
-				{ '|' }
-				<Consumer>
-					{ ( context ) => context.value }
-				</Consumer>
+				|<Consumer>{ ( context ) => context.value }</Consumer>
 			</Fragment>
 		);
 
@@ -306,14 +341,9 @@ describe( 'renderElement()', () => {
 		const result = renderElement(
 			<Provider value={ { value: 'outer provided' } }>
 				<Provider value={ { value: 'inner provided' } }>
-					<Consumer>
-						{ ( context ) => context.value }
-					</Consumer>
+					<Consumer>{ ( context ) => context.value }</Consumer>
 				</Provider>
-				{ '|' }
-				<Consumer>
-					{ ( context ) => context.value }
-				</Consumer>
+				|<Consumer>{ ( context ) => context.value }</Consumer>
 			</Provider>
 		);
 
@@ -327,7 +357,9 @@ describe( 'renderElement()', () => {
 	} );
 
 	it( 'renders RawHTML with wrapper if props passed', () => {
-		const result = renderElement( <RawHTML className="foo">{ '<img/>' }</RawHTML> );
+		const result = renderElement(
+			<RawHTML className="foo">{ '<img/>' }</RawHTML>
+		);
 
 		expect( result ).toBe( '<div class="foo"><img/></div>' );
 	} );
@@ -348,13 +380,18 @@ describe( 'renderElement()', () => {
 describe( 'renderNativeComponent()', () => {
 	describe( 'textarea', () => {
 		it( 'should render textarea value as its content', () => {
-			const result = renderNativeComponent( 'textarea', { value: 'Hello', children: [] } );
+			const result = renderNativeComponent( 'textarea', {
+				value: 'Hello',
+				children: [],
+			} );
 
 			expect( result ).toBe( '<textarea>Hello</textarea>' );
 		} );
 
 		it( 'should render textarea children as its content', () => {
-			const result = renderNativeComponent( 'textarea', { children: [ 'Hello' ] } );
+			const result = renderNativeComponent( 'textarea', {
+				children: [ 'Hello' ],
+			} );
 
 			expect( result ).toBe( '<textarea>Hello</textarea>' );
 		} );
@@ -362,19 +399,25 @@ describe( 'renderNativeComponent()', () => {
 
 	describe( 'escaping', () => {
 		it( 'should escape children', () => {
-			const result = renderNativeComponent( 'div', { children: [ '<img/>' ] } );
+			const result = renderNativeComponent( 'div', {
+				children: [ '<img/>' ],
+			} );
 
 			expect( result ).toBe( '<div>&lt;img/></div>' );
 		} );
 
 		it( 'should not render invalid dangerouslySetInnerHTML', () => {
-			const result = renderNativeComponent( 'div', { dangerouslySetInnerHTML: { __html: undefined } } );
+			const result = renderNativeComponent( 'div', {
+				dangerouslySetInnerHTML: { __html: undefined },
+			} );
 
 			expect( result ).toBe( '<div></div>' );
 		} );
 
 		it( 'should not escape children with dangerouslySetInnerHTML', () => {
-			const result = renderNativeComponent( 'div', { dangerouslySetInnerHTML: { __html: '<img/>' } } );
+			const result = renderNativeComponent( 'div', {
+				dangerouslySetInnerHTML: { __html: '<img/>' },
+			} );
 
 			expect( result ).toBe( '<div><img/></div>' );
 		} );
@@ -388,7 +431,10 @@ describe( 'renderNativeComponent()', () => {
 		} );
 
 		it( 'should ignore self-closing elements children', () => {
-			const result = renderNativeComponent( 'img', { src: 'foo.png', children: [ 'Surprise!' ] } );
+			const result = renderNativeComponent( 'img', {
+				src: 'foo.png',
+				children: [ 'Surprise!' ],
+			} );
 
 			expect( result ).toBe( '<img src="foo.png"/>' );
 		} );
@@ -396,16 +442,17 @@ describe( 'renderNativeComponent()', () => {
 
 	describe( 'with children', () => {
 		it( 'should render single literal child', () => {
-			const result = renderNativeComponent( 'div', { children: 'Hello' } );
+			const result = renderNativeComponent( 'div', {
+				children: 'Hello',
+			} );
 
 			expect( result ).toBe( '<div>Hello</div>' );
 		} );
 
 		it( 'should render array of children', () => {
-			const result = renderNativeComponent( 'div', { children: [
-				'Hello ',
-				<Fragment key="toWhom">World</Fragment>,
-			] } );
+			const result = renderNativeComponent( 'div', {
+				children: [ 'Hello ', <Fragment key="toWhom">World</Fragment> ],
+			} );
 
 			expect( result ).toBe( '<div>Hello World</div>' );
 		} );
@@ -515,7 +562,9 @@ describe( 'renderAttributes()', () => {
 				contentEditable: true,
 			} );
 
-			expect( result ).toBe( ' for="foo" class="bar" contenteditable="true"' );
+			expect( result ).toBe(
+				' for="foo" class="bar" contenteditable="true"'
+			);
 		} );
 	} );
 
@@ -528,7 +577,9 @@ describe( 'renderAttributes()', () => {
 				href: '/index.php?foo=bar&qux=<"scary">',
 			} );
 
-			expect( result ).toBe( ' style="background:url(&quot;foo.png&quot;)" href="/index.php?foo=bar&amp;qux=<&quot;scary&quot;>"' );
+			expect( result ).toBe(
+				' style="background:url(&quot;foo.png&quot;)" href="/index.php?foo=bar&amp;qux=<&quot;scary&quot;&gt;"'
+			);
 		} );
 
 		it( 'should render numeric attributes', () => {
@@ -635,7 +686,9 @@ describe( 'renderStyle()', () => {
 			WebkitTransform: 'none',
 		} );
 
-		expect( result ).toBe( '-ms-transform:none;-o-transform:none;-moz-transform:none;-webkit-transform:none' );
+		expect( result ).toBe(
+			'-ms-transform:none;-o-transform:none;-moz-transform:none;-webkit-transform:none'
+		);
 	} );
 
 	describe( 'value unit', () => {
@@ -664,3 +717,5 @@ describe( 'renderStyle()', () => {
 		} );
 	} );
 } );
+
+/* eslint-enable testing-library/render-result-naming-convention */

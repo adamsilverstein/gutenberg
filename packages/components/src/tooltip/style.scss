@@ -1,33 +1,17 @@
-.components-tooltip.components-popover {
+.components-tooltip {
+	background: $black;
+	font-family: $default-font;
+	border-radius: $radius-small;
+	color: $gray-100;
+	text-align: center;
+	line-height: 1.4;
+	font-size: 12px;
+	padding: $grid-unit-05 $grid-unit-10;
 	z-index: z-index(".components-tooltip");
-
-	&::before {
-		border-color: transparent;
-	}
-
-	&.is-top::after {
-		border-top-color: $dark-gray-900;
-	}
-
-	&.is-bottom::after {
-		border-bottom-color: $dark-gray-900;
-	}
-}
-
-.components-tooltip .components-popover__content {
-	padding: 4px 12px;
-	background: $dark-gray-900;
-	border-width: 0;
-	color: $white;
-	white-space: nowrap;
-}
-
-.components-tooltip:not(.is-mobile) .components-popover__content {
-	min-width: 0;
+	box-shadow: $elevation-small;
 }
 
 .components-tooltip__shortcut {
-	display: block;
-	text-align: center;
-	color: $dark-gray-200;
+	margin-left: $grid-unit-10;
 }
+

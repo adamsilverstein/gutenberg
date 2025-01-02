@@ -1,318 +1,721 @@
 /**
- * External Dependencies
+ * External dependencies
  */
-import classnames from 'classnames';
-import { filter, pick, map, get } from 'lodash';
+import clsx from 'clsx';
 
 /**
  * WordPress dependencies
  */
-import { Component, Fragment } from '@wordpress/element';
-import { __, sprintf } from '@wordpress/i18n';
 import {
-	IconButton,
-	DropZone,
-	FormFileUpload,
+	BaseControl,
 	PanelBody,
-	RangeControl,
 	SelectControl,
 	ToggleControl,
-	Toolbar,
-	withNotices,
+	RangeControl,
+	Spinner,
+	MenuGroup,
+	MenuItem,
+	ToolbarDropdownMenu,
 } from '@wordpress/components';
 import {
-	BlockControls,
-	MediaUpload,
+	store as blockEditorStore,
 	MediaPlaceholder,
 	InspectorControls,
-	mediaUpload,
-} from '@wordpress/editor';
+	useBlockProps,
+	useInnerBlocksProps,
+	BlockControls,
+	MediaReplaceFlow,
+	useSettings,
+} from '@wordpress/block-editor';
+import { Platform, useEffect, useMemo } from '@wordpress/element';
+import { __, _x, sprintf } from '@wordpress/i18n';
+import { useSelect, useDispatch } from '@wordpress/data';
+import { View } from '@wordpress/primitives';
+import { createBlock } from '@wordpress/blocks';
+import { createBlobURL } from '@wordpress/blob';
+import { store as noticesStore } from '@wordpress/notices';
+import {
+	link as linkIcon,
+	customLink,
+	image as imageIcon,
+	linkOff,
+	fullscreen,
+} from '@wordpress/icons';
 
 /**
  * Internal dependencies
  */
-import GalleryImage from './gallery-image';
+import { sharedIcon } from './shared-icon';
+import { defaultColumnsNumber, pickRelevantMediaFiles } from './shared';
+import { getHrefAndDestination } from './utils';
+import {
+	getUpdatedLinkTargetSettings,
+	getImageSizeAttributes,
+} from '../image/utils';
+import Gallery from './gallery';
+import {
+	LINK_DESTINATION_ATTACHMENT,
+	LINK_DESTINATION_MEDIA,
+	LINK_DESTINATION_NONE,
+	LINK_DESTINATION_LIGHTBOX,
+} from './constants';
+import useImageSizes from './use-image-sizes';
+import useGetNewImages from './use-get-new-images';
+import useGetMedia from './use-get-media';
+import GapStyles from './gap-styles';
 
 const MAX_COLUMNS = 8;
-const linkOptions = [
-	{ value: 'attachment', label: __( 'Attachment Page' ) },
-	{ value: 'media', label: __( 'Media File' ) },
-	{ value: 'none', label: __( 'None' ) },
+const LINK_OPTIONS = [
+	{
+		icon: customLink,
+		label: __( 'Link images to attachment pages' ),
+		value: LINK_DESTINATION_ATTACHMENT,
+		noticeText: __( 'Attachment Pages' ),
+	},
+	{
+		icon: imageIcon,
+		label: __( 'Link images to media files' ),
+		value: LINK_DESTINATION_MEDIA,
+		noticeText: __( 'Media Files' ),
+	},
+	{
+		icon: fullscreen,
+		label: __( 'Expand on click' ),
+		value: LINK_DESTINATION_LIGHTBOX,
+		noticeText: __( 'Lightbox effect' ),
+		infoText: __( 'Scale images with a lightbox effect' ),
+	},
+	{
+		icon: linkOff,
+		label: _x( 'None', 'Media item link option' ),
+		value: LINK_DESTINATION_NONE,
+		noticeText: __( 'None' ),
+	},
 ];
 const ALLOWED_MEDIA_TYPES = [ 'image' ];
 
-export function defaultColumnsNumber( attributes ) {
-	return Math.min( 3, attributes.images.length );
-}
+const PLACEHOLDER_TEXT = Platform.isNative
+	? __( 'Add media' )
+	: __( 'Drag and drop images, upload, or choose from your library.' );
 
-export const pickRelevantMediaFiles = ( image ) => {
-	const imageProps = pick( image, [ 'alt', 'id', 'link', 'caption' ] );
-	imageProps.url = get( image, [ 'sizes', 'large', 'url' ] ) || get( image, [ 'media_details', 'sizes', 'large', 'source_url' ] ) || image.url;
-	return imageProps;
-};
+const MOBILE_CONTROL_PROPS_RANGE_CONTROL = Platform.isNative
+	? { type: 'stepper' }
+	: {};
 
-class GalleryEdit extends Component {
-	constructor() {
-		super( ...arguments );
+const DEFAULT_BLOCK = { name: 'core/image' };
+const EMPTY_ARRAY = [];
 
-		this.onSelectImage = this.onSelectImage.bind( this );
-		this.onSelectImages = this.onSelectImages.bind( this );
-		this.setLinkTo = this.setLinkTo.bind( this );
-		this.setColumnsNumber = this.setColumnsNumber.bind( this );
-		this.toggleImageCrop = this.toggleImageCrop.bind( this );
-		this.onRemoveImage = this.onRemoveImage.bind( this );
-		this.setImageAttributes = this.setImageAttributes.bind( this );
-		this.addFiles = this.addFiles.bind( this );
-		this.uploadFromFiles = this.uploadFromFiles.bind( this );
-		this.setAttributes = this.setAttributes.bind( this );
+export default function GalleryEdit( props ) {
+	const {
+		setAttributes,
+		attributes,
+		className,
+		clientId,
+		isSelected,
+		insertBlocksAfter,
+		isContentLocked,
+		onFocus,
+	} = props;
 
-		this.state = {
-			selectedImage: null,
-		};
-	}
+	const [ lightboxSetting ] = useSettings( 'blocks.core/image.lightbox' );
 
-	setAttributes( attributes ) {
-		if ( attributes.ids ) {
-			throw new Error( 'The "ids" attribute should not be changed directly. It is managed automatically when "images" attribute changes' );
-		}
+	const linkOptions = ! lightboxSetting?.allowEditing
+		? LINK_OPTIONS.filter(
+				( option ) => option.value !== LINK_DESTINATION_LIGHTBOX
+		  )
+		: LINK_OPTIONS;
 
-		if ( attributes.images ) {
-			attributes = {
-				...attributes,
-				ids: map( attributes.images, 'id' ),
+	const { columns, imageCrop, randomOrder, linkTarget, linkTo, sizeSlug } =
+		attributes;
+
+	const {
+		__unstableMarkNextChangeAsNotPersistent,
+		replaceInnerBlocks,
+		updateBlockAttributes,
+		selectBlock,
+	} = useDispatch( blockEditorStore );
+	const { createSuccessNotice, createErrorNotice } =
+		useDispatch( noticesStore );
+
+	const {
+		getBlock,
+		getSettings,
+		innerBlockImages,
+		blockWasJustInserted,
+		multiGallerySelection,
+	} = useSelect(
+		( select ) => {
+			const {
+				getBlockName,
+				getMultiSelectedBlockClientIds,
+				getSettings: _getSettings,
+				getBlock: _getBlock,
+				wasBlockJustInserted,
+			} = select( blockEditorStore );
+			const multiSelectedClientIds = getMultiSelectedBlockClientIds();
+
+			return {
+				getBlock: _getBlock,
+				getSettings: _getSettings,
+				innerBlockImages:
+					_getBlock( clientId )?.innerBlocks ?? EMPTY_ARRAY,
+				blockWasJustInserted: wasBlockJustInserted(
+					clientId,
+					'inserter_menu'
+				),
+				multiGallerySelection:
+					multiSelectedClientIds.length &&
+					multiSelectedClientIds.every(
+						( _clientId ) =>
+							getBlockName( _clientId ) === 'core/gallery'
+					),
 			};
-		}
+		},
+		[ clientId ]
+	);
 
-		this.props.setAttributes( attributes );
-	}
+	const images = useMemo(
+		() =>
+			innerBlockImages?.map( ( block ) => ( {
+				clientId: block.clientId,
+				id: block.attributes.id,
+				url: block.attributes.url,
+				attributes: block.attributes,
+				fromSavedContent: Boolean( block.originalContent ),
+			} ) ),
+		[ innerBlockImages ]
+	);
 
-	onSelectImage( index ) {
-		return () => {
-			if ( this.state.selectedImage !== index ) {
-				this.setState( {
-					selectedImage: index,
-				} );
-			}
-		};
-	}
+	const imageData = useGetMedia( innerBlockImages );
 
-	onRemoveImage( index ) {
-		return () => {
-			const images = filter( this.props.attributes.images, ( img, i ) => index !== i );
-			const { columns } = this.props.attributes;
-			this.setState( { selectedImage: null } );
-			this.setAttributes( {
-				images,
-				columns: columns ? Math.min( images.length, columns ) : columns,
+	const newImages = useGetNewImages( images, imageData );
+
+	useEffect( () => {
+		newImages?.forEach( ( newImage ) => {
+			// Update the images data without creating new undo levels.
+			__unstableMarkNextChangeAsNotPersistent();
+			updateBlockAttributes( newImage.clientId, {
+				...buildImageAttributes( newImage.attributes ),
+				id: newImage.id,
+				align: undefined,
 			} );
-		};
-	}
-
-	onSelectImages( images ) {
-		const { columns } = this.props.attributes;
-		this.setAttributes( {
-			images: images.map( ( image ) => pickRelevantMediaFiles( image ) ),
-			columns: columns ? Math.min( images.length, columns ) : columns,
 		} );
-	}
+	}, [ newImages ] );
 
-	setLinkTo( value ) {
-		this.setAttributes( { linkTo: value } );
-	}
+	const imageSizeOptions = useImageSizes(
+		imageData,
+		isSelected,
+		getSettings
+	);
 
-	setColumnsNumber( value ) {
-		this.setAttributes( { columns: value } );
-	}
+	/**
+	 * Determines the image attributes that should be applied to an image block
+	 * after the gallery updates.
+	 *
+	 * The gallery will receive the full collection of images when a new image
+	 * is added. As a result we need to reapply the image's original settings if
+	 * it already existed in the gallery. If the image is in fact new, we need
+	 * to apply the gallery's current settings to the image.
+	 *
+	 * @param {Object} imageAttributes Media object for the actual image.
+	 * @return {Object}                Attributes to set on the new image block.
+	 */
+	function buildImageAttributes( imageAttributes ) {
+		const image = imageAttributes.id
+			? imageData.find( ( { id } ) => id === imageAttributes.id )
+			: null;
 
-	toggleImageCrop() {
-		this.setAttributes( { imageCrop: ! this.props.attributes.imageCrop } );
-	}
-
-	getImageCropHelp( checked ) {
-		return checked ? __( 'Thumbnails are cropped to align.' ) : __( 'Thumbnails are not cropped.' );
-	}
-
-	setImageAttributes( index, attributes ) {
-		const { attributes: { images } } = this.props;
-		const { setAttributes } = this;
-		if ( ! images[ index ] ) {
-			return;
+		let newClassName;
+		if ( imageAttributes.className && imageAttributes.className !== '' ) {
+			newClassName = imageAttributes.className;
 		}
-		setAttributes( {
-			images: [
-				...images.slice( 0, index ),
-				{
-					...images[ index ],
-					...attributes,
-				},
-				...images.slice( index + 1 ),
-			],
-		} );
-	}
 
-	uploadFromFiles( event ) {
-		this.addFiles( event.target.files );
-	}
-
-	addFiles( files ) {
-		const currentImages = this.props.attributes.images || [];
-		const { noticeOperations } = this.props;
-		const { setAttributes } = this;
-		mediaUpload( {
-			allowedTypes: ALLOWED_MEDIA_TYPES,
-			filesList: files,
-			onFileChange: ( images ) => {
-				const imagesNormalized = images.map( ( image ) => pickRelevantMediaFiles( image ) );
-				setAttributes( {
-					images: currentImages.concat( imagesNormalized ),
-				} );
-			},
-			onError: noticeOperations.createErrorNotice,
-		} );
-	}
-
-	componentDidUpdate( prevProps ) {
-		// Deselect images when deselecting the block
-		if ( ! this.props.isSelected && prevProps.isSelected ) {
-			this.setState( {
-				selectedImage: null,
-				captionSelected: false,
-			} );
-		}
-	}
-
-	render() {
-		const { attributes, isSelected, className, noticeOperations, noticeUI } = this.props;
-		const { images, columns = defaultColumnsNumber( attributes ), align, imageCrop, linkTo } = attributes;
-
-		const dropZone = (
-			<DropZone
-				onFilesDrop={ this.addFiles }
-			/>
-		);
-
-		const controls = (
-			<BlockControls>
-				{ !! images.length && (
-					<Toolbar>
-						<MediaUpload
-							onSelect={ this.onSelectImages }
-							allowedTypes={ ALLOWED_MEDIA_TYPES }
-							multiple
-							gallery
-							value={ images.map( ( img ) => img.id ) }
-							render={ ( { open } ) => (
-								<IconButton
-									className="components-toolbar__control"
-									label={ __( 'Edit gallery' ) }
-									icon="edit"
-									onClick={ open }
-								/>
-							) }
-						/>
-					</Toolbar>
-				) }
-			</BlockControls>
-		);
-
-		if ( images.length === 0 ) {
-			return (
-				<Fragment>
-					{ controls }
-					<MediaPlaceholder
-						icon="format-gallery"
-						className={ className }
-						labels={ {
-							title: __( 'Gallery' ),
-							instructions: __( 'Drag images, upload new ones or select files from your library.' ),
-						} }
-						onSelect={ this.onSelectImages }
-						accept="image/*"
-						allowedTypes={ ALLOWED_MEDIA_TYPES }
-						multiple
-						notices={ noticeUI }
-						onError={ noticeOperations.createErrorNotice }
-					/>
-				</Fragment>
+		let newLinkTarget;
+		if ( imageAttributes.linkTarget || imageAttributes.rel ) {
+			// When transformed from image blocks, the link destination and rel attributes are inherited.
+			newLinkTarget = {
+				linkTarget: imageAttributes.linkTarget,
+				rel: imageAttributes.rel,
+			};
+		} else {
+			// When an image is added, update the link destination and rel attributes according to the gallery settings
+			newLinkTarget = getUpdatedLinkTargetSettings(
+				linkTarget,
+				attributes
 			);
 		}
 
-		return (
-			<Fragment>
-				{ controls }
-				<InspectorControls>
-					<PanelBody title={ __( 'Gallery Settings' ) }>
-						{ images.length > 1 && <RangeControl
-							label={ __( 'Columns' ) }
-							value={ columns }
-							onChange={ this.setColumnsNumber }
-							min={ 1 }
-							max={ Math.min( MAX_COLUMNS, images.length ) }
-						/> }
-						<ToggleControl
-							label={ __( 'Crop Images' ) }
-							checked={ !! imageCrop }
-							onChange={ this.toggleImageCrop }
-							help={ this.getImageCropHelp }
-						/>
-						<SelectControl
-							label={ __( 'Link To' ) }
-							value={ linkTo }
-							onChange={ this.setLinkTo }
-							options={ linkOptions }
-						/>
-					</PanelBody>
-				</InspectorControls>
-				{ noticeUI }
-				<ul
-					className={ classnames(
-						className,
-						{
-							[ `align${ align }` ]: align,
-							[ `columns-${ columns }` ]: columns,
-							'is-cropped': imageCrop,
-						}
-					) }
-				>
-					{ dropZone }
-					{ images.map( ( img, index ) => {
-						/* translators: %1$d is the order number of the image, %2$d is the total number of images. */
-						const ariaLabel = __( sprintf( 'image %1$d of %2$d in gallery', ( index + 1 ), images.length ) );
+		return {
+			...pickRelevantMediaFiles( image, sizeSlug ),
+			...getHrefAndDestination(
+				image,
+				linkTo,
+				imageAttributes?.linkDestination
+			),
+			...newLinkTarget,
+			className: newClassName,
+			sizeSlug,
+			caption: imageAttributes.caption || image.caption?.raw,
+			alt: imageAttributes.alt || image.alt_text,
+		};
+	}
 
-						return (
-							<li className="blocks-gallery-item" key={ img.id || img.url }>
-								<GalleryImage
-									url={ img.url }
-									alt={ img.alt }
-									id={ img.id }
-									isSelected={ isSelected && this.state.selectedImage === index }
-									onRemove={ this.onRemoveImage( index ) }
-									onSelect={ this.onSelectImage( index ) }
-									setAttributes={ ( attrs ) => this.setImageAttributes( index, attrs ) }
-									caption={ img.caption }
-									aria-label={ ariaLabel }
-								/>
-							</li>
-						);
-					} ) }
-					{ isSelected &&
-						<li className="blocks-gallery-item has-add-item-button">
-							<FormFileUpload
-								multiple
-								isLarge
-								className="block-library-gallery-add-item-button"
-								onChange={ this.uploadFromFiles }
-								accept="image/*"
-								icon="insert"
-							>
-								{ __( 'Upload an image' ) }
-							</FormFileUpload>
-						</li>
-					}
-				</ul>
-			</Fragment>
+	function isValidFileType( file ) {
+		// It's necessary to retrieve the media type from the raw image data for already-uploaded images on native.
+		const nativeFileData =
+			Platform.isNative && file.id
+				? imageData.find( ( { id } ) => id === file.id )
+				: null;
+
+		const mediaTypeSelector = nativeFileData
+			? nativeFileData?.media_type
+			: file.type;
+
+		return (
+			ALLOWED_MEDIA_TYPES.some(
+				( mediaType ) => mediaTypeSelector?.indexOf( mediaType ) === 0
+			) || file.blob
 		);
 	}
-}
 
-export default withNotices( GalleryEdit );
+	function updateImages( selectedImages ) {
+		const newFileUploads =
+			Object.prototype.toString.call( selectedImages ) ===
+			'[object FileList]';
+
+		const imageArray = newFileUploads
+			? Array.from( selectedImages ).map( ( file ) => {
+					if ( ! file.url ) {
+						return {
+							blob: createBlobURL( file ),
+						};
+					}
+
+					return file;
+			  } )
+			: selectedImages;
+
+		if ( ! imageArray.every( isValidFileType ) ) {
+			createErrorNotice(
+				__(
+					'If uploading to a gallery all files need to be image formats'
+				),
+				{ id: 'gallery-upload-invalid-file', type: 'snackbar' }
+			);
+		}
+
+		const processedImages = imageArray
+			.filter( ( file ) => file.url || isValidFileType( file ) )
+			.map( ( file ) => {
+				if ( ! file.url ) {
+					return {
+						blob: file.blob || createBlobURL( file ),
+					};
+				}
+
+				return file;
+			} );
+
+		// Because we are reusing existing innerImage blocks any reordering
+		// done in the media library will be lost so we need to reapply that ordering
+		// once the new image blocks are merged in with existing.
+		const newOrderMap = processedImages.reduce(
+			( result, image, index ) => (
+				( result[ image.id ] = index ), result
+			),
+			{}
+		);
+
+		const existingImageBlocks = ! newFileUploads
+			? innerBlockImages.filter( ( block ) =>
+					processedImages.find(
+						( img ) => img.id === block.attributes.id
+					)
+			  )
+			: innerBlockImages;
+
+		const newImageList = processedImages.filter(
+			( img ) =>
+				! existingImageBlocks.find(
+					( existingImg ) => img.id === existingImg.attributes.id
+				)
+		);
+
+		const newBlocks = newImageList.map( ( image ) => {
+			return createBlock( 'core/image', {
+				id: image.id,
+				blob: image.blob,
+				url: image.url,
+				caption: image.caption,
+				alt: image.alt,
+			} );
+		} );
+
+		replaceInnerBlocks(
+			clientId,
+			existingImageBlocks
+				.concat( newBlocks )
+				.sort(
+					( a, b ) =>
+						newOrderMap[ a.attributes.id ] -
+						newOrderMap[ b.attributes.id ]
+				)
+		);
+
+		// Select the first block to scroll into view when new blocks are added.
+		if ( newBlocks?.length > 0 ) {
+			selectBlock( newBlocks[ 0 ].clientId );
+		}
+	}
+
+	function onUploadError( message ) {
+		createErrorNotice( message, { type: 'snackbar' } );
+	}
+
+	function setLinkTo( value ) {
+		setAttributes( { linkTo: value } );
+		const changedAttributes = {};
+		const blocks = [];
+		getBlock( clientId ).innerBlocks.forEach( ( block ) => {
+			blocks.push( block.clientId );
+			const image = block.attributes.id
+				? imageData.find( ( { id } ) => id === block.attributes.id )
+				: null;
+
+			changedAttributes[ block.clientId ] = getHrefAndDestination(
+				image,
+				value,
+				false,
+				block.attributes,
+				lightboxSetting
+			);
+		} );
+		updateBlockAttributes( blocks, changedAttributes, true );
+		const linkToText = [ ...linkOptions ].find(
+			( linkType ) => linkType.value === value
+		);
+
+		createSuccessNotice(
+			sprintf(
+				/* translators: %s: image size settings */
+				__( 'All gallery image links updated to: %s' ),
+				linkToText.noticeText
+			),
+			{
+				id: 'gallery-attributes-linkTo',
+				type: 'snackbar',
+			}
+		);
+	}
+
+	function setColumnsNumber( value ) {
+		setAttributes( { columns: value } );
+	}
+
+	function toggleImageCrop() {
+		setAttributes( { imageCrop: ! imageCrop } );
+	}
+
+	function toggleRandomOrder() {
+		setAttributes( { randomOrder: ! randomOrder } );
+	}
+
+	function toggleOpenInNewTab( openInNewTab ) {
+		const newLinkTarget = openInNewTab ? '_blank' : undefined;
+		setAttributes( { linkTarget: newLinkTarget } );
+		const changedAttributes = {};
+		const blocks = [];
+		getBlock( clientId ).innerBlocks.forEach( ( block ) => {
+			blocks.push( block.clientId );
+			changedAttributes[ block.clientId ] = getUpdatedLinkTargetSettings(
+				newLinkTarget,
+				block.attributes
+			);
+		} );
+		updateBlockAttributes( blocks, changedAttributes, true );
+		const noticeText = openInNewTab
+			? __( 'All gallery images updated to open in new tab' )
+			: __( 'All gallery images updated to not open in new tab' );
+		createSuccessNotice( noticeText, {
+			id: 'gallery-attributes-openInNewTab',
+			type: 'snackbar',
+		} );
+	}
+
+	function updateImagesSize( newSizeSlug ) {
+		setAttributes( { sizeSlug: newSizeSlug } );
+		const changedAttributes = {};
+		const blocks = [];
+		getBlock( clientId ).innerBlocks.forEach( ( block ) => {
+			blocks.push( block.clientId );
+			const image = block.attributes.id
+				? imageData.find( ( { id } ) => id === block.attributes.id )
+				: null;
+			changedAttributes[ block.clientId ] = getImageSizeAttributes(
+				image,
+				newSizeSlug
+			);
+		} );
+		updateBlockAttributes( blocks, changedAttributes, true );
+		const imageSize = imageSizeOptions.find(
+			( size ) => size.value === newSizeSlug
+		);
+
+		createSuccessNotice(
+			sprintf(
+				/* translators: %s: image size settings */
+				__( 'All gallery image sizes updated to: %s' ),
+				imageSize.label
+			),
+			{
+				id: 'gallery-attributes-sizeSlug',
+				type: 'snackbar',
+			}
+		);
+	}
+
+	useEffect( () => {
+		// linkTo attribute must be saved so blocks don't break when changing image_default_link_type in options.php.
+		if ( ! linkTo ) {
+			__unstableMarkNextChangeAsNotPersistent();
+			setAttributes( {
+				linkTo:
+					window?.wp?.media?.view?.settings?.defaultProps?.link ||
+					LINK_DESTINATION_NONE,
+			} );
+		}
+	}, [ linkTo ] );
+
+	const hasImages = !! images.length;
+	const hasImageIds = hasImages && images.some( ( image ) => !! image.id );
+	const imagesUploading = images.some( ( img ) =>
+		! Platform.isNative
+			? ! img.id && img.url?.indexOf( 'blob:' ) === 0
+			: img.url?.indexOf( 'file:' ) === 0
+	);
+
+	// MediaPlaceholder props are different between web and native hence, we provide a platform-specific set.
+	const mediaPlaceholderProps = Platform.select( {
+		web: {
+			addToGallery: false,
+			disableMediaButtons: imagesUploading,
+			value: {},
+		},
+		native: {
+			addToGallery: hasImageIds,
+			isAppender: hasImages,
+			disableMediaButtons:
+				( hasImages && ! isSelected ) || imagesUploading,
+			value: hasImageIds ? images : {},
+			autoOpenMediaUpload:
+				! hasImages && isSelected && blockWasJustInserted,
+			onFocus,
+		},
+	} );
+	const mediaPlaceholder = (
+		<MediaPlaceholder
+			handleUpload={ false }
+			icon={ sharedIcon }
+			labels={ {
+				title: __( 'Gallery' ),
+				instructions: PLACEHOLDER_TEXT,
+			} }
+			onSelect={ updateImages }
+			accept="image/*"
+			allowedTypes={ ALLOWED_MEDIA_TYPES }
+			multiple
+			onError={ onUploadError }
+			{ ...mediaPlaceholderProps }
+		/>
+	);
+
+	const blockProps = useBlockProps( {
+		className: clsx( className, 'has-nested-images' ),
+	} );
+
+	const nativeInnerBlockProps = Platform.isNative && {
+		marginHorizontal: 0,
+		marginVertical: 0,
+	};
+
+	const innerBlocksProps = useInnerBlocksProps( blockProps, {
+		defaultBlock: DEFAULT_BLOCK,
+		directInsert: true,
+		orientation: 'horizontal',
+		renderAppender: false,
+		...nativeInnerBlockProps,
+	} );
+
+	if ( ! hasImages ) {
+		return (
+			<View { ...innerBlocksProps }>
+				{ innerBlocksProps.children }
+				{ mediaPlaceholder }
+			</View>
+		);
+	}
+
+	const hasLinkTo = linkTo && linkTo !== 'none';
+
+	return (
+		<>
+			<InspectorControls>
+				<PanelBody title={ __( 'Settings' ) }>
+					{ images.length > 1 && (
+						<RangeControl
+							__nextHasNoMarginBottom
+							label={ __( 'Columns' ) }
+							value={
+								columns
+									? columns
+									: defaultColumnsNumber( images.length )
+							}
+							onChange={ setColumnsNumber }
+							min={ 1 }
+							max={ Math.min( MAX_COLUMNS, images.length ) }
+							{ ...MOBILE_CONTROL_PROPS_RANGE_CONTROL }
+							required
+							__next40pxDefaultSize
+						/>
+					) }
+					{ imageSizeOptions?.length > 0 && (
+						<SelectControl
+							__nextHasNoMarginBottom
+							label={ __( 'Resolution' ) }
+							help={ __(
+								'Select the size of the source images.'
+							) }
+							value={ sizeSlug }
+							options={ imageSizeOptions }
+							onChange={ updateImagesSize }
+							hideCancelButton
+							size="__unstable-large"
+						/>
+					) }
+					{ Platform.isNative ? (
+						<SelectControl
+							__nextHasNoMarginBottom
+							label={ __( 'Link' ) }
+							value={ linkTo }
+							onChange={ setLinkTo }
+							options={ linkOptions }
+							hideCancelButton
+							size="__unstable-large"
+						/>
+					) : null }
+					<ToggleControl
+						__nextHasNoMarginBottom
+						label={ __( 'Crop images to fit' ) }
+						checked={ !! imageCrop }
+						onChange={ toggleImageCrop }
+					/>
+					<ToggleControl
+						__nextHasNoMarginBottom
+						label={ __( 'Randomize order' ) }
+						checked={ !! randomOrder }
+						onChange={ toggleRandomOrder }
+					/>
+					{ hasLinkTo && (
+						<ToggleControl
+							__nextHasNoMarginBottom
+							label={ __( 'Open images in new tab' ) }
+							checked={ linkTarget === '_blank' }
+							onChange={ toggleOpenInNewTab }
+						/>
+					) }
+					{ Platform.isWeb && ! imageSizeOptions && hasImageIds && (
+						<BaseControl
+							className="gallery-image-sizes"
+							__nextHasNoMarginBottom
+						>
+							<BaseControl.VisualLabel>
+								{ __( 'Resolution' ) }
+							</BaseControl.VisualLabel>
+							<View className="gallery-image-sizes__loading">
+								<Spinner />
+								{ __( 'Loading options…' ) }
+							</View>
+						</BaseControl>
+					) }
+				</PanelBody>
+			</InspectorControls>
+			{ Platform.isWeb ? (
+				<BlockControls group="block">
+					<ToolbarDropdownMenu
+						icon={ linkIcon }
+						label={ __( 'Link' ) }
+					>
+						{ ( { onClose } ) => (
+							<MenuGroup>
+								{ linkOptions.map( ( linkItem ) => {
+									const isOptionSelected =
+										linkTo === linkItem.value;
+									return (
+										<MenuItem
+											key={ linkItem.value }
+											isSelected={ isOptionSelected }
+											className={ clsx(
+												'components-dropdown-menu__menu-item',
+												{
+													'is-active':
+														isOptionSelected,
+												}
+											) }
+											iconPosition="left"
+											icon={ linkItem.icon }
+											onClick={ () => {
+												setLinkTo( linkItem.value );
+												onClose();
+											} }
+											role="menuitemradio"
+											info={ linkItem.infoText }
+										>
+											{ linkItem.label }
+										</MenuItem>
+									);
+								} ) }
+							</MenuGroup>
+						) }
+					</ToolbarDropdownMenu>
+				</BlockControls>
+			) : null }
+			{ Platform.isWeb && (
+				<>
+					{ ! multiGallerySelection && (
+						<BlockControls group="other">
+							<MediaReplaceFlow
+								allowedTypes={ ALLOWED_MEDIA_TYPES }
+								accept="image/*"
+								handleUpload={ false }
+								onSelect={ updateImages }
+								name={ __( 'Add' ) }
+								multiple
+								mediaIds={ images
+									.filter( ( image ) => image.id )
+									.map( ( image ) => image.id ) }
+								addToGallery={ hasImageIds }
+							/>
+						</BlockControls>
+					) }
+					<GapStyles
+						blockGap={ attributes.style?.spacing?.blockGap }
+						clientId={ clientId }
+					/>
+				</>
+			) }
+			<Gallery
+				{ ...props }
+				isContentLocked={ isContentLocked }
+				images={ images }
+				mediaPlaceholder={
+					! hasImages || Platform.isNative
+						? mediaPlaceholder
+						: undefined
+				}
+				blockProps={ innerBlocksProps }
+				insertBlocksAfter={ insertBlocksAfter }
+				multiGallerySelection={ multiGallerySelection }
+			/>
+		</>
+	);
+}

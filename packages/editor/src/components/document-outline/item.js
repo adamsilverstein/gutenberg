@@ -1,27 +1,17 @@
 /**
  * External dependencies
  */
-import classnames from 'classnames';
-
-/**
- * WordPress dependencies
- */
-import { __ } from '@wordpress/i18n';
-
-/**
- * Internal dependencies
- */
-import BlockTitle from '../block-title';
+import clsx from 'clsx';
 
 const TableOfContentsItem = ( {
 	children,
 	isValid,
 	level,
-	onClick,
-	path = [],
+	href,
+	onSelect,
 } ) => (
 	<li
-		className={ classnames(
+		className={ clsx(
 			'document-outline__item',
 			`is-${ level.toLowerCase() }`,
 			{
@@ -29,28 +19,18 @@ const TableOfContentsItem = ( {
 			}
 		) }
 	>
-		<button
+		<a
+			href={ href }
 			className="document-outline__button"
-			onClick={ onClick }
+			onClick={ onSelect }
 		>
-			<span className="document-outline__emdash" aria-hidden="true"></span>
-			{
-				// path is an array of nodes that are ancestors of the heading starting in the top level node.
-				// This mapping renders each ancestor to make it easier for the user to know where the headings are nested.
-				path.map( ( { clientId }, index ) => (
-					<strong key={ index } className="document-outline__level">
-						<BlockTitle clientId={ clientId } />
-					</strong>
-				) )
-			}
-			<strong className="document-outline__level">
-				{ level }
-			</strong>
-			<span className="document-outline__item-content">
-				{ children }
-			</span>
-			<span className="screen-reader-text">{ __( '(Click to focus this heading)' ) }</span>
-		</button>
+			<span
+				className="document-outline__emdash"
+				aria-hidden="true"
+			></span>
+			<strong className="document-outline__level">{ level }</strong>
+			<span className="document-outline__item-content">{ children }</span>
+		</a>
 	</li>
 );
 

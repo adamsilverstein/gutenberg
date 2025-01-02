@@ -1,194 +1,202 @@
 /**
  * External dependencies
  */
-import Textarea from 'react-autosize-textarea';
-import classnames from 'classnames';
-import { get } from 'lodash';
-
+import clsx from 'clsx';
 /**
  * WordPress dependencies
  */
 import { __ } from '@wordpress/i18n';
-import { Component } from '@wordpress/element';
+import { forwardRef, useState } from '@wordpress/element';
 import { decodeEntities } from '@wordpress/html-entities';
+import { useSelect, useDispatch } from '@wordpress/data';
+import { store as blockEditorStore } from '@wordpress/block-editor';
 import { ENTER } from '@wordpress/keycodes';
-import { withSelect, withDispatch } from '@wordpress/data';
-import { KeyboardShortcuts, withFocusOutside } from '@wordpress/components';
-import { withInstanceId, compose } from '@wordpress/compose';
+import { pasteHandler } from '@wordpress/blocks';
+import {
+	__unstableUseRichText as useRichText,
+	create,
+	insert,
+} from '@wordpress/rich-text';
+import { useMergeRefs } from '@wordpress/compose';
+import { __unstableStripHTML as stripHTML } from '@wordpress/dom';
 
 /**
  * Internal dependencies
  */
-import PostPermalink from '../post-permalink';
+import { DEFAULT_CLASSNAMES, REGEXP_NEWLINES } from './constants';
+import usePostTitleFocus from './use-post-title-focus';
+import usePostTitle from './use-post-title';
 import PostTypeSupportCheck from '../post-type-support-check';
 
-/**
- * Constants
- */
-const REGEXP_NEWLINES = /[\r\n]+/g;
+const PostTitle = forwardRef( ( _, forwardedRef ) => {
+	const { placeholder } = useSelect( ( select ) => {
+		const { getSettings } = select( blockEditorStore );
+		const { titlePlaceholder } = getSettings();
 
-class PostTitle extends Component {
-	constructor() {
-		super( ...arguments );
-
-		this.onChange = this.onChange.bind( this );
-		this.onSelect = this.onSelect.bind( this );
-		this.onUnselect = this.onUnselect.bind( this );
-		this.onKeyDown = this.onKeyDown.bind( this );
-		this.redirectHistory = this.redirectHistory.bind( this );
-
-		this.state = {
-			isSelected: false,
+		return {
+			placeholder: titlePlaceholder,
 		};
+	}, [] );
+
+	const [ isSelected, setIsSelected ] = useState( false );
+
+	const { ref: focusRef } = usePostTitleFocus( forwardedRef );
+
+	const { title, setTitle: onUpdate } = usePostTitle();
+
+	const [ selection, setSelection ] = useState( {} );
+
+	const { clearSelectedBlock, insertBlocks, insertDefaultBlock } =
+		useDispatch( blockEditorStore );
+
+	const decodedPlaceholder =
+		decodeEntities( placeholder ) || __( 'Add title' );
+
+	const {
+		value,
+		onChange,
+		ref: richTextRef,
+	} = useRichText( {
+		value: title,
+		onChange( newValue ) {
+			onUpdate( newValue.replace( REGEXP_NEWLINES, ' ' ) );
+		},
+		placeholder: decodedPlaceholder,
+		selectionStart: selection.start,
+		selectionEnd: selection.end,
+		onSelectionChange( newStart, newEnd ) {
+			setSelection( ( sel ) => {
+				const { start, end } = sel;
+				if ( start === newStart && end === newEnd ) {
+					return sel;
+				}
+				return {
+					start: newStart,
+					end: newEnd,
+				};
+			} );
+		},
+		__unstableDisableFormats: false,
+	} );
+
+	function onInsertBlockAfter( blocks ) {
+		insertBlocks( blocks, 0 );
 	}
 
-	handleFocusOutside() {
-		this.onUnselect();
+	function onSelect() {
+		setIsSelected( true );
+		clearSelectedBlock();
 	}
 
-	onSelect() {
-		this.setState( { isSelected: true } );
-		this.props.clearSelectedBlock();
+	function onUnselect() {
+		setIsSelected( false );
+		setSelection( {} );
 	}
 
-	onUnselect() {
-		this.setState( { isSelected: false } );
+	function onEnterPress() {
+		insertDefaultBlock( undefined, undefined, 0 );
 	}
 
-	onChange( event ) {
-		const newTitle = event.target.value.replace( REGEXP_NEWLINES, ' ' );
-		this.props.onUpdate( newTitle );
-	}
-
-	onKeyDown( event ) {
+	function onKeyDown( event ) {
 		if ( event.keyCode === ENTER ) {
 			event.preventDefault();
-			this.props.onEnterPress();
+			onEnterPress();
 		}
 	}
 
-	/**
-	 * Emulates behavior of an undo or redo on its corresponding key press
-	 * combination. This is a workaround to React's treatment of undo in a
-	 * controlled textarea where characters are updated one at a time.
-	 * Instead, leverage the store's undo handling of title changes.
-	 *
-	 * @see https://github.com/facebook/react/issues/8514
-	 *
-	 * @param {KeyboardEvent} event Key event.
-	 */
-	redirectHistory( event ) {
-		if ( event.shiftKey ) {
-			this.props.onRedo();
-		} else {
-			this.props.onUndo();
+	function onPaste( event ) {
+		const clipboardData = event.clipboardData;
+
+		let plainText = '';
+		let html = '';
+
+		try {
+			plainText = clipboardData.getData( 'text/plain' );
+			html = clipboardData.getData( 'text/html' );
+		} catch ( error ) {
+			// Some browsers like UC Browser paste plain text by default and
+			// don't support clipboardData at all, so allow default
+			// behaviour.
+			return;
 		}
+
+		// Allows us to ask for this information when we get a report.
+		window.console.log( 'Received HTML:\n\n', html );
+		window.console.log( 'Received plain text:\n\n', plainText );
+
+		const content = pasteHandler( {
+			HTML: html,
+			plainText,
+		} );
 
 		event.preventDefault();
+
+		if ( ! content.length ) {
+			return;
+		}
+
+		if ( typeof content !== 'string' ) {
+			const [ firstBlock ] = content;
+
+			if (
+				! title &&
+				( firstBlock.name === 'core/heading' ||
+					firstBlock.name === 'core/paragraph' )
+			) {
+				// Strip HTML to avoid unwanted HTML being added to the title.
+				// In the majority of cases it is assumed that HTML in the title
+				// is undesirable.
+				const contentNoHTML = stripHTML(
+					firstBlock.attributes.content
+				);
+				onUpdate( contentNoHTML );
+				onInsertBlockAfter( content.slice( 1 ) );
+			} else {
+				onInsertBlockAfter( content );
+			}
+		} else {
+			// Strip HTML to avoid unwanted HTML being added to the title.
+			// In the majority of cases it is assumed that HTML in the title
+			// is undesirable.
+			const contentNoHTML = stripHTML( content );
+			onChange( insert( value, create( { html: contentNoHTML } ) ) );
+		}
 	}
 
-	render() {
-		const {
-			hasFixedToolbar,
-			isCleanNewPost,
-			isFocusMode,
-			isPostTypeViewable,
-			instanceId,
-			placeholder,
-			title,
-		} = this.props;
-		const { isSelected } = this.state;
+	// The wp-block className is important for editor styles.
+	// This same block is used in both the visual and the code editor.
+	const className = clsx( DEFAULT_CLASSNAMES, {
+		'is-selected': isSelected,
+	} );
 
-		// The wp-block className is important for editor styles.
-		const className = classnames( 'wp-block editor-post-title__block', {
-			'is-selected': isSelected,
-			'is-focus-mode': isFocusMode,
-			'has-fixed-toolbar': hasFixedToolbar,
-		} );
-		const decodedPlaceholder = decodeEntities( placeholder );
-
-		return (
-			<PostTypeSupportCheck supportKeys="title">
-				<div className="editor-post-title">
-					<div className={ className }>
-						<KeyboardShortcuts
-							shortcuts={ {
-								'mod+z': this.redirectHistory,
-								'mod+shift+z': this.redirectHistory,
-							} }
-						>
-							<label htmlFor={ `post-title-${ instanceId }` } className="screen-reader-text">
-								{ decodedPlaceholder || __( 'Add title' ) }
-							</label>
-							<Textarea
-								id={ `post-title-${ instanceId }` }
-								className="editor-post-title__input"
-								value={ title }
-								onChange={ this.onChange }
-								placeholder={ decodedPlaceholder || __( 'Add title' ) }
-								onFocus={ this.onSelect }
-								onKeyDown={ this.onKeyDown }
-								onKeyPress={ this.onUnselect }
-								/*
-									Only autofocus the title when the post is entirely empty.
-									This should only happen for a new post, which means we
-									focus the title on new post so the author can start typing
-									right away, without needing to click anything.
-								*/
-								/* eslint-disable jsx-a11y/no-autofocus */
-								autoFocus={ isCleanNewPost }
-								/* eslint-enable jsx-a11y/no-autofocus */
-							/>
-						</KeyboardShortcuts>
-						{ isSelected && isPostTypeViewable && <PostPermalink /> }
-					</div>
-				</div>
-			</PostTypeSupportCheck>
-		);
-	}
-}
-
-const applyWithSelect = withSelect( ( select ) => {
-	const { getEditedPostAttribute, getEditorSettings, isCleanNewPost } = select( 'core/editor' );
-	const { getPostType } = select( 'core' );
-	const postType = getPostType( getEditedPostAttribute( 'type' ) );
-	const { titlePlaceholder, focusMode, hasFixedToolbar } = getEditorSettings();
-
-	return {
-		isCleanNewPost: isCleanNewPost(),
-		title: getEditedPostAttribute( 'title' ),
-		isPostTypeViewable: get( postType, [ 'viewable' ], false ),
-		placeholder: titlePlaceholder,
-		isFocusMode: focusMode,
-		hasFixedToolbar,
-	};
+	return (
+		/* eslint-disable jsx-a11y/heading-has-content, jsx-a11y/no-noninteractive-element-to-interactive-role */
+		<h1
+			ref={ useMergeRefs( [ richTextRef, focusRef ] ) }
+			contentEditable
+			className={ className }
+			aria-label={ decodedPlaceholder }
+			role="textbox"
+			aria-multiline="true"
+			onFocus={ onSelect }
+			onBlur={ onUnselect }
+			onKeyDown={ onKeyDown }
+			onPaste={ onPaste }
+		/>
+		/* eslint-enable jsx-a11y/heading-has-content, jsx-a11y/no-noninteractive-element-to-interactive-role */
+	);
 } );
 
-const applyWithDispatch = withDispatch( ( dispatch ) => {
-	const {
-		insertDefaultBlock,
-		editPost,
-		clearSelectedBlock,
-		undo,
-		redo,
-	} = dispatch( 'core/editor' );
-
-	return {
-		onEnterPress() {
-			insertDefaultBlock( undefined, undefined, 0 );
-		},
-		onUpdate( title ) {
-			editPost( { title } );
-		},
-		onUndo: undo,
-		onRedo: redo,
-		clearSelectedBlock,
-	};
-} );
-
-export default compose(
-	applyWithSelect,
-	applyWithDispatch,
-	withInstanceId,
-	withFocusOutside
-)( PostTitle );
+/**
+ * Renders the `PostTitle` component.
+ *
+ * @param {Object}  _            Unused parameter.
+ * @param {Element} forwardedRef Forwarded ref for the component.
+ *
+ * @return {React.ReactNode} The rendered PostTitle component.
+ */
+export default forwardRef( ( _, forwardedRef ) => (
+	<PostTypeSupportCheck supportKeys="title">
+		<PostTitle ref={ forwardedRef } />
+	</PostTypeSupportCheck>
+) );

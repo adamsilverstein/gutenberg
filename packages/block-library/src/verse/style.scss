@@ -1,4 +1,8 @@
 pre.wp-block-verse {
-	white-space: nowrap;
 	overflow: auto;
+	white-space: pre-wrap;
+}
+
+:where(pre.wp-block-verse) {
+	font-family: inherit;
 }

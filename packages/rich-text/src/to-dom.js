@@ -4,12 +4,9 @@
 
 import { toTree } from './to-tree';
 import { createElement } from './create-element';
+import { isRangeEqual } from './is-range-equal';
 
-/**
- * Browser dependencies
- */
-
-const { TEXT_NODE, ELEMENT_NODE } = window.Node;
+/** @typedef {import('./types').RichTextValue} RichTextValue */
 
 /**
  * Creates a path as an array of indices from the given root node to the given
@@ -59,19 +56,11 @@ function getNodeByPath( node, path ) {
 	};
 }
 
-/**
- * Returns a new instance of a DOM tree upon which RichText operations can be
- * applied.
- *
- * Note: The current implementation will return a shared reference, reset on
- * each call to `createEmpty`. Therefore, you should not hold a reference to
- * the value to operate upon asynchronously, as it may have unexpected results.
- *
- * @return {WPRichTextTree} RichText tree.
- */
-const createEmpty = () => createElement( document, '' );
-
 function append( element, child ) {
+	if ( child.html !== undefined ) {
+		return ( element.innerHTML += child.html );
+	}
+
 	if ( typeof child === 'string' ) {
 		child = element.ownerDocument.createTextNode( child );
 	}
@@ -79,10 +68,16 @@ function append( element, child ) {
 	const { type, attributes } = child;
 
 	if ( type ) {
-		child = element.ownerDocument.createElement( type );
+		if ( type === '#comment' ) {
+			child = element.ownerDocument.createComment(
+				attributes[ 'data-rich-text-comment' ]
+			);
+		} else {
+			child = element.ownerDocument.createElement( type );
 
-		for ( const key in attributes ) {
-			child.setAttribute( key, attributes[ key ] );
+			for ( const key in attributes ) {
+				child.setAttribute( key, attributes[ key ] );
+			}
 		}
 	}
 
@@ -101,8 +96,8 @@ function getParent( { parentNode } ) {
 	return parentNode;
 }
 
-function isText( { nodeType } ) {
-	return nodeType === TEXT_NODE;
+function isText( node ) {
+	return node.nodeType === node.TEXT_NODE;
 }
 
 function getText( { nodeValue } ) {
@@ -113,56 +108,37 @@ function remove( node ) {
 	return node.parentNode.removeChild( node );
 }
 
-function padEmptyLines( { element, createLinePadding, multilineWrapperTags } ) {
-	const length = element.childNodes.length;
-	const doc = element.ownerDocument;
-
-	for ( let index = 0; index < length; index++ ) {
-		const child = element.childNodes[ index ];
-
-		if ( child.nodeType === TEXT_NODE ) {
-			if ( length === 1 && ! child.nodeValue ) {
-				// Pad if the only child is an empty text node.
-				element.appendChild( createLinePadding( doc ) );
-			}
-		} else {
-			if (
-				multilineWrapperTags &&
-				! child.previousSibling &&
-				multilineWrapperTags.indexOf( child.nodeName.toLowerCase() ) !== -1
-			) {
-				// Pad the line if there is no content before a nested wrapper.
-				element.insertBefore( createLinePadding( doc ), child );
-			}
-
-			padEmptyLines( { element: child, createLinePadding, multilineWrapperTags } );
-		}
-	}
-}
-
-function prepareFormats( prepareEditableTree = [], value ) {
-	return prepareEditableTree.reduce( ( accumlator, fn ) => {
-		return fn( accumlator, value.text );
-	}, value.formats );
-}
-
 export function toDom( {
 	value,
-	multilineTag,
-	multilineWrapperTags,
-	createLinePadding,
 	prepareEditableTree,
+	isEditableTree = true,
+	placeholder,
+	doc = document,
 } ) {
 	let startPath = [];
 	let endPath = [];
 
-	const tree = toTree( {
-		value: {
+	if ( prepareEditableTree ) {
+		value = {
 			...value,
-			formats: prepareFormats( prepareEditableTree, value ),
-		},
-		multilineTag,
-		multilineWrapperTags,
+			formats: prepareEditableTree( value ),
+		};
+	}
+
+	/**
+	 * Returns a new instance of a DOM tree upon which RichText operations can be
+	 * applied.
+	 *
+	 * Note: The current implementation will return a shared reference, reset on
+	 * each call to `createEmpty`. Therefore, you should not hold a reference to
+	 * the value to operate upon asynchronously, as it may have unexpected results.
+	 *
+	 * @return {Object} RichText tree.
+	 */
+	const createEmpty = () => createElement( doc, '' );
+
+	const tree = toTree( {
+		value,
 		createEmpty,
 		append,
 		getLastChild,
@@ -172,17 +148,18 @@ export function toDom( {
 		remove,
 		appendText,
 		onStartIndex( body, pointer ) {
-			startPath = createPathToNode( pointer, body, [ pointer.nodeValue.length ] );
+			startPath = createPathToNode( pointer, body, [
+				pointer.nodeValue.length,
+			] );
 		},
 		onEndIndex( body, pointer ) {
-			endPath = createPathToNode( pointer, body, [ pointer.nodeValue.length ] );
+			endPath = createPathToNode( pointer, body, [
+				pointer.nodeValue.length,
+			] );
 		},
-		isEditableTree: true,
+		isEditableTree,
+		placeholder,
 	} );
-
-	if ( createLinePadding ) {
-		padEmptyLines( { element: tree, createLinePadding, multilineWrapperTags } );
-	}
 
 	return {
 		body: tree,
@@ -192,34 +169,33 @@ export function toDom( {
 
 /**
  * Create an `Element` tree from a Rich Text value and applies the difference to
- * the `Element` tree contained by `current`. If a `multilineTag` is provided,
- * text separated by two new lines will be wrapped in an `Element` of that type.
+ * the `Element` tree contained by `current`.
  *
- * @param {Object}      value        Value to apply.
- * @param {HTMLElement} current      The live root node to apply the element
- *                                   tree to.
- * @param {string}      multilineTag Multiline tag.
+ * @param {Object}        $1                       Named arguments.
+ * @param {RichTextValue} $1.value                 Value to apply.
+ * @param {HTMLElement}   $1.current               The live root node to apply the element tree to.
+ * @param {Function}      [$1.prepareEditableTree] Function to filter editorable formats.
+ * @param {boolean}       [$1.__unstableDomOnly]   Only apply elements, no selection.
+ * @param {string}        [$1.placeholder]         Placeholder text.
  */
 export function apply( {
 	value,
 	current,
-	multilineTag,
-	multilineWrapperTags,
-	createLinePadding,
 	prepareEditableTree,
+	__unstableDomOnly,
+	placeholder,
 } ) {
 	// Construct a new element tree in memory.
 	const { body, selection } = toDom( {
 		value,
-		multilineTag,
-		multilineWrapperTags,
-		createLinePadding,
 		prepareEditableTree,
+		placeholder,
+		doc: current.ownerDocument,
 	} );
 
 	applyValue( body, current );
 
-	if ( value.start !== undefined ) {
+	if ( value.start !== undefined && ! __unstableDomOnly ) {
 		applySelection( selection, current );
 	}
 }
@@ -234,7 +210,43 @@ export function applyValue( future, current ) {
 		if ( ! currentChild ) {
 			current.appendChild( futureChild );
 		} else if ( ! currentChild.isEqualNode( futureChild ) ) {
-			current.replaceChild( futureChild, currentChild );
+			if (
+				currentChild.nodeName !== futureChild.nodeName ||
+				( currentChild.nodeType === currentChild.TEXT_NODE &&
+					currentChild.data !== futureChild.data )
+			) {
+				current.replaceChild( futureChild, currentChild );
+			} else {
+				const currentAttributes = currentChild.attributes;
+				const futureAttributes = futureChild.attributes;
+
+				if ( currentAttributes ) {
+					let ii = currentAttributes.length;
+
+					// Reverse loop because `removeAttribute` on `currentChild`
+					// changes `currentAttributes`.
+					while ( ii-- ) {
+						const { name } = currentAttributes[ ii ];
+
+						if ( ! futureChild.getAttribute( name ) ) {
+							currentChild.removeAttribute( name );
+						}
+					}
+				}
+
+				if ( futureAttributes ) {
+					for ( let ii = 0; ii < futureAttributes.length; ii++ ) {
+						const { name, value } = futureAttributes[ ii ];
+
+						if ( currentChild.getAttribute( name ) !== value ) {
+							currentChild.setAttribute( name, value );
+						}
+					}
+				}
+
+				applyValue( futureChild, currentChild );
+				future.removeChild( futureChild );
+			}
 		} else {
 			future.removeChild( futureChild );
 		}
@@ -247,66 +259,48 @@ export function applyValue( future, current ) {
 	}
 }
 
-/**
- * Returns true if two ranges are equal, or false otherwise. Ranges are
- * considered equal if their start and end occur in the same container and
- * offset.
- *
- * @param {Range} a First range object to test.
- * @param {Range} b First range object to test.
- *
- * @return {boolean} Whether the two ranges are equal.
- */
-function isRangeEqual( a, b ) {
-	return (
-		a.startContainer === b.startContainer &&
-		a.startOffset === b.startOffset &&
-		a.endContainer === b.endContainer &&
-		a.endOffset === b.endOffset
+export function applySelection( { startPath, endPath }, current ) {
+	const { node: startContainer, offset: startOffset } = getNodeByPath(
+		current,
+		startPath
 	);
-}
+	const { node: endContainer, offset: endOffset } = getNodeByPath(
+		current,
+		endPath
+	);
+	const { ownerDocument } = current;
+	const { defaultView } = ownerDocument;
+	const selection = defaultView.getSelection();
+	const range = ownerDocument.createRange();
 
-export function applySelection( selection, current ) {
-	const { node: startContainer, offset: startOffset } = getNodeByPath( current, selection.startPath );
-	const { node: endContainer, offset: endOffset } = getNodeByPath( current, selection.endPath );
+	range.setStart( startContainer, startOffset );
+	range.setEnd( endContainer, endOffset );
 
-	const windowSelection = window.getSelection();
-	const range = current.ownerDocument.createRange();
-	const collapsed = startContainer === endContainer && startOffset === endOffset;
+	const { activeElement } = ownerDocument;
 
-	if (
-		collapsed &&
-		startOffset === 0 &&
-		startContainer.previousSibling &&
-		startContainer.previousSibling.nodeType === ELEMENT_NODE &&
-		startContainer.previousSibling.nodeName !== 'BR'
-	) {
-		startContainer.insertData( 0, '\uFEFF' );
-		range.setStart( startContainer, 1 );
-		range.setEnd( endContainer, 1 );
-	} else if (
-		collapsed &&
-		startOffset === 0 &&
-		startContainer === TEXT_NODE &&
-		startContainer.nodeValue.length === 0
-	) {
-		startContainer.insertData( 0, '\uFEFF' );
-		range.setStart( startContainer, 1 );
-		range.setEnd( endContainer, 1 );
-	} else {
-		range.setStart( startContainer, startOffset );
-		range.setEnd( endContainer, endOffset );
-	}
-
-	if ( windowSelection.rangeCount > 0 ) {
+	if ( selection.rangeCount > 0 ) {
 		// If the to be added range and the live range are the same, there's no
 		// need to remove the live range and add the equivalent range.
-		if ( isRangeEqual( range, windowSelection.getRangeAt( 0 ) ) ) {
+		if ( isRangeEqual( range, selection.getRangeAt( 0 ) ) ) {
 			return;
 		}
 
-		windowSelection.removeAllRanges();
+		selection.removeAllRanges();
 	}
 
-	windowSelection.addRange( range );
+	selection.addRange( range );
+
+	// This function is not intended to cause a shift in focus. Since the above
+	// selection manipulations may shift focus, ensure that focus is restored to
+	// its previous state.
+	if ( activeElement !== ownerDocument.activeElement ) {
+		// The `instanceof` checks protect against edge cases where the focused
+		// element is not of the interface HTMLElement (does not have a `focus`
+		// or `blur` property).
+		//
+		// See: https://github.com/Microsoft/TypeScript/issues/5901#issuecomment-431649653
+		if ( activeElement instanceof defaultView.HTMLElement ) {
+			activeElement.focus();
+		}
+	}
 }

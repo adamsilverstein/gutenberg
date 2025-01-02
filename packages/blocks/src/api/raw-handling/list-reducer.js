@@ -8,12 +8,12 @@ function isList( node ) {
 }
 
 function shallowTextContent( element ) {
-	return [ ...element.childNodes ]
+	return Array.from( element.childNodes )
 		.map( ( { nodeValue = '' } ) => nodeValue )
 		.join( '' );
 }
 
-export default function( node ) {
+export default function listReducer( node ) {
 	if ( ! isList( node ) ) {
 		return;
 	}
@@ -53,9 +53,6 @@ export default function( node ) {
 		if ( prevListItem ) {
 			prevListItem.appendChild( list );
 			parentList.removeChild( parentListItem );
-		} else {
-			parentList.parentNode.insertBefore( list, parentList );
-			parentList.parentNode.removeChild( parentList );
 		}
 	}
 

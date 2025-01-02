@@ -1,7 +1,8 @@
 /**
  * External dependencies
  */
-import TestRenderer from 'react-test-renderer';
+import { act, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 /**
  * WordPress dependencies
@@ -15,15 +16,23 @@ import { Component } from '@wordpress/element';
 import withSelect from '../';
 import withDispatch from '../../with-dispatch';
 import { createRegistry } from '../../../registry';
-import RegistryProvider from '../../registry-provider';
+import { RegistryProvider } from '../../registry-provider';
 
+/* eslint-disable @wordpress/wp-global-usage */
 describe( 'withSelect', () => {
-	let registry;
-	beforeEach( () => {
-		registry = createRegistry();
+	const initialScriptDebug = globalThis.SCRIPT_DEBUG;
+
+	beforeAll( () => {
+		// Do not run HOC in development mode; it will call `mapSelect` an extra time.
+		globalThis.SCRIPT_DEBUG = false;
+	} );
+
+	afterAll( () => {
+		globalThis.SCRIPT_DEBUG = initialScriptDebug;
 	} );
 
 	it( 'passes the relevant data to the component', () => {
+		const registry = createRegistry();
 		registry.registerStore( 'reactReducer', {
 			reducer: () => ( { reactKey: 'reactState' } ),
 			selectors: {
@@ -34,37 +43,39 @@ describe( 'withSelect', () => {
 		// In normal circumstances, the fact that we have to add an arbitrary
 		// prefix to the variable name would be concerning, and perhaps an
 		// argument that we ought to expect developer to use select from the
-		// wp.data export. But in-fact, this serves as a good deterrent for
+		// `@wordpress/data` export. But in-fact, this serves as a good deterrent for
 		// including both `withSelect` and `select` in the same scope, which
 		// shouldn't occur for a typical component, and if it did might wrongly
 		// encourage the developer to use `select` within the component itself.
-		const mapSelectToProps = jest.fn().mockImplementation( ( _select, ownProps ) => ( {
+		const mapSelectToProps = jest.fn( ( _select, ownProps ) => ( {
 			data: _select( 'reactReducer' ).reactSelector( ownProps.keyName ),
 		} ) );
 
-		const OriginalComponent = jest.fn().mockImplementation( ( props ) => (
-			<div>{ props.data }</div>
+		const OriginalComponent = jest.fn( ( props ) => (
+			<div role="status">{ props.data }</div>
 		) );
 
-		const DataBoundComponent = withSelect( mapSelectToProps )( OriginalComponent );
+		const DataBoundComponent =
+			withSelect( mapSelectToProps )( OriginalComponent );
 
-		const testRenderer = TestRenderer.create(
+		render(
 			<RegistryProvider value={ registry }>
 				<DataBoundComponent keyName="reactKey" />
 			</RegistryProvider>
 		);
-		const testInstance = testRenderer.root;
 
 		expect( mapSelectToProps ).toHaveBeenCalledTimes( 1 );
 		expect( OriginalComponent ).toHaveBeenCalledTimes( 1 );
 
-		// Wrapper is the enhanced component. Find props on the rendered child.
-		expect( testInstance.findByType( 'div' ).props ).toEqual( {
-			children: 'reactState',
-		} );
+		// Wrapper is the enhanced component.
+		expect( screen.getByRole( 'status' ) ).toHaveTextContent(
+			'reactState'
+		);
 	} );
 
-	it( 'should rerun selection on state changes', () => {
+	it( 'should rerun selection on state changes', async () => {
+		const user = userEvent.setup();
+		const registry = createRegistry();
 		registry.registerStore( 'counter', {
 			reducer: ( state = 0, action ) => {
 				if ( action.type === 'increment' ) {
@@ -81,18 +92,16 @@ describe( 'withSelect', () => {
 			},
 		} );
 
-		const mapSelectToProps = jest.fn().mockImplementation( ( _select ) => ( {
+		const mapSelectToProps = jest.fn( ( _select ) => ( {
 			count: _select( 'counter' ).getCount(),
 		} ) );
 
-		const mapDispatchToProps = jest.fn().mockImplementation( ( _dispatch ) => ( {
+		const mapDispatchToProps = jest.fn( ( _dispatch ) => ( {
 			increment: _dispatch( 'counter' ).increment,
 		} ) );
 
-		const OriginalComponent = jest.fn().mockImplementation( ( props ) => (
-			<button onClick={ props.increment }>
-				{ props.count }
-			</button>
+		const OriginalComponent = jest.fn( ( props ) => (
+			<button onClick={ props.increment }>{ props.count }</button>
 		) );
 
 		const DataBoundComponent = compose( [
@@ -100,31 +109,37 @@ describe( 'withSelect', () => {
 			withDispatch( mapDispatchToProps ),
 		] )( OriginalComponent );
 
-		const testRenderer = TestRenderer.create(
+		render(
 			<RegistryProvider value={ registry }>
 				<DataBoundComponent />
 			</RegistryProvider>
 		);
-		const testInstance = testRenderer.root;
 
 		expect( OriginalComponent ).toHaveBeenCalledTimes( 1 );
 		expect( mapSelectToProps ).toHaveBeenCalledTimes( 1 );
 		expect( mapDispatchToProps ).toHaveBeenCalledTimes( 1 );
 
-		// Simulate a click on the button
-		testInstance.findByType( 'button' ).props.onClick();
+		// Simulate a click on the button.
+		const button = screen.getByRole( 'button' );
 
-		expect( testInstance.findByType( 'button' ).props.children ).toBe( 1 );
-		// 2 times =
-		//  1. Initial mount
-		//  2. When click handler is called
+		await user.click( button );
+
+		expect( button ).toHaveTextContent( '1' );
+		// 1. Initial mount
+		// 2. When click handler is called.
 		expect( mapDispatchToProps ).toHaveBeenCalledTimes( 2 );
-		expect( mapSelectToProps ).toHaveBeenCalledTimes( 2 );
+		// 3 times
+		// - 1 on initial render
+		// - 1 on click triggering subscription firing.
+		// - 1 on rerender.
+		expect( mapSelectToProps ).toHaveBeenCalledTimes( 3 );
+		// Verifies component only renders twice.
 		expect( OriginalComponent ).toHaveBeenCalledTimes( 2 );
 	} );
 
-	it( 'should rerun if had dispatched action during mount', () => {
-		registry.registerStore( 'counter', {
+	describe( 'expected behaviour when dispatching actions during mount', () => {
+		const testRegistry = createRegistry();
+		testRegistry.registerStore( 'counter', {
 			reducer: ( state = 0, action ) => {
 				if ( action.type === 'increment' ) {
 					return state + 1;
@@ -140,6 +155,10 @@ describe( 'withSelect', () => {
 			},
 		} );
 
+		// @todo Should we allow this behaviour? Side-effects
+		// on mount are discouraged in React (breaks Suspense and React Async Mode)
+		// leaving in place for now under the assumption there's current usage
+		// of withSelect in GB that expects support.
 		class OriginalComponent extends Component {
 			constructor( props ) {
 				super( ...arguments );
@@ -152,17 +171,17 @@ describe( 'withSelect', () => {
 			}
 
 			render() {
-				return <div>{ this.props.count }</div>;
+				return <div role="status">{ this.props.count }</div>;
 			}
 		}
 
-		jest.spyOn( OriginalComponent.prototype, 'render' );
+		const renderSpy = jest.spyOn( OriginalComponent.prototype, 'render' );
 
-		const mapSelectToProps = jest.fn().mockImplementation( ( _select, ownProps ) => ( {
-			count: _select( 'counter' ).getCount( ownProps.offset ),
+		const mapSelectToProps = jest.fn( ( _select ) => ( {
+			count: _select( 'counter' ).getCount(),
 		} ) );
 
-		const mapDispatchToProps = jest.fn().mockImplementation( ( _dispatch ) => ( {
+		const mapDispatchToProps = jest.fn( ( _dispatch ) => ( {
 			increment: _dispatch( 'counter' ).increment,
 		} ) );
 
@@ -171,19 +190,43 @@ describe( 'withSelect', () => {
 			withDispatch( mapDispatchToProps ),
 		] )( OriginalComponent );
 
-		const testRenderer = TestRenderer.create(
-			<RegistryProvider value={ registry }>
-				<DataBoundComponent />
-			</RegistryProvider>
-		);
-		const testInstance = testRenderer.root;
+		it( 'should rerun if had dispatched action during mount', () => {
+			const { unmount } = render(
+				<RegistryProvider value={ testRegistry }>
+					<DataBoundComponent />
+				</RegistryProvider>
+			);
 
-		expect( testInstance.findByType( 'div' ).props.children ).toBe( 2 );
-		expect( mapSelectToProps ).toHaveBeenCalledTimes( 2 );
-		expect( OriginalComponent.prototype.render ).toHaveBeenCalledTimes( 2 );
+			expect( screen.getByRole( 'status' ) ).toHaveTextContent( '2' );
+			// Expected 3 times because:
+			// - 1 on initial render
+			// - 1 on effect before subscription set.
+			// - 1 for the rerender because of the mapOutput change detected.
+			expect( mapSelectToProps ).toHaveBeenCalledTimes( 3 );
+			expect( renderSpy ).toHaveBeenCalledTimes( 2 );
+
+			unmount();
+		} );
+
+		it( 'should rerun on unmount and mount', () => {
+			render(
+				<RegistryProvider value={ testRegistry }>
+					<DataBoundComponent />
+				</RegistryProvider>
+			);
+
+			expect( screen.getByRole( 'status' ) ).toHaveTextContent( '4' );
+			// Expected an additional 3 times because of the unmount and remount:
+			// - 1 on initial render
+			// - 1 on effect before subscription set.
+			// - once for the rerender because of the mapOutput change detected.
+			expect( mapSelectToProps ).toHaveBeenCalledTimes( 6 );
+			expect( renderSpy ).toHaveBeenCalledTimes( 4 );
+		} );
 	} );
 
 	it( 'should rerun selection on props changes', () => {
+		const registry = createRegistry();
 		registry.registerStore( 'counter', {
 			reducer: ( state = 0, action ) => {
 				if ( action.type === 'increment' ) {
@@ -197,38 +240,39 @@ describe( 'withSelect', () => {
 			},
 		} );
 
-		const mapSelectToProps = jest.fn().mockImplementation( ( _select, ownProps ) => ( {
+		const mapSelectToProps = jest.fn( ( _select, ownProps ) => ( {
 			count: _select( 'counter' ).getCount( ownProps.offset ),
 		} ) );
 
-		const OriginalComponent = jest.fn().mockImplementation( ( props ) => (
-			<div>{ props.count }</div>
+		const OriginalComponent = jest.fn( ( props ) => (
+			<div role="status">{ props.count }</div>
 		) );
 
-		const DataBoundComponent = withSelect( mapSelectToProps )( OriginalComponent );
+		const DataBoundComponent =
+			withSelect( mapSelectToProps )( OriginalComponent );
 
-		const testRenderer = TestRenderer.create(
+		const { rerender } = render(
 			<RegistryProvider value={ registry }>
 				<DataBoundComponent offset={ 0 } />
 			</RegistryProvider>
 		);
-		const testInstance = testRenderer.root;
 
 		expect( mapSelectToProps ).toHaveBeenCalledTimes( 1 );
 		expect( OriginalComponent ).toHaveBeenCalledTimes( 1 );
 
-		testRenderer.update(
+		rerender(
 			<RegistryProvider value={ registry }>
 				<DataBoundComponent offset={ 10 } />
 			</RegistryProvider>
 		);
 
-		expect( testInstance.findByType( 'div' ).props.children ).toBe( 10 );
+		expect( screen.getByRole( 'status' ) ).toHaveTextContent( '10' );
 		expect( mapSelectToProps ).toHaveBeenCalledTimes( 2 );
 		expect( OriginalComponent ).toHaveBeenCalledTimes( 2 );
 	} );
 
 	it( 'should not run selection if props have not changed', () => {
+		const registry = createRegistry();
 		registry.registerStore( 'unchanging', {
 			reducer: ( state = {} ) => state,
 			selectors: {
@@ -237,16 +281,17 @@ describe( 'withSelect', () => {
 		} );
 
 		const mapSelectToProps = jest.fn();
-
-		const OriginalComponent = jest.fn().mockImplementation( () => <div /> );
+		const OriginalComponent = jest.fn( () => <div /> );
 
 		const DataBoundComponent = compose( [
 			withSelect( mapSelectToProps ),
 		] )( OriginalComponent );
 
-		const Parent = ( props ) => <DataBoundComponent propName={ props.propName } />;
+		const Parent = ( props ) => (
+			<DataBoundComponent propName={ props.propName } />
+		);
 
-		const testRenderer = TestRenderer.create(
+		const { rerender } = render(
 			<RegistryProvider value={ registry }>
 				<Parent propName="foo" />
 			</RegistryProvider>
@@ -255,7 +300,7 @@ describe( 'withSelect', () => {
 		expect( mapSelectToProps ).toHaveBeenCalledTimes( 1 );
 		expect( OriginalComponent ).toHaveBeenCalledTimes( 1 );
 
-		testRenderer.update(
+		rerender(
 			<RegistryProvider value={ registry }>
 				<Parent propName="foo" />
 			</RegistryProvider>
@@ -265,7 +310,8 @@ describe( 'withSelect', () => {
 		expect( OriginalComponent ).toHaveBeenCalledTimes( 1 );
 	} );
 
-	it( 'should not run selection if state has changed but merge props the same', () => {
+	it( 'should not rerender if state has changed but merge props the same', async () => {
+		const registry = createRegistry();
 		registry.registerStore( 'demo', {
 			reducer: () => ( {} ),
 			selectors: {
@@ -276,15 +322,16 @@ describe( 'withSelect', () => {
 			},
 		} );
 
-		const mapSelectToProps = jest.fn().mockImplementation( ( _select ) => ( {
+		const mapSelectToProps = jest.fn( ( _select ) => ( {
 			value: _select( 'demo' ).getUnchangingValue(),
 		} ) );
 
-		const OriginalComponent = jest.fn().mockImplementation( () => <div /> );
+		const OriginalComponent = jest.fn( () => <div /> );
 
-		const DataBoundComponent = withSelect( mapSelectToProps )( OriginalComponent );
+		const DataBoundComponent =
+			withSelect( mapSelectToProps )( OriginalComponent );
 
-		TestRenderer.create(
+		render(
 			<RegistryProvider value={ registry }>
 				<DataBoundComponent />
 			</RegistryProvider>
@@ -293,13 +340,14 @@ describe( 'withSelect', () => {
 		expect( mapSelectToProps ).toHaveBeenCalledTimes( 1 );
 		expect( OriginalComponent ).toHaveBeenCalledTimes( 1 );
 
-		registry.dispatch( 'demo' ).update();
+		await act( async () => registry.dispatch( 'demo' ).update() );
 
 		expect( mapSelectToProps ).toHaveBeenCalledTimes( 2 );
 		expect( OriginalComponent ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	it( 'should render if props have changed but not state', () => {
+		const registry = createRegistry();
 		registry.registerStore( 'unchanging', {
 			reducer: ( state = {} ) => state,
 			selectors: {
@@ -308,14 +356,13 @@ describe( 'withSelect', () => {
 		} );
 
 		const mapSelectToProps = jest.fn();
-
-		const OriginalComponent = jest.fn().mockImplementation( () => <div /> );
+		const OriginalComponent = jest.fn( () => <div /> );
 
 		const DataBoundComponent = compose( [
 			withSelect( mapSelectToProps ),
 		] )( OriginalComponent );
 
-		const testRenderer = TestRenderer.create(
+		const { rerender } = render(
 			<RegistryProvider value={ registry }>
 				<DataBoundComponent />
 			</RegistryProvider>
@@ -324,7 +371,7 @@ describe( 'withSelect', () => {
 		expect( mapSelectToProps ).toHaveBeenCalledTimes( 1 );
 		expect( OriginalComponent ).toHaveBeenCalledTimes( 1 );
 
-		testRenderer.update(
+		rerender(
 			<RegistryProvider value={ registry }>
 				<DataBoundComponent propName="foo" />
 			</RegistryProvider>
@@ -334,7 +381,8 @@ describe( 'withSelect', () => {
 		expect( OriginalComponent ).toHaveBeenCalledTimes( 2 );
 	} );
 
-	it( 'should not rerun selection on unchanging state', () => {
+	it( 'should not rerun selection on unchanging state', async () => {
+		const registry = createRegistry();
 		const store = registry.registerStore( 'unchanging', {
 			reducer: ( state = {} ) => state,
 			selectors: {
@@ -343,14 +391,13 @@ describe( 'withSelect', () => {
 		} );
 
 		const mapSelectToProps = jest.fn();
-
-		const OriginalComponent = jest.fn().mockImplementation( () => <div /> );
+		const OriginalComponent = jest.fn( () => <div /> );
 
 		const DataBoundComponent = compose( [
 			withSelect( mapSelectToProps ),
 		] )( OriginalComponent );
 
-		TestRenderer.create(
+		render(
 			<RegistryProvider value={ registry }>
 				<DataBoundComponent />
 			</RegistryProvider>
@@ -359,13 +406,14 @@ describe( 'withSelect', () => {
 		expect( mapSelectToProps ).toHaveBeenCalledTimes( 1 );
 		expect( OriginalComponent ).toHaveBeenCalledTimes( 1 );
 
-		store.dispatch( { type: 'dummy' } );
+		await act( async () => store.dispatch( { type: 'dummy' } ) );
 
 		expect( mapSelectToProps ).toHaveBeenCalledTimes( 1 );
 		expect( OriginalComponent ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	it( 'omits props which are not returned on subsequent mappings', () => {
+		const registry = createRegistry();
 		registry.registerStore( 'demo', {
 			reducer: ( state = 'OK' ) => state,
 			selectors: {
@@ -373,31 +421,36 @@ describe( 'withSelect', () => {
 			},
 		} );
 
-		const mapSelectToProps = jest.fn().mockImplementation( ( _select, ownProps ) => {
+		const mapSelectToProps = jest.fn( ( _select, ownProps ) => {
 			return {
 				[ ownProps.propName ]: _select( 'demo' ).getValue(),
 			};
 		} );
 
-		const OriginalComponent = jest.fn()
-			.mockImplementation( ( props ) => <div>{ JSON.stringify( props ) }</div> );
+		const OriginalComponent = jest.fn( ( props ) => (
+			<div role="status">{ JSON.stringify( props ) }</div>
+		) );
 
-		const DataBoundComponent = withSelect( mapSelectToProps )( OriginalComponent );
+		const DataBoundComponent =
+			withSelect( mapSelectToProps )( OriginalComponent );
 
-		const testRenderer = TestRenderer.create(
+		const { rerender } = render(
 			<RegistryProvider value={ registry }>
 				<DataBoundComponent propName="foo" />
 			</RegistryProvider>
 		);
-		const testInstance = testRenderer.root;
 
 		expect( mapSelectToProps ).toHaveBeenCalledTimes( 1 );
 		expect( OriginalComponent ).toHaveBeenCalledTimes( 1 );
 
-		expect( JSON.parse( testInstance.findByType( 'div' ).props.children ) )
-			.toEqual( { foo: 'OK', propName: 'foo' } );
+		expect( screen.getByRole( 'status' ) ).toHaveTextContent(
+			JSON.stringify( {
+				propName: 'foo',
+				foo: 'OK',
+			} )
+		);
 
-		testRenderer.update(
+		rerender(
 			<RegistryProvider value={ registry }>
 				<DataBoundComponent propName="bar" />
 			</RegistryProvider>
@@ -405,11 +458,16 @@ describe( 'withSelect', () => {
 
 		expect( mapSelectToProps ).toHaveBeenCalledTimes( 2 );
 		expect( OriginalComponent ).toHaveBeenCalledTimes( 2 );
-		expect( JSON.parse( testInstance.findByType( 'div' ).props.children ) )
-			.toEqual( { bar: 'OK', propName: 'bar' } );
+		expect( screen.getByRole( 'status' ) ).toHaveTextContent(
+			JSON.stringify( {
+				propName: 'bar',
+				bar: 'OK',
+			} )
+		);
 	} );
 
 	it( 'allows undefined return from mapSelectToProps', () => {
+		const registry = createRegistry();
 		registry.registerStore( 'demo', {
 			reducer: ( state = 'OK' ) => state,
 			selectors: {
@@ -417,7 +475,7 @@ describe( 'withSelect', () => {
 			},
 		} );
 
-		const mapSelectToProps = jest.fn().mockImplementation( ( _select, ownProps ) => {
+		const mapSelectToProps = jest.fn( ( _select, ownProps ) => {
 			if ( ownProps.pass ) {
 				return {
 					count: _select( 'demo' ).getValue(),
@@ -425,24 +483,24 @@ describe( 'withSelect', () => {
 			}
 		} );
 
-		const OriginalComponent = jest.fn().mockImplementation( (
-			( props ) => <div>{ props.count || 'Unknown' }</div>
+		const OriginalComponent = jest.fn( ( props ) => (
+			<div role="status">{ props.count || 'Unknown' }</div>
 		) );
 
-		const DataBoundComponent = withSelect( mapSelectToProps )( OriginalComponent );
+		const DataBoundComponent =
+			withSelect( mapSelectToProps )( OriginalComponent );
 
-		const testRenderer = TestRenderer.create(
+		const { rerender } = render(
 			<RegistryProvider value={ registry }>
 				<DataBoundComponent pass={ false } />
 			</RegistryProvider>
 		);
-		const testInstance = testRenderer.root;
 
 		expect( mapSelectToProps ).toHaveBeenCalledTimes( 1 );
 		expect( OriginalComponent ).toHaveBeenCalledTimes( 1 );
-		expect( testInstance.findByType( 'div' ).props.children ).toBe( 'Unknown' );
+		expect( screen.getByRole( 'status' ) ).toHaveTextContent( 'Unknown' );
 
-		testRenderer.update(
+		rerender(
 			<RegistryProvider value={ registry }>
 				<DataBoundComponent pass />
 			</RegistryProvider>
@@ -450,9 +508,9 @@ describe( 'withSelect', () => {
 
 		expect( mapSelectToProps ).toHaveBeenCalledTimes( 2 );
 		expect( OriginalComponent ).toHaveBeenCalledTimes( 2 );
-		expect( testInstance.findByType( 'div' ).props.children ).toBe( 'OK' );
+		expect( screen.getByRole( 'status' ) ).toHaveTextContent( 'OK' );
 
-		testRenderer.update(
+		rerender(
 			<RegistryProvider value={ registry }>
 				<DataBoundComponent pass={ false } />
 			</RegistryProvider>
@@ -460,14 +518,14 @@ describe( 'withSelect', () => {
 
 		expect( mapSelectToProps ).toHaveBeenCalledTimes( 3 );
 		expect( OriginalComponent ).toHaveBeenCalledTimes( 3 );
-		expect( testInstance.findByType( 'div' ).props.children ).toBe( 'Unknown' );
+		expect( screen.getByRole( 'status' ) ).toHaveTextContent( 'Unknown' );
 	} );
 
-	it( 'should run selections on parents before its children', () => {
+	it( 'should limit unnecessary selections run on children', async () => {
+		const registry = createRegistry();
 		registry.registerStore( 'childRender', {
-			reducer: ( state = true, action ) => (
-				action.type === 'TOGGLE_RENDER' ? ! state : state
-			),
+			reducer: ( state = true, action ) =>
+				action.type === 'TOGGLE_RENDER' ? ! state : state,
 			selectors: {
 				getValue: ( state ) => state,
 			},
@@ -477,19 +535,23 @@ describe( 'withSelect', () => {
 		} );
 
 		const childMapSelectToProps = jest.fn();
-		const parentMapSelectToProps = jest.fn().mockImplementation( ( _select ) => ( {
+		const parentMapSelectToProps = jest.fn( ( _select ) => ( {
 			isRenderingChild: _select( 'childRender' ).getValue(),
 		} ) );
 
-		const ChildOriginalComponent = jest.fn().mockImplementation( () => <div /> );
-		const ParentOriginalComponent = jest.fn().mockImplementation( ( props ) => (
+		const ChildOriginalComponent = jest.fn( () => <div /> );
+		const ParentOriginalComponent = jest.fn( ( props ) => (
 			<div>{ props.isRenderingChild ? <Child /> : null }</div>
 		) );
 
-		const Child = withSelect( childMapSelectToProps )( ChildOriginalComponent );
-		const Parent = withSelect( parentMapSelectToProps )( ParentOriginalComponent );
+		const Child = withSelect( childMapSelectToProps )(
+			ChildOriginalComponent
+		);
+		const Parent = withSelect( parentMapSelectToProps )(
+			ParentOriginalComponent
+		);
 
-		TestRenderer.create(
+		render(
 			<RegistryProvider value={ registry }>
 				<Parent />
 			</RegistryProvider>
@@ -500,16 +562,20 @@ describe( 'withSelect', () => {
 		expect( ChildOriginalComponent ).toHaveBeenCalledTimes( 1 );
 		expect( ParentOriginalComponent ).toHaveBeenCalledTimes( 1 );
 
-		registry.dispatch( 'childRender' ).toggleRender();
+		// This is intentionally wrapped in an `act()` call.
+		// eslint-disable-next-line testing-library/no-unnecessary-act
+		await act( async () => {
+			registry.dispatch( 'childRender' ).toggleRender();
+		} );
 
 		expect( childMapSelectToProps ).toHaveBeenCalledTimes( 1 );
-		expect( parentMapSelectToProps ).toHaveBeenCalledTimes( 2 );
+		expect( parentMapSelectToProps ).toHaveBeenCalledTimes( 3 );
 		expect( ChildOriginalComponent ).toHaveBeenCalledTimes( 1 );
 		expect( ParentOriginalComponent ).toHaveBeenCalledTimes( 2 );
 	} );
 
 	it( 'should rerun selection on registry change', () => {
-		const firstRegistry = registry;
+		const firstRegistry = createRegistry();
 		firstRegistry.registerStore( 'demo', {
 			reducer: ( state = 'first' ) => state,
 			selectors: {
@@ -517,29 +583,27 @@ describe( 'withSelect', () => {
 			},
 		} );
 
-		const mapSelectToProps = jest.fn().mockImplementation( ( _select ) => ( {
+		const mapSelectToProps = jest.fn( ( _select ) => ( {
 			value: _select( 'demo' ).getValue(),
 		} ) );
 
-		const OriginalComponent = jest.fn().mockImplementation( ( props ) => (
-			<div>{ props.value }</div>
+		const OriginalComponent = jest.fn( ( props ) => (
+			<div role="status">{ props.value }</div>
 		) );
 
-		const DataBoundComponent = withSelect( mapSelectToProps )( OriginalComponent );
+		const DataBoundComponent =
+			withSelect( mapSelectToProps )( OriginalComponent );
 
-		const testRenderer = TestRenderer.create(
+		const { rerender } = render(
 			<RegistryProvider value={ firstRegistry }>
 				<DataBoundComponent />
 			</RegistryProvider>
 		);
-		const testInstance = testRenderer.root;
 
 		expect( mapSelectToProps ).toHaveBeenCalledTimes( 1 );
 		expect( OriginalComponent ).toHaveBeenCalledTimes( 1 );
 
-		expect( testInstance.findByType( 'div' ).props ).toEqual( {
-			children: 'first',
-		} );
+		expect( screen.getByRole( 'status' ) ).toHaveTextContent( 'first' );
 
 		const secondRegistry = createRegistry();
 		secondRegistry.registerStore( 'demo', {
@@ -549,17 +613,18 @@ describe( 'withSelect', () => {
 			},
 		} );
 
-		testRenderer.update(
+		rerender(
 			<RegistryProvider value={ secondRegistry }>
 				<DataBoundComponent />
 			</RegistryProvider>
 		);
 
+		// 2 times:
+		// - 1 on initial render
+		// - 1 on re-render
 		expect( mapSelectToProps ).toHaveBeenCalledTimes( 2 );
 		expect( OriginalComponent ).toHaveBeenCalledTimes( 2 );
-
-		expect( testInstance.findByType( 'div' ).props ).toEqual( {
-			children: 'second',
-		} );
+		expect( screen.getByRole( 'status' ) ).toHaveTextContent( 'second' );
 	} );
 } );
+/* eslint-enable @wordpress/wp-global-usage */

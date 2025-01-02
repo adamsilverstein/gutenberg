@@ -1,379 +1,154 @@
 /**
- * External Dependencies
- */
-import { castArray } from 'lodash';
-
-/**
  * WordPress dependencies
  */
-import { getDefaultBlockName, createBlock } from '@wordpress/blocks';
+import { speak } from '@wordpress/a11y';
+import apiFetch from '@wordpress/api-fetch';
+import deprecated from '@wordpress/deprecated';
+import {
+	parse,
+	synchronizeBlocksWithTemplate,
+	__unstableSerializeAndClean,
+} from '@wordpress/blocks';
+import { store as noticesStore } from '@wordpress/notices';
+import { store as coreStore } from '@wordpress/core-data';
+import { store as blockEditorStore } from '@wordpress/block-editor';
+import {
+	applyFilters,
+	applyFiltersAsync,
+	doActionAsync,
+} from '@wordpress/hooks';
+import { store as preferencesStore } from '@wordpress/preferences';
+import { __ } from '@wordpress/i18n';
 
 /**
- * Returns an action object used in signalling that editor has initialized with
+ * Internal dependencies
+ */
+import { localAutosaveSet } from './local-autosave';
+import {
+	getNotificationArgumentsForSaveSuccess,
+	getNotificationArgumentsForSaveFail,
+	getNotificationArgumentsForTrashFail,
+} from './utils/notice-builder';
+import { unlock } from '../lock-unlock';
+/**
+ * Returns an action generator used in signalling that editor has initialized with
  * the specified post object and editor settings.
  *
- * @param {Object} post  Post object.
- * @param {Object} edits Initial edited attributes object.
+ * @param {Object} post       Post object.
+ * @param {Object} edits      Initial edited attributes object.
+ * @param {Array}  [template] Block Template.
+ */
+export const setupEditor =
+	( post, edits, template ) =>
+	( { dispatch } ) => {
+		dispatch.setEditedPost( post.type, post.id );
+		// Apply a template for new posts only, if exists.
+		const isNewPost = post.status === 'auto-draft';
+		if ( isNewPost && template ) {
+			// In order to ensure maximum of a single parse during setup, edits are
+			// included as part of editor setup action. Assume edited content as
+			// canonical if provided, falling back to post.
+			let content;
+			if ( 'content' in edits ) {
+				content = edits.content;
+			} else {
+				content = post.content.raw;
+			}
+			let blocks = parse( content );
+			blocks = synchronizeBlocksWithTemplate( blocks, template );
+			dispatch.resetEditorBlocks( blocks, {
+				__unstableShouldCreateUndoLevel: false,
+			} );
+		}
+		if (
+			edits &&
+			Object.values( edits ).some(
+				( [ key, edit ] ) =>
+					edit !== ( post[ key ]?.raw ?? post[ key ] )
+			)
+		) {
+			dispatch.editPost( edits );
+		}
+	};
+
+/**
+ * Returns an action object signalling that the editor is being destroyed and
+ * that any necessary state or side-effect cleanup should occur.
+ *
+ * @deprecated
  *
  * @return {Object} Action object.
  */
-export function setupEditor( post, edits ) {
-	return {
-		type: 'SETUP_EDITOR',
-		post,
-		edits,
-	};
+export function __experimentalTearDownEditor() {
+	deprecated(
+		"wp.data.dispatch( 'core/editor' ).__experimentalTearDownEditor",
+		{
+			since: '6.5',
+		}
+	);
+	return { type: 'DO_NOTHING' };
 }
 
 /**
  * Returns an action object used in signalling that the latest version of the
  * post has been received, either by initialization or save.
  *
- * @param {Object} post Post object.
- *
- * @return {Object} Action object.
+ * @deprecated Since WordPress 6.0.
  */
-export function resetPost( post ) {
-	return {
-		type: 'RESET_POST',
-		post,
-	};
-}
-
-/**
- * Returns an action object used in signalling that the latest autosave of the
- * post has been received, by initialization or autosave.
- *
- * @param {Object} post Autosave post object.
- *
- * @return {Object} Action object.
- */
-export function resetAutosave( post ) {
-	return {
-		type: 'RESET_AUTOSAVE',
-		post,
-	};
+export function resetPost() {
+	deprecated( "wp.data.dispatch( 'core/editor' ).resetPost", {
+		since: '6.0',
+		version: '6.3',
+		alternative: 'Initialize the editor with the setupEditorState action',
+	} );
+	return { type: 'DO_NOTHING' };
 }
 
 /**
  * Returns an action object used in signalling that a patch of updates for the
  * latest version of the post have been received.
  *
- * @param {Object} edits Updated post fields.
- *
  * @return {Object} Action object.
+ * @deprecated since Gutenberg 9.7.0.
  */
-export function updatePost( edits ) {
+export function updatePost() {
+	deprecated( "wp.data.dispatch( 'core/editor' ).updatePost", {
+		since: '5.7',
+		alternative: 'Use the core entities store instead',
+	} );
 	return {
-		type: 'UPDATE_POST',
-		edits,
+		type: 'DO_NOTHING',
 	};
 }
 
 /**
- * Returns an action object used to setup the editor state when first opening an editor.
+ * Setup the editor state.
  *
- * @param {Object} post   Post object.
- * @param {Array}  blocks Array of blocks.
+ * @deprecated
  *
- * @return {Object} Action object.
+ * @param {Object} post Post object.
  */
-export function setupEditorState( post, blocks ) {
-	return {
-		type: 'SETUP_EDITOR_STATE',
-		post,
-		blocks,
-	};
+export function setupEditorState( post ) {
+	deprecated( "wp.data.dispatch( 'core/editor' ).setupEditorState", {
+		since: '6.5',
+		alternative: "wp.data.dispatch( 'core/editor' ).setEditedPost",
+	} );
+	return setEditedPost( post.type, post.id );
 }
 
 /**
- * Returns an action object used in signalling that blocks state should be
- * reset to the specified array of blocks, taking precedence over any other
- * content reflected as an edit in state.
+ * Returns an action that sets the current post Type and post ID.
  *
- * @param {Array} blocks Array of blocks.
- *
- * @return {Object} Action object.
- */
-export function resetBlocks( blocks ) {
-	return {
-		type: 'RESET_BLOCKS',
-		blocks,
-	};
-}
-
-/**
- * Returns an action object used in signalling that blocks have been received.
- * Unlike resetBlocks, these should be appended to the existing known set, not
- * replacing.
- *
- * @param {Object[]} blocks Array of block objects.
+ * @param {string} postType Post Type.
+ * @param {string} postId   Post ID.
  *
  * @return {Object} Action object.
  */
-export function receiveBlocks( blocks ) {
+export function setEditedPost( postType, postId ) {
 	return {
-		type: 'RECEIVE_BLOCKS',
-		blocks,
-	};
-}
-
-/**
- * Returns an action object used in signalling that the block attributes with
- * the specified client ID has been updated.
- *
- * @param {string} clientId   Block client ID.
- * @param {Object} attributes Block attributes to be merged.
- *
- * @return {Object} Action object.
- */
-export function updateBlockAttributes( clientId, attributes ) {
-	return {
-		type: 'UPDATE_BLOCK_ATTRIBUTES',
-		clientId,
-		attributes,
-	};
-}
-
-/**
- * Returns an action object used in signalling that the block with the
- * specified client ID has been updated.
- *
- * @param {string} clientId Block client ID.
- * @param {Object} updates  Block attributes to be merged.
- *
- * @return {Object} Action object.
- */
-export function updateBlock( clientId, updates ) {
-	return {
-		type: 'UPDATE_BLOCK',
-		clientId,
-		updates,
-	};
-}
-
-/**
- * Returns an action object used in signalling that the block with the
- * specified client ID has been selected, optionally accepting a position
- * value reflecting its selection directionality. An initialPosition of -1
- * reflects a reverse selection.
- *
- * @param {string}  clientId        Block client ID.
- * @param {?number} initialPosition Optional initial position. Pass as -1 to
- *                                  reflect reverse selection.
- *
- * @return {Object} Action object.
- */
-export function selectBlock( clientId, initialPosition = null ) {
-	return {
-		type: 'SELECT_BLOCK',
-		initialPosition,
-		clientId,
-	};
-}
-
-export function startMultiSelect() {
-	return {
-		type: 'START_MULTI_SELECT',
-	};
-}
-
-export function stopMultiSelect() {
-	return {
-		type: 'STOP_MULTI_SELECT',
-	};
-}
-
-export function multiSelect( start, end ) {
-	return {
-		type: 'MULTI_SELECT',
-		start,
-		end,
-	};
-}
-
-export function clearSelectedBlock() {
-	return {
-		type: 'CLEAR_SELECTED_BLOCK',
-	};
-}
-
-/**
- * Returns an action object that enables or disables block selection.
- *
- * @param {boolean} [isSelectionEnabled=true] Whether block selection should
- *                                            be enabled.
-
- * @return {Object} Action object.
- */
-export function toggleSelection( isSelectionEnabled = true ) {
-	return {
-		type: 'TOGGLE_SELECTION',
-		isSelectionEnabled,
-	};
-}
-
-/**
- * Returns an action object signalling that a blocks should be replaced with
- * one or more replacement blocks.
- *
- * @param {(string|string[])} clientIds Block client ID(s) to replace.
- * @param {(Object|Object[])} blocks    Replacement block(s).
- *
- * @return {Object} Action object.
- */
-export function replaceBlocks( clientIds, blocks ) {
-	return {
-		type: 'REPLACE_BLOCKS',
-		clientIds: castArray( clientIds ),
-		blocks: castArray( blocks ),
-		time: Date.now(),
-	};
-}
-
-/**
- * Returns an action object signalling that a single block should be replaced
- * with one or more replacement blocks.
- *
- * @param {(string|string[])} clientId Block client ID to replace.
- * @param {(Object|Object[])} block    Replacement block(s).
- *
- * @return {Object} Action object.
- */
-export function replaceBlock( clientId, block ) {
-	return replaceBlocks( clientId, block );
-}
-
-/**
- * Higher-order action creator which, given the action type to dispatch creates
- * an action creator for managing block movement.
- *
- * @param {string} type Action type to dispatch.
- *
- * @return {Function} Action creator.
- */
-function createOnMove( type ) {
-	return ( clientIds, rootClientId ) => {
-		return {
-			clientIds: castArray( clientIds ),
-			type,
-			rootClientId,
-		};
-	};
-}
-
-export const moveBlocksDown = createOnMove( 'MOVE_BLOCKS_DOWN' );
-export const moveBlocksUp = createOnMove( 'MOVE_BLOCKS_UP' );
-
-/**
- * Returns an action object signalling that an indexed block should be moved
- * to a new index.
- *
- * @param  {?string} clientId         The client ID of the block.
- * @param  {?string} fromRootClientId Root client ID source.
- * @param  {?string} toRootClientId   Root client ID destination.
- * @param  {number}  index            The index to move the block into.
- *
- * @return {Object} Action object.
- */
-export function moveBlockToPosition( clientId, fromRootClientId, toRootClientId, index ) {
-	return {
-		type: 'MOVE_BLOCK_TO_POSITION',
-		fromRootClientId,
-		toRootClientId,
-		clientId,
-		index,
-	};
-}
-
-/**
- * Returns an action object used in signalling that a single block should be
- * inserted, optionally at a specific index respective a root block list.
- *
- * @param {Object}  block            Block object to insert.
- * @param {?number} index            Index at which block should be inserted.
- * @param {?string} rootClientId     Optional root client ID of block list on which to insert.
- * @param {?boolean} updateSelection If true block selection will be updated. If false, block selection will not change. Defaults to true.
- *
- * @return {Object} Action object.
- */
-export function insertBlock( block, index, rootClientId, updateSelection = true ) {
-	return insertBlocks( [ block ], index, rootClientId, updateSelection );
-}
-
-/**
- * Returns an action object used in signalling that an array of blocks should
- * be inserted, optionally at a specific index respective a root block list.
- *
- * @param {Object[]} blocks          Block objects to insert.
- * @param {?number}  index           Index at which block should be inserted.
- * @param {?string}  rootClientId    Optional root client ID of block list on which to insert.
- * @param {?boolean} updateSelection If true block selection will be updated.  If false, block selection will not change. Defaults to true.
- *
- * @return {Object} Action object.
- */
-export function insertBlocks( blocks, index, rootClientId, updateSelection = true ) {
-	return {
-		type: 'INSERT_BLOCKS',
-		blocks: castArray( blocks ),
-		index,
-		rootClientId,
-		time: Date.now(),
-		updateSelection,
-	};
-}
-
-/**
- * Returns an action object used in signalling that the insertion point should
- * be shown.
- *
- * @param {?string} rootClientId Optional root client ID of block list on
- *                               which to insert.
- * @param {?number} index        Index at which block should be inserted.
- *
- * @return {Object} Action object.
- */
-export function showInsertionPoint( rootClientId, index ) {
-	return {
-		type: 'SHOW_INSERTION_POINT',
-		rootClientId,
-		index,
-	};
-}
-
-/**
- * Returns an action object hiding the insertion point.
- *
- * @return {Object} Action object.
- */
-export function hideInsertionPoint() {
-	return {
-		type: 'HIDE_INSERTION_POINT',
-	};
-}
-
-/**
- * Returns an action object resetting the template validity.
- *
- * @param {boolean}  isValid  template validity flag.
- *
- * @return {Object} Action object.
- */
-export function setTemplateValidity( isValid ) {
-	return {
-		type: 'SET_TEMPLATE_VALIDITY',
-		isValid,
-	};
-}
-
-/**
- * Returns an action object synchronize the template with the list of blocks
- *
- * @return {Object} Action object.
- */
-export function synchronizeTemplate() {
-	return {
-		type: 'SYNCHRONIZE_TEMPLATE',
+		type: 'SET_EDITED_POST',
+		postType,
+		postId,
 	};
 }
 
@@ -381,197 +156,303 @@ export function synchronizeTemplate() {
  * Returns an action object used in signalling that attributes of the post have
  * been edited.
  *
- * @param {Object} edits Post attributes to edit.
+ * @param {Object} edits     Post attributes to edit.
+ * @param {Object} [options] Options for the edit.
  *
- * @return {Object} Action object.
+ * @example
+ * ```js
+ * // Update the post title
+ * wp.data.dispatch( 'core/editor' ).editPost( { title: `${ newTitle }` } );
+ * ```
+ *
+ * @example
+ *```js
+ * 	// Get specific media size based on the featured media ID
+ * 	// Note: change sizes?.large for any registered size
+ * 	const getFeaturedMediaUrl = useSelect( ( select ) => {
+ * 		const getFeaturedMediaId =
+ * 			select( 'core/editor' ).getEditedPostAttribute( 'featured_media' );
+ * 		const getMedia = select( 'core' ).getMedia( getFeaturedMediaId );
+ *
+ * 		return (
+ * 			getMedia?.media_details?.sizes?.large?.source_url || getMedia?.source_url || ''
+ * 		);
+ * }, [] );
+ * ```
+ *
+ * @return {Object} Action object
  */
-export function editPost( edits ) {
-	return {
-		type: 'EDIT_POST',
-		edits,
+export const editPost =
+	( edits, options ) =>
+	( { select, registry } ) => {
+		const { id, type } = select.getCurrentPost();
+		registry
+			.dispatch( coreStore )
+			.editEntityRecord( 'postType', type, id, edits, options );
 	};
-}
 
 /**
- * Returns an action object to save the post.
+ * Action for saving the current post in the editor.
  *
- * @param {Object}  options          Options for the save.
- * @param {boolean} options.isAutosave Perform an autosave if true.
- *
- * @return {Object} Action object.
+ * @param {Object} [options]
  */
-export function savePost( options = {} ) {
-	return {
-		type: 'REQUEST_POST_UPDATE',
-		options,
-	};
-}
+export const savePost =
+	( options = {} ) =>
+	async ( { select, dispatch, registry } ) => {
+		if ( ! select.isEditedPostSaveable() ) {
+			return;
+		}
 
+		const content = select.getEditedPostContent();
+
+		if ( ! options.isAutosave ) {
+			dispatch.editPost( { content }, { undoIgnore: true } );
+		}
+
+		const previousRecord = select.getCurrentPost();
+		let edits = {
+			id: previousRecord.id,
+			...registry
+				.select( coreStore )
+				.getEntityRecordNonTransientEdits(
+					'postType',
+					previousRecord.type,
+					previousRecord.id
+				),
+			content,
+		};
+		dispatch( { type: 'REQUEST_POST_UPDATE_START', options } );
+
+		let error = false;
+		try {
+			edits = await applyFiltersAsync(
+				'editor.preSavePost',
+				edits,
+				options
+			);
+		} catch ( err ) {
+			error = err;
+		}
+
+		if ( ! error ) {
+			try {
+				await registry
+					.dispatch( coreStore )
+					.saveEntityRecord(
+						'postType',
+						previousRecord.type,
+						edits,
+						options
+					);
+			} catch ( err ) {
+				error =
+					err.message && err.code !== 'unknown_error'
+						? err.message
+						: __( 'An error occurred while updating.' );
+			}
+		}
+
+		if ( ! error ) {
+			error = registry
+				.select( coreStore )
+				.getLastEntitySaveError(
+					'postType',
+					previousRecord.type,
+					previousRecord.id
+				);
+		}
+
+		// Run the hook with legacy unstable name for backward compatibility
+		if ( ! error ) {
+			try {
+				await applyFilters(
+					'editor.__unstableSavePost',
+					Promise.resolve(),
+					options
+				);
+			} catch ( err ) {
+				error = err;
+			}
+		}
+
+		if ( ! error ) {
+			try {
+				await doActionAsync(
+					'editor.savePost',
+					{ id: previousRecord.id },
+					options
+				);
+			} catch ( err ) {
+				error = err;
+			}
+		}
+		dispatch( { type: 'REQUEST_POST_UPDATE_FINISH', options } );
+
+		if ( error ) {
+			const args = getNotificationArgumentsForSaveFail( {
+				post: previousRecord,
+				edits,
+				error,
+			} );
+			if ( args.length ) {
+				registry.dispatch( noticesStore ).createErrorNotice( ...args );
+			}
+		} else {
+			const updatedRecord = select.getCurrentPost();
+			const args = getNotificationArgumentsForSaveSuccess( {
+				previousPost: previousRecord,
+				post: updatedRecord,
+				postType: await registry
+					.resolveSelect( coreStore )
+					.getPostType( updatedRecord.type ),
+				options,
+			} );
+			if ( args.length ) {
+				registry
+					.dispatch( noticesStore )
+					.createSuccessNotice( ...args );
+			}
+			// Make sure that any edits after saving create an undo level and are
+			// considered for change detection.
+			if ( ! options.isAutosave ) {
+				registry
+					.dispatch( blockEditorStore )
+					.__unstableMarkLastChangeAsPersistent();
+			}
+		}
+	};
+
+/**
+ * Action for refreshing the current post.
+ *
+ * @deprecated Since WordPress 6.0.
+ */
 export function refreshPost() {
-	return {
-		type: 'REFRESH_POST',
+	deprecated( "wp.data.dispatch( 'core/editor' ).refreshPost", {
+		since: '6.0',
+		version: '6.3',
+		alternative: 'Use the core entities store instead',
+	} );
+	return { type: 'DO_NOTHING' };
+}
+
+/**
+ * Action for trashing the current post in the editor.
+ */
+export const trashPost =
+	() =>
+	async ( { select, dispatch, registry } ) => {
+		const postTypeSlug = select.getCurrentPostType();
+		const postType = await registry
+			.resolveSelect( coreStore )
+			.getPostType( postTypeSlug );
+		const { rest_base: restBase, rest_namespace: restNamespace = 'wp/v2' } =
+			postType;
+		dispatch( { type: 'REQUEST_POST_DELETE_START' } );
+		try {
+			const post = select.getCurrentPost();
+			await apiFetch( {
+				path: `/${ restNamespace }/${ restBase }/${ post.id }`,
+				method: 'DELETE',
+			} );
+
+			await dispatch.savePost();
+		} catch ( error ) {
+			registry
+				.dispatch( noticesStore )
+				.createErrorNotice(
+					...getNotificationArgumentsForTrashFail( { error } )
+				);
+		}
+		dispatch( { type: 'REQUEST_POST_DELETE_FINISH' } );
 	};
-}
 
-export function trashPost( postId, postType ) {
-	return {
-		type: 'TRASH_POST',
-		postId,
-		postType,
+/**
+ * Action that autosaves the current post.  This
+ * includes server-side autosaving (default) and client-side (a.k.a. local)
+ * autosaving (e.g. on the Web, the post might be committed to Session
+ * Storage).
+ *
+ * @param {Object}  [options]       Extra flags to identify the autosave.
+ * @param {boolean} [options.local] Whether to perform a local autosave.
+ */
+export const autosave =
+	( { local = false, ...options } = {} ) =>
+	async ( { select, dispatch } ) => {
+		const post = select.getCurrentPost();
+
+		// Currently template autosaving is not supported.
+		if ( post.type === 'wp_template' ) {
+			return;
+		}
+
+		if ( local ) {
+			const isPostNew = select.isEditedPostNew();
+			const title = select.getEditedPostAttribute( 'title' );
+			const content = select.getEditedPostAttribute( 'content' );
+			const excerpt = select.getEditedPostAttribute( 'excerpt' );
+			localAutosaveSet( post.id, isPostNew, title, content, excerpt );
+		} else {
+			await dispatch.savePost( { isAutosave: true, ...options } );
+		}
 	};
-}
 
-/**
- * Returns an action object used in signalling that two blocks should be merged
- *
- * @param {string} firstBlockClientId  Client ID of the first block to merge.
- * @param {string} secondBlockClientId Client ID of the second block to merge.
- *
- * @return {Object} Action object.
- */
-export function mergeBlocks( firstBlockClientId, secondBlockClientId ) {
-	return {
-		type: 'MERGE_BLOCKS',
-		blocks: [ firstBlockClientId, secondBlockClientId ],
+export const __unstableSaveForPreview =
+	( { forceIsAutosaveable } = {} ) =>
+	async ( { select, dispatch } ) => {
+		if (
+			( forceIsAutosaveable || select.isEditedPostAutosaveable() ) &&
+			! select.isPostLocked()
+		) {
+			const isDraft = [ 'draft', 'auto-draft' ].includes(
+				select.getEditedPostAttribute( 'status' )
+			);
+			if ( isDraft ) {
+				await dispatch.savePost( { isPreview: true } );
+			} else {
+				await dispatch.autosave( { isPreview: true } );
+			}
+		}
+
+		return select.getEditedPostPreviewLink();
 	};
-}
 
 /**
- * Returns an action object used in signalling that the post should autosave.
- *
- * @param {Object?} options Extra flags to identify the autosave.
- *
- * @return {Object} Action object.
+ * Action that restores last popped state in undo history.
  */
-export function autosave( options ) {
-	return savePost( { isAutosave: true, ...options } );
-}
+export const redo =
+	() =>
+	( { registry } ) => {
+		registry.dispatch( coreStore ).redo();
+	};
 
 /**
- * Returns an action object used in signalling that undo history should
- * restore last popped state.
- *
- * @return {Object} Action object.
+ * Action that pops a record from undo history and undoes the edit.
  */
-export function redo() {
-	return { type: 'REDO' };
-}
+export const undo =
+	() =>
+	( { registry } ) => {
+		registry.dispatch( coreStore ).undo();
+	};
 
 /**
- * Returns an action object used in signalling that undo history should pop.
+ * Action that creates an undo history record.
  *
- * @return {Object} Action object.
- */
-export function undo() {
-	return { type: 'UNDO' };
-}
-
-/**
- * Returns an action object used in signalling that undo history record should
- * be created.
- *
- * @return {Object} Action object.
+ * @deprecated Since WordPress 6.0
  */
 export function createUndoLevel() {
-	return { type: 'CREATE_UNDO_LEVEL' };
+	deprecated( "wp.data.dispatch( 'core/editor' ).createUndoLevel", {
+		since: '6.0',
+		version: '6.3',
+		alternative: 'Use the core entities store instead',
+	} );
+	return { type: 'DO_NOTHING' };
 }
 
 /**
- * Returns an action object used in signalling that the blocks corresponding to
- * the set of specified client IDs are to be removed.
+ * Action that locks the editor.
  *
- * @param {string|string[]} clientIds      Client IDs of blocks to remove.
- * @param {boolean}         selectPrevious True if the previous block should be
- *                                         selected when a block is removed.
- *
- * @return {Object} Action object.
- */
-export function removeBlocks( clientIds, selectPrevious = true ) {
-	return {
-		type: 'REMOVE_BLOCKS',
-		clientIds: castArray( clientIds ),
-		selectPrevious,
-	};
-}
-
-/**
- * Returns an action object used in signalling that the block with the
- * specified client ID is to be removed.
- *
- * @param {string}  clientId       Client ID of block to remove.
- * @param {boolean} selectPrevious True if the previous block should be
- *                                 selected when a block is removed.
- *
- * @return {Object} Action object.
- */
-export function removeBlock( clientId, selectPrevious ) {
-	return removeBlocks( [ clientId ], selectPrevious );
-}
-
-/**
- * Returns an action object used to toggle the block editing mode between
- * visual and HTML modes.
- *
- * @param {string} clientId Block client ID.
- *
- * @return {Object} Action object.
- */
-export function toggleBlockMode( clientId ) {
-	return {
-		type: 'TOGGLE_BLOCK_MODE',
-		clientId,
-	};
-}
-
-/**
- * Returns an action object used in signalling that the user has begun to type.
- *
- * @return {Object} Action object.
- */
-export function startTyping() {
-	return {
-		type: 'START_TYPING',
-	};
-}
-
-/**
- * Returns an action object used in signalling that the user has stopped typing.
- *
- * @return {Object} Action object.
- */
-export function stopTyping() {
-	return {
-		type: 'STOP_TYPING',
-	};
-}
-
-/**
- * Returns an action object used in signalling that the caret has entered formatted text.
- *
- * @return {Object} Action object.
- */
-export function enterFormattedText() {
-	return {
-		type: 'ENTER_FORMATTED_TEXT',
-	};
-}
-
-/**
- * Returns an action object used in signalling that the user caret has exited formatted text.
- *
- * @return {Object} Action object.
- */
-export function exitFormattedText() {
-	return {
-		type: 'EXIT_FORMATTED_TEXT',
-	};
-}
-
-/**
- * Returns an action object used to lock the editor.
- *
- * @param {Object}  lock Details about the post lock status, user, and nonce.
- *
+ * @param {Object} lock Details about the post lock status, user, and nonce.
  * @return {Object} Action object.
  */
 export function updatePostLock( lock ) {
@@ -582,147 +463,175 @@ export function updatePostLock( lock ) {
 }
 
 /**
- * Returns an action object used to fetch a single reusable block or all
- * reusable blocks from the REST API into the store.
- *
- * @param {?string} id If given, only a single reusable block with this ID will
- *                     be fetched.
- *
- * @return {Object} Action object.
+ * Enable the publish sidebar.
  */
-export function __experimentalFetchReusableBlocks( id ) {
-	return {
-		type: 'FETCH_REUSABLE_BLOCKS',
-		id,
+export const enablePublishSidebar =
+	() =>
+	( { registry } ) => {
+		registry
+			.dispatch( preferencesStore )
+			.set( 'core', 'isPublishSidebarEnabled', true );
 	};
-}
 
 /**
- * Returns an action object used in signalling that reusable blocks have been
- * received. `results` is an array of objects containing:
- *  - `reusableBlock` - Details about how the reusable block is persisted.
- *  - `parsedBlock` - The original block.
- *
- * @param {Object[]} results Reusable blocks received.
- *
- * @return {Object} Action object.
+ * Disables the publish sidebar.
  */
-export function __experimentalReceiveReusableBlocks( results ) {
-	return {
-		type: 'RECEIVE_REUSABLE_BLOCKS',
-		results,
+export const disablePublishSidebar =
+	() =>
+	( { registry } ) => {
+		registry
+			.dispatch( preferencesStore )
+			.set( 'core', 'isPublishSidebarEnabled', false );
 	};
-}
 
 /**
- * Returns an action object used to save a reusable block that's in the store to
- * the REST API.
+ * Action that locks post saving.
  *
- * @param {Object} id The ID of the reusable block to save.
+ * @param {string} lockName The lock name.
  *
- * @return {Object} Action object.
- */
-export function __experimentalSaveReusableBlock( id ) {
-	return {
-		type: 'SAVE_REUSABLE_BLOCK',
-		id,
-	};
-}
-
-/**
- * Returns an action object used to delete a reusable block via the REST API.
+ * @example
+ * ```
+ * const { subscribe } = wp.data;
  *
- * @param {number} id The ID of the reusable block to delete.
+ * const initialPostStatus = wp.data.select( 'core/editor' ).getEditedPostAttribute( 'status' );
  *
- * @return {Object} Action object.
- */
-export function __experimentalDeleteReusableBlock( id ) {
-	return {
-		type: 'DELETE_REUSABLE_BLOCK',
-		id,
-	};
-}
-
-/**
- * Returns an action object used in signalling that a reusable block's title is
- * to be updated.
+ * // Only allow publishing posts that are set to a future date.
+ * if ( 'publish' !== initialPostStatus ) {
  *
- * @param {number} id    The ID of the reusable block to update.
- * @param {string} title The new title.
+ * 	// Track locking.
+ * 	let locked = false;
  *
- * @return {Object} Action object.
- */
-export function __experimentalUpdateReusableBlockTitle( id, title ) {
-	return {
-		type: 'UPDATE_REUSABLE_BLOCK_TITLE',
-		id,
-		title,
-	};
-}
-
-/**
- * Returns an action object used to convert a reusable block into a static block.
+ * 	// Watch for the publish event.
+ * 	let unssubscribe = subscribe( () => {
+ * 		const currentPostStatus = wp.data.select( 'core/editor' ).getEditedPostAttribute( 'status' );
+ * 		if ( 'publish' !== currentPostStatus ) {
  *
- * @param {string} clientId The client ID of the block to attach.
- *
- * @return {Object} Action object.
- */
-export function __experimentalConvertBlockToStatic( clientId ) {
-	return {
-		type: 'CONVERT_BLOCK_TO_STATIC',
-		clientId,
-	};
-}
-
-/**
- * Returns an action object used to convert a static block into a reusable block.
- *
- * @param {string} clientIds The client IDs of the block to detach.
- *
- * @return {Object} Action object.
- */
-export function __experimentalConvertBlockToReusable( clientIds ) {
-	return {
-		type: 'CONVERT_BLOCK_TO_REUSABLE',
-		clientIds: castArray( clientIds ),
-	};
-}
-/**
- * Returns an action object used in signalling that a new block of the default
- * type should be added to the block list.
- *
- * @param {?Object} attributes   Optional attributes of the block to assign.
- * @param {?string} rootClientId Optional root client ID of block list on which
- *                               to append.
- * @param {?number} index        Optional index where to insert the default block
+ * 			// Compare the post date to the current date, lock the post if the date isn't in the future.
+ * 			const postDate = new Date( wp.data.select( 'core/editor' ).getEditedPostAttribute( 'date' ) );
+ * 			const currentDate = new Date();
+ * 			if ( postDate.getTime() <= currentDate.getTime() ) {
+ * 				if ( ! locked ) {
+ * 					locked = true;
+ * 					wp.data.dispatch( 'core/editor' ).lockPostSaving( 'futurelock' );
+ * 				}
+ * 			} else {
+ * 				if ( locked ) {
+ * 					locked = false;
+ * 					wp.data.dispatch( 'core/editor' ).unlockPostSaving( 'futurelock' );
+ * 				}
+ * 			}
+ * 		}
+ * 	} );
+ * }
+ * ```
  *
  * @return {Object} Action object
  */
-export function insertDefaultBlock( attributes, rootClientId, index ) {
-	const block = createBlock( getDefaultBlockName(), attributes );
-
-	return insertBlock( block, index, rootClientId );
+export function lockPostSaving( lockName ) {
+	return {
+		type: 'LOCK_POST_SAVING',
+		lockName,
+	};
 }
 
 /**
- * Returns an action object that changes the nested settings of a given block.
+ * Action that unlocks post saving.
  *
- * @param {string} clientId Client ID of the block whose nested setting are
- *                          being received.
- * @param {Object} settings Object with the new settings for the nested block.
+ * @param {string} lockName The lock name.
+ *
+ * @example
+ * ```
+ * // Unlock post saving with the lock key `mylock`:
+ * wp.data.dispatch( 'core/editor' ).unlockPostSaving( 'mylock' );
+ * ```
  *
  * @return {Object} Action object
  */
-export function updateBlockListSettings( clientId, settings ) {
+export function unlockPostSaving( lockName ) {
 	return {
-		type: 'UPDATE_BLOCK_LIST_SETTINGS',
-		clientId,
-		settings,
+		type: 'UNLOCK_POST_SAVING',
+		lockName,
 	};
 }
+
+/**
+ * Action that locks post autosaving.
+ *
+ * @param {string} lockName The lock name.
+ *
+ * @example
+ * ```
+ * // Lock post autosaving with the lock key `mylock`:
+ * wp.data.dispatch( 'core/editor' ).lockPostAutosaving( 'mylock' );
+ * ```
+ *
+ * @return {Object} Action object
+ */
+export function lockPostAutosaving( lockName ) {
+	return {
+		type: 'LOCK_POST_AUTOSAVING',
+		lockName,
+	};
+}
+
+/**
+ * Action that unlocks post autosaving.
+ *
+ * @param {string} lockName The lock name.
+ *
+ * @example
+ * ```
+ * // Unlock post saving with the lock key `mylock`:
+ * wp.data.dispatch( 'core/editor' ).unlockPostAutosaving( 'mylock' );
+ * ```
+ *
+ * @return {Object} Action object
+ */
+export function unlockPostAutosaving( lockName ) {
+	return {
+		type: 'UNLOCK_POST_AUTOSAVING',
+		lockName,
+	};
+}
+
+/**
+ * Returns an action object used to signal that the blocks have been updated.
+ *
+ * @param {Array}  blocks    Block Array.
+ * @param {Object} [options] Optional options.
+ */
+export const resetEditorBlocks =
+	( blocks, options = {} ) =>
+	( { select, dispatch, registry } ) => {
+		const { __unstableShouldCreateUndoLevel, selection } = options;
+		const edits = { blocks, selection };
+
+		if ( __unstableShouldCreateUndoLevel !== false ) {
+			const { id, type } = select.getCurrentPost();
+			const noChange =
+				registry
+					.select( coreStore )
+					.getEditedEntityRecord( 'postType', type, id ).blocks ===
+				edits.blocks;
+			if ( noChange ) {
+				registry
+					.dispatch( coreStore )
+					.__unstableCreateUndoLevel( 'postType', type, id );
+				return;
+			}
+
+			// We create a new function here on every persistent edit
+			// to make sure the edit makes the post dirty and creates
+			// a new undo level.
+			edits.content = ( { blocks: blocksForSerialization = [] } ) =>
+				__unstableSerializeAndClean( blocksForSerialization );
+		}
+
+		dispatch.editPost( edits );
+	};
 
 /*
- * Returns an action object used in signalling that the editor settings have been updated.
+ * Returns an action object used in signalling that the post editor settings have been updated.
  *
  * @param {Object} settings Updated settings
  *
@@ -736,51 +645,556 @@ export function updateEditorSettings( settings ) {
 }
 
 /**
- * Returns an action object used in signalling that the user has enabled the publish sidebar.
+ * Returns an action used to set the rendering mode of the post editor. We support multiple rendering modes:
  *
- * @return {Object} Action object
+ * -   `post-only`: This mode extracts the post blocks from the template and renders only those. The idea is to allow the user to edit the post/page in isolation without the wrapping template.
+ * -   `template-locked`: This mode renders both the template and the post blocks but the template blocks are locked and can't be edited. The post blocks are editable.
+ *
+ * @param {string} mode Mode (one of 'post-only' or 'template-locked').
  */
-export function enablePublishSidebar() {
+export const setRenderingMode =
+	( mode ) =>
+	( { dispatch, registry, select } ) => {
+		if ( select.__unstableIsEditorReady() ) {
+			// We clear the block selection but we also need to clear the selection from the core store.
+			registry.dispatch( blockEditorStore ).clearSelectedBlock();
+			dispatch.editPost( { selection: undefined }, { undoIgnore: true } );
+		}
+
+		dispatch( {
+			type: 'SET_RENDERING_MODE',
+			mode,
+		} );
+	};
+
+/**
+ * Action that changes the width of the editing canvas.
+ *
+ * @param {string} deviceType
+ *
+ * @return {Object} Action object.
+ */
+export function setDeviceType( deviceType ) {
 	return {
-		type: 'ENABLE_PUBLISH_SIDEBAR',
+		type: 'SET_DEVICE_TYPE',
+		deviceType,
 	};
 }
 
 /**
- * Returns an action object used in signalling that the user has disabled the publish sidebar.
+ * Returns an action object used to enable or disable a panel in the editor.
  *
- * @return {Object} Action object
+ * @param {string} panelName A string that identifies the panel to enable or disable.
+ *
+ * @return {Object} Action object.
  */
-export function disablePublishSidebar() {
+export const toggleEditorPanelEnabled =
+	( panelName ) =>
+	( { registry } ) => {
+		const inactivePanels =
+			registry
+				.select( preferencesStore )
+				.get( 'core', 'inactivePanels' ) ?? [];
+
+		const isPanelInactive = !! inactivePanels?.includes( panelName );
+
+		// If the panel is inactive, remove it to enable it, else add it to
+		// make it inactive.
+		let updatedInactivePanels;
+		if ( isPanelInactive ) {
+			updatedInactivePanels = inactivePanels.filter(
+				( invactivePanelName ) => invactivePanelName !== panelName
+			);
+		} else {
+			updatedInactivePanels = [ ...inactivePanels, panelName ];
+		}
+
+		registry
+			.dispatch( preferencesStore )
+			.set( 'core', 'inactivePanels', updatedInactivePanels );
+	};
+
+/**
+ * Opens a closed panel and closes an open panel.
+ *
+ * @param {string} panelName A string that identifies the panel to open or close.
+ */
+export const toggleEditorPanelOpened =
+	( panelName ) =>
+	( { registry } ) => {
+		const openPanels =
+			registry.select( preferencesStore ).get( 'core', 'openPanels' ) ??
+			[];
+
+		const isPanelOpen = !! openPanels?.includes( panelName );
+
+		// If the panel is open, remove it to close it, else add it to
+		// make it open.
+		let updatedOpenPanels;
+		if ( isPanelOpen ) {
+			updatedOpenPanels = openPanels.filter(
+				( openPanelName ) => openPanelName !== panelName
+			);
+		} else {
+			updatedOpenPanels = [ ...openPanels, panelName ];
+		}
+
+		registry
+			.dispatch( preferencesStore )
+			.set( 'core', 'openPanels', updatedOpenPanels );
+	};
+
+/**
+ * Returns an action object used to remove a panel from the editor.
+ *
+ * @param {string} panelName A string that identifies the panel to remove.
+ *
+ * @return {Object} Action object.
+ */
+export function removeEditorPanel( panelName ) {
 	return {
-		type: 'DISABLE_PUBLISH_SIDEBAR',
+		type: 'REMOVE_PANEL',
+		panelName,
 	};
 }
 
 /**
- * Returns an action object used to signal that post saving is locked.
+ * Returns an action object used to open/close the inserter.
  *
- * @param  {string} lockName The lock name.
+ * @param {boolean|Object} value                Whether the inserter should be
+ *                                              opened (true) or closed (false).
+ *                                              To specify an insertion point,
+ *                                              use an object.
+ * @param {string}         value.rootClientId   The root client ID to insert at.
+ * @param {number}         value.insertionIndex The index to insert at.
+ * @param {string}         value.filterValue    A query to filter the inserter results.
+ * @param {Function}       value.onSelect       A callback when an item is selected.
+ * @param {string}         value.tab            The tab to open in the inserter.
+ * @param {string}         value.category       The category to initialize in the inserter.
  *
- * @return {Object} Action object
+ * @return {Object} Action object.
  */
-export function lockPostSaving( lockName ) {
+export const setIsInserterOpened =
+	( value ) =>
+	( { dispatch, registry } ) => {
+		if (
+			typeof value === 'object' &&
+			value.hasOwnProperty( 'rootClientId' ) &&
+			value.hasOwnProperty( 'insertionIndex' )
+		) {
+			unlock( registry.dispatch( blockEditorStore ) ).setInsertionPoint( {
+				rootClientId: value.rootClientId,
+				index: value.insertionIndex,
+			} );
+		}
+
+		dispatch( {
+			type: 'SET_IS_INSERTER_OPENED',
+			value,
+		} );
+	};
+
+/**
+ * Returns an action object used to open/close the list view.
+ *
+ * @param {boolean} isOpen A boolean representing whether the list view should be opened or closed.
+ * @return {Object} Action object.
+ */
+export function setIsListViewOpened( isOpen ) {
 	return {
-		type: 'LOCK_POST_SAVING',
-		lockName,
+		type: 'SET_IS_LIST_VIEW_OPENED',
+		isOpen,
 	};
 }
 
 /**
- * Returns an action object used to signal that post saving is unlocked.
+ * Action that toggles Distraction free mode.
+ * Distraction free mode expects there are no sidebars, as due to the
+ * z-index values set, you can't close sidebars.
  *
- * @param  {string} lockName The lock name.
+ * @param {Object}  [options={}]                Optional configuration object
+ * @param {boolean} [options.createNotice=true] Whether to create a notice
+ */
+export const toggleDistractionFree =
+	( { createNotice = true } = {} ) =>
+	( { dispatch, registry } ) => {
+		const isDistractionFree = registry
+			.select( preferencesStore )
+			.get( 'core', 'distractionFree' );
+		if ( isDistractionFree ) {
+			registry
+				.dispatch( preferencesStore )
+				.set( 'core', 'fixedToolbar', false );
+		}
+		if ( ! isDistractionFree ) {
+			registry.batch( () => {
+				registry
+					.dispatch( preferencesStore )
+					.set( 'core', 'fixedToolbar', true );
+				dispatch.setIsInserterOpened( false );
+				dispatch.setIsListViewOpened( false );
+				unlock(
+					registry.dispatch( blockEditorStore )
+				).resetZoomLevel();
+			} );
+		}
+		registry.batch( () => {
+			registry
+				.dispatch( preferencesStore )
+				.set( 'core', 'distractionFree', ! isDistractionFree );
+
+			if ( createNotice ) {
+				registry
+					.dispatch( noticesStore )
+					.createInfoNotice(
+						isDistractionFree
+							? __( 'Distraction free mode deactivated.' )
+							: __( 'Distraction free mode activated.' ),
+						{
+							id: 'core/editor/distraction-free-mode/notice',
+							type: 'snackbar',
+							actions: [
+								{
+									label: __( 'Undo' ),
+									onClick: () => {
+										registry.batch( () => {
+											registry
+												.dispatch( preferencesStore )
+												.set(
+													'core',
+													'fixedToolbar',
+													isDistractionFree
+												);
+											registry
+												.dispatch( preferencesStore )
+												.toggle(
+													'core',
+													'distractionFree'
+												);
+										} );
+									},
+								},
+							],
+						}
+					);
+			}
+		} );
+	};
+
+/**
+ * Action that toggles the Spotlight Mode view option.
+ */
+export const toggleSpotlightMode =
+	() =>
+	( { registry } ) => {
+		registry.dispatch( preferencesStore ).toggle( 'core', 'focusMode' );
+
+		const isFocusMode = registry
+			.select( preferencesStore )
+			.get( 'core', 'focusMode' );
+
+		registry
+			.dispatch( noticesStore )
+			.createInfoNotice(
+				isFocusMode
+					? __( 'Spotlight mode activated.' )
+					: __( 'Spotlight mode deactivated.' ),
+				{
+					id: 'core/editor/toggle-spotlight-mode/notice',
+					type: 'snackbar',
+					actions: [
+						{
+							label: __( 'Undo' ),
+							onClick: () => {
+								registry
+									.dispatch( preferencesStore )
+									.toggle( 'core', 'focusMode' );
+							},
+						},
+					],
+				}
+			);
+	};
+
+/**
+ * Action that toggles the Top Toolbar view option.
+ */
+export const toggleTopToolbar =
+	() =>
+	( { registry } ) => {
+		registry.dispatch( preferencesStore ).toggle( 'core', 'fixedToolbar' );
+
+		const isTopToolbar = registry
+			.select( preferencesStore )
+			.get( 'core', 'fixedToolbar' );
+
+		registry
+			.dispatch( noticesStore )
+			.createInfoNotice(
+				isTopToolbar
+					? __( 'Top toolbar activated.' )
+					: __( 'Top toolbar deactivated.' ),
+				{
+					id: 'core/editor/toggle-top-toolbar/notice',
+					type: 'snackbar',
+					actions: [
+						{
+							label: __( 'Undo' ),
+
+							onClick: () => {
+								registry
+									.dispatch( preferencesStore )
+									.toggle( 'core', 'fixedToolbar' );
+							},
+						},
+					],
+				}
+			);
+	};
+
+/**
+ * Triggers an action used to switch editor mode.
+ *
+ * @param {string} mode The editor mode.
+ */
+export const switchEditorMode =
+	( mode ) =>
+	( { dispatch, registry } ) => {
+		registry.dispatch( preferencesStore ).set( 'core', 'editorMode', mode );
+
+		if ( mode !== 'visual' ) {
+			// Unselect blocks when we switch to a non visual mode.
+			registry.dispatch( blockEditorStore ).clearSelectedBlock();
+			// Exit zoom out state when switching to a non visual mode.
+			unlock( registry.dispatch( blockEditorStore ) ).resetZoomLevel();
+		}
+
+		if ( mode === 'visual' ) {
+			speak( __( 'Visual editor selected' ), 'assertive' );
+		} else if ( mode === 'text' ) {
+			const isDistractionFree = registry
+				.select( preferencesStore )
+				.get( 'core', 'distractionFree' );
+			if ( isDistractionFree ) {
+				dispatch.toggleDistractionFree();
+			}
+			speak( __( 'Code editor selected' ), 'assertive' );
+		}
+	};
+
+/**
+ * Returns an action object used in signalling that the user opened the publish
+ * sidebar.
  *
  * @return {Object} Action object
  */
-export function unlockPostSaving( lockName ) {
+export function openPublishSidebar() {
 	return {
-		type: 'UNLOCK_POST_SAVING',
-		lockName,
+		type: 'OPEN_PUBLISH_SIDEBAR',
 	};
 }
+
+/**
+ * Returns an action object used in signalling that the user closed the
+ * publish sidebar.
+ *
+ * @return {Object} Action object.
+ */
+export function closePublishSidebar() {
+	return {
+		type: 'CLOSE_PUBLISH_SIDEBAR',
+	};
+}
+
+/**
+ * Returns an action object used in signalling that the user toggles the publish sidebar.
+ *
+ * @return {Object} Action object
+ */
+export function togglePublishSidebar() {
+	return {
+		type: 'TOGGLE_PUBLISH_SIDEBAR',
+	};
+}
+
+/**
+ * Backward compatibility
+ */
+
+const getBlockEditorAction =
+	( name ) =>
+	( ...args ) =>
+	( { registry } ) => {
+		deprecated( "`wp.data.dispatch( 'core/editor' )." + name + '`', {
+			since: '5.3',
+			alternative:
+				"`wp.data.dispatch( 'core/block-editor' )." + name + '`',
+			version: '6.2',
+		} );
+		registry.dispatch( blockEditorStore )[ name ]( ...args );
+	};
+
+/**
+ * @see resetBlocks in core/block-editor store.
+ */
+export const resetBlocks = getBlockEditorAction( 'resetBlocks' );
+
+/**
+ * @see receiveBlocks in core/block-editor store.
+ */
+export const receiveBlocks = getBlockEditorAction( 'receiveBlocks' );
+
+/**
+ * @see updateBlock in core/block-editor store.
+ */
+export const updateBlock = getBlockEditorAction( 'updateBlock' );
+
+/**
+ * @see updateBlockAttributes in core/block-editor store.
+ */
+export const updateBlockAttributes = getBlockEditorAction(
+	'updateBlockAttributes'
+);
+
+/**
+ * @see selectBlock in core/block-editor store.
+ */
+export const selectBlock = getBlockEditorAction( 'selectBlock' );
+
+/**
+ * @see startMultiSelect in core/block-editor store.
+ */
+export const startMultiSelect = getBlockEditorAction( 'startMultiSelect' );
+
+/**
+ * @see stopMultiSelect in core/block-editor store.
+ */
+export const stopMultiSelect = getBlockEditorAction( 'stopMultiSelect' );
+
+/**
+ * @see multiSelect in core/block-editor store.
+ */
+export const multiSelect = getBlockEditorAction( 'multiSelect' );
+
+/**
+ * @see clearSelectedBlock in core/block-editor store.
+ */
+export const clearSelectedBlock = getBlockEditorAction( 'clearSelectedBlock' );
+
+/**
+ * @see toggleSelection in core/block-editor store.
+ */
+export const toggleSelection = getBlockEditorAction( 'toggleSelection' );
+
+/**
+ * @see replaceBlocks in core/block-editor store.
+ */
+export const replaceBlocks = getBlockEditorAction( 'replaceBlocks' );
+
+/**
+ * @see replaceBlock in core/block-editor store.
+ */
+export const replaceBlock = getBlockEditorAction( 'replaceBlock' );
+
+/**
+ * @see moveBlocksDown in core/block-editor store.
+ */
+export const moveBlocksDown = getBlockEditorAction( 'moveBlocksDown' );
+
+/**
+ * @see moveBlocksUp in core/block-editor store.
+ */
+export const moveBlocksUp = getBlockEditorAction( 'moveBlocksUp' );
+
+/**
+ * @see moveBlockToPosition in core/block-editor store.
+ */
+export const moveBlockToPosition = getBlockEditorAction(
+	'moveBlockToPosition'
+);
+
+/**
+ * @see insertBlock in core/block-editor store.
+ */
+export const insertBlock = getBlockEditorAction( 'insertBlock' );
+
+/**
+ * @see insertBlocks in core/block-editor store.
+ */
+export const insertBlocks = getBlockEditorAction( 'insertBlocks' );
+
+/**
+ * @see showInsertionPoint in core/block-editor store.
+ */
+export const showInsertionPoint = getBlockEditorAction( 'showInsertionPoint' );
+
+/**
+ * @see hideInsertionPoint in core/block-editor store.
+ */
+export const hideInsertionPoint = getBlockEditorAction( 'hideInsertionPoint' );
+
+/**
+ * @see setTemplateValidity in core/block-editor store.
+ */
+export const setTemplateValidity = getBlockEditorAction(
+	'setTemplateValidity'
+);
+
+/**
+ * @see synchronizeTemplate in core/block-editor store.
+ */
+export const synchronizeTemplate = getBlockEditorAction(
+	'synchronizeTemplate'
+);
+
+/**
+ * @see mergeBlocks in core/block-editor store.
+ */
+export const mergeBlocks = getBlockEditorAction( 'mergeBlocks' );
+
+/**
+ * @see removeBlocks in core/block-editor store.
+ */
+export const removeBlocks = getBlockEditorAction( 'removeBlocks' );
+
+/**
+ * @see removeBlock in core/block-editor store.
+ */
+export const removeBlock = getBlockEditorAction( 'removeBlock' );
+
+/**
+ * @see toggleBlockMode in core/block-editor store.
+ */
+export const toggleBlockMode = getBlockEditorAction( 'toggleBlockMode' );
+
+/**
+ * @see startTyping in core/block-editor store.
+ */
+export const startTyping = getBlockEditorAction( 'startTyping' );
+
+/**
+ * @see stopTyping in core/block-editor store.
+ */
+export const stopTyping = getBlockEditorAction( 'stopTyping' );
+
+/**
+ * @see enterFormattedText in core/block-editor store.
+ */
+export const enterFormattedText = getBlockEditorAction( 'enterFormattedText' );
+
+/**
+ * @see exitFormattedText in core/block-editor store.
+ */
+export const exitFormattedText = getBlockEditorAction( 'exitFormattedText' );
+
+/**
+ * @see insertDefaultBlock in core/block-editor store.
+ */
+export const insertDefaultBlock = getBlockEditorAction( 'insertDefaultBlock' );
+
+/**
+ * @see updateBlockListSettings in core/block-editor store.
+ */
+export const updateBlockListSettings = getBlockEditorAction(
+	'updateBlockListSettings'
+);

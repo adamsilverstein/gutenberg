@@ -1,33 +1,53 @@
 .wp-block-embed {
-	margin: 0;
+	// Remove the left and right margin the figure is born with.
+	margin-left: 0;
+	margin-right: 0;
 
 	// Necessary because we use responsive trickery to set width/height,
 	// therefore the video doesn't intrinsically clear floats like an image does.
 	clear: both;
 
-	// Apply a min-width, or the embed can collapse when floated.
-	// Instagram widgets have a min-width of 326px, so go a bit beyond that.
-	@include break-small() {
-		min-width: 360px;
-	}
-
 	&.is-loading {
 		display: flex;
-		flex-direction: column;
-		align-items: center;
 		justify-content: center;
-		padding: 1em;
-		min-height: 200px;
-		text-align: center;
-		background: $light-gray-100;
-		p {
-			font-family: $default-font;
-			font-size: $default-font-size;
-		}
+	}
+
+	.wp-block-embed__placeholder-input {
+		flex: 1 1 auto;
 	}
 
 	// Stops long URLs from breaking out of the no preview available screen
 	.components-placeholder__error {
 		word-break: break-word;
+	}
+}
+
+.wp-block-embed__learn-more {
+	@at-root .wp-block-post-content & {
+		a {
+			color: var(--wp-admin-theme-color);
+		}
+	}
+}
+
+.block-library-embed__interactive-overlay {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	opacity: 0;
+}
+
+.wp-block[data-align="left"],
+.wp-block[data-align="right"] {
+	> .wp-block-embed {
+		max-width: 360px;
+		width: 100%;
+
+		// Unless these have a min-width, they collapse when floated.
+		.wp-block-embed__wrapper {
+			min-width: $break-zoomed-in;
+		}
 	}
 }

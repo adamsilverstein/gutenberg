@@ -1,13 +1,12 @@
-.components-toggle-control .components-base-control__field {
-	display: flex;
-	margin-bottom: $grid-size-small * 3;
+.components-toggle-control__label {
+	line-height: $toggle-height;
 
-	.components-form-toggle {
-		margin-right: $grid-size-large;
+	&:not(.is-disabled) {
+		cursor: pointer;
 	}
+}
 
-	.components-toggle-control__label {
-		display: block;
-		margin-bottom: 4px;
-	}
+.components-toggle-control__help {
+	display: inline-block;
+	margin-inline-start: $toggle-width + $grid-unit-10;
 }

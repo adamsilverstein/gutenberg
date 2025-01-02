@@ -1,29 +1,16 @@
-module.exports = function( api ) {
+module.exports = ( api ) => {
 	api.cache( true );
 
 	return {
 		presets: [ '@wordpress/babel-preset-default' ],
-		plugins: [
-			[
-				'@wordpress/babel-plugin-import-jsx-pragma',
-				{
-					scopeVariable: 'createElement',
-					source: '@wordpress/element',
-					isDefault: false,
-				},
-			],
-		],
-		env: {
-			production: {
+		plugins: [ '@emotion/babel-plugin', 'babel-plugin-inline-json-import' ],
+		overrides: [
+			{
+				test: 'packages/block-library/src/index.js',
 				plugins: [
-					[
-						'@wordpress/babel-plugin-makepot',
-						{
-							output: 'languages/gutenberg.pot',
-						},
-					],
+					require.resolve( '@wordpress/block-library/babel-plugin' ),
 				],
 			},
-		},
+		],
 	};
 };

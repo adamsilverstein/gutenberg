@@ -1,3 +1,5 @@
+/* eslint-disable testing-library/render-result-naming-convention */
+
 /**
  * WordPress dependencies
  */
@@ -33,7 +35,9 @@ describe( 'getSerializeCapableElement', () => {
 		// since all that is cared about is that it can be serialized.
 		const html = renderToString( element );
 
-		expect( html ).toBe( 'This <strong class="is-extra-strong">is</strong> a test' );
+		expect( html ).toBe(
+			'This <strong class="is-extra-strong">is</strong> a test'
+		);
 	} );
 } );
 
@@ -52,9 +56,10 @@ describe( 'concat', () => {
 				props: {
 					children: [ 'world' ],
 				},
-			},
+			}
 		);
 
+		expect( console ).toHaveWarned();
 		expect( result ).toEqual( [
 			{
 				type: 'strong',
@@ -73,16 +78,12 @@ describe( 'concat', () => {
 	} );
 
 	it( 'should merge adjacent strings', () => {
-		const result = concat(
-			'Hello',
-			' ',
-			{
-				type: 'strong',
-				props: {
-					children: [ 'World' ],
-				},
+		const result = concat( 'Hello', ' ', {
+			type: 'strong',
+			props: {
+				children: [ 'World' ],
 			},
-		);
+		} );
 
 		expect( result ).toEqual( [
 			'Hello ',
@@ -111,6 +112,7 @@ describe( 'toHTML', () => {
 
 		const html = toHTML( children );
 
+		expect( console ).toHaveWarned();
 		expect( html ).toBe( 'This is a <strong>test</strong>!' );
 	} );
 } );
@@ -118,10 +120,12 @@ describe( 'toHTML', () => {
 describe( 'fromDOM', () => {
 	it( 'should return an equivalent block children', () => {
 		const node = document.createElement( 'div' );
-		node.innerHTML = 'This <strong class="is-extra-strong">is</strong> a test';
+		node.innerHTML =
+			'This <strong class="is-extra-strong">is</strong> a test';
 
 		const blockNode = fromDOM( node.childNodes );
 
+		expect( console ).toHaveWarned();
 		expect( blockNode ).toEqual( [
 			'This ',
 			{
@@ -135,3 +139,5 @@ describe( 'fromDOM', () => {
 		] );
 	} );
 } );
+
+/* eslint-enable testing-library/render-result-naming-convention */

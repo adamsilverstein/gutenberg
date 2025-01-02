@@ -1,13 +1,16 @@
+/**
+ * Internal dependencies
+ */
+import { ZWNBSP, OBJECT_REPLACEMENT_CHARACTER } from '../../special-characters';
+
 export function getSparseArrayLength( array ) {
-	return array.reduce( ( i ) => i + 1, 0 );
+	return array.reduce( ( accumulator ) => accumulator + 1, 0 );
 }
 
 const em = { type: 'em' };
 const strong = { type: 'strong' };
-const img = { type: 'img', attributes: { src: '' }, object: true };
+const img = { type: 'img', attributes: { src: '' } };
 const a = { type: 'a', attributes: { href: '#' } };
-const ul = { type: 'ul' };
-const ol = { type: 'ol' };
 
 export const spec = [
 	{
@@ -25,12 +28,14 @@ export const spec = [
 			start: 0,
 			end: 0,
 			formats: [],
+			replacements: [],
 			text: '',
 		},
 	},
 	{
-		description: 'should replace characters to format HTML with space',
-		html: '\n\n\r\n\t',
+		description:
+			'should ignore manually added object replacement character',
+		html: `test${ OBJECT_REPLACEMENT_CHARACTER }`,
 		createRange: ( element ) => ( {
 			startOffset: 0,
 			startContainer: element,
@@ -38,12 +43,33 @@ export const spec = [
 			endContainer: element,
 		} ),
 		startPath: [ 0, 0 ],
-		endPath: [ 0, 1 ],
+		endPath: [ 0, 4 ],
 		record: {
 			start: 0,
-			end: 1,
-			formats: [ , ],
-			text: ' ',
+			end: 4,
+			formats: [ , , , , ],
+			replacements: [ , , , , ],
+			text: 'test',
+		},
+	},
+	{
+		description:
+			'should ignore manually added object replacement character with formatting',
+		html: `<em>h${ OBJECT_REPLACEMENT_CHARACTER }i</em>`,
+		createRange: ( element ) => ( {
+			startOffset: 0,
+			startContainer: element,
+			endOffset: 1,
+			endContainer: element,
+		} ),
+		startPath: [ 0, 0, 0 ],
+		endPath: [ 0, 0, 2 ],
+		record: {
+			start: 0,
+			end: 2,
+			formats: [ [ em ], [ em ] ],
+			replacements: [ , , ],
+			text: 'hi',
 		},
 	},
 	{
@@ -61,6 +87,7 @@ export const spec = [
 			start: 5,
 			end: 5,
 			formats: [ , , , , , , , , , , ],
+			replacements: [ , , , , , , , , , , ],
 			text: 'test\u00a0 test',
 		},
 	},
@@ -79,6 +106,7 @@ export const spec = [
 			start: 0,
 			end: 0,
 			formats: [],
+			replacements: [],
 			text: '',
 		},
 	},
@@ -97,6 +125,7 @@ export const spec = [
 			start: 0,
 			end: 4,
 			formats: [ , , , , ],
+			replacements: [ , , , , ],
 			text: 'test',
 		},
 	},
@@ -115,6 +144,7 @@ export const spec = [
 			start: 0,
 			end: 2,
 			formats: [ , , ],
+			replacements: [ , , ],
 			text: '🍒',
 		},
 	},
@@ -133,6 +163,7 @@ export const spec = [
 			start: 0,
 			end: 2,
 			formats: [ [ em ], [ em ] ],
+			replacements: [ , , ],
 			text: '🍒',
 		},
 	},
@@ -151,6 +182,7 @@ export const spec = [
 			start: 0,
 			end: 4,
 			formats: [ [ em ], [ em ], [ em ], [ em ] ],
+			replacements: [ , , , , ],
 			text: 'test',
 		},
 	},
@@ -168,7 +200,13 @@ export const spec = [
 		record: {
 			start: 0,
 			end: 4,
-			formats: [ [ em, strong ], [ em, strong ], [ em, strong ], [ em, strong ] ],
+			formats: [
+				[ em, strong ],
+				[ em, strong ],
+				[ em, strong ],
+				[ em, strong ],
+			],
+			replacements: [ , , , , ],
 			text: 'test',
 		},
 	},
@@ -187,6 +225,7 @@ export const spec = [
 			start: 0,
 			end: 2,
 			formats: [ [ em ], [ em ], [ em ], [ em ] ],
+			replacements: [ , , , , ],
 			text: 'test',
 		},
 	},
@@ -205,6 +244,7 @@ export const spec = [
 			start: 0,
 			end: 4,
 			formats: [ [ a ], [ a ], [ a ], [ a ] ],
+			replacements: [ , , , , ],
 			text: 'test',
 		},
 	},
@@ -217,12 +257,13 @@ export const spec = [
 			endOffset: 1,
 			endContainer: element,
 		} ),
-		startPath: [ 1, 0 ],
-		endPath: [ 1, 0 ],
+		startPath: [ 0, 0 ],
+		endPath: [ 0, 0 ],
 		record: {
 			start: 0,
 			end: 0,
-			formats: [ [ img ] ],
+			formats: [ , ],
+			replacements: [ img ],
 			text: '\ufffc',
 		},
 	},
@@ -235,12 +276,13 @@ export const spec = [
 			endOffset: 1,
 			endContainer: element.querySelector( 'img' ),
 		} ),
-		startPath: [ 0, 1, 0 ],
-		endPath: [ 0, 1, 0 ],
+		startPath: [ 0, 0, 0 ],
+		endPath: [ 0, 2, 0 ],
 		record: {
 			start: 0,
 			end: 1,
-			formats: [ [ em, img ] ],
+			formats: [ [ em ] ],
+			replacements: [ img ],
 			text: '\ufffc',
 		},
 	},
@@ -258,7 +300,8 @@ export const spec = [
 		record: {
 			start: 0,
 			end: 5,
-			formats: [ , , [ em ], [ em ], [ em, img ] ],
+			formats: [ , , [ em ], [ em ], [ em ] ],
+			replacements: [ , , , , img ],
 			text: 'test\ufffc',
 		},
 	},
@@ -271,12 +314,13 @@ export const spec = [
 			endOffset: 2,
 			endContainer: element,
 		} ),
-		startPath: [ 0, 1, 0 ],
+		startPath: [ 0, 0, 0 ],
 		endPath: [ 1, 2 ],
 		record: {
 			start: 0,
 			end: 5,
-			formats: [ [ em, img ], [ em ], [ em ], , , ],
+			formats: [ [ em ], [ em ], [ em ], , , ],
+			replacements: [ img, , , , , ],
 			text: '\ufffctest',
 		},
 	},
@@ -295,6 +339,7 @@ export const spec = [
 			start: 0,
 			end: 0,
 			formats: [ , ],
+			replacements: [ , ],
 			text: '\n',
 		},
 	},
@@ -313,6 +358,7 @@ export const spec = [
 			start: 2,
 			end: 3,
 			formats: [ , , , , , ],
+			replacements: [ , , , , , ],
 			text: 'te\nst',
 		},
 	},
@@ -331,6 +377,7 @@ export const spec = [
 			start: 0,
 			end: 1,
 			formats: [ [ em ] ],
+			replacements: [ , ],
 			text: '\n',
 		},
 	},
@@ -347,6 +394,7 @@ export const spec = [
 		endPath: [ 4, 0 ],
 		record: {
 			formats: [ , , , , ],
+			replacements: [ , , , , ],
 			text: 'a\n\nb',
 			start: 2,
 			end: 3,
@@ -365,174 +413,15 @@ export const spec = [
 		endPath: [ 2, 0 ],
 		record: {
 			formats: [ , , , , ],
+			replacements: [ , , , , ],
 			text: 'a\n\nb',
 			start: 2,
 			end: 2,
 		},
 	},
 	{
-		description: 'should handle empty multiline value',
-		multilineTag: 'p',
-		html: '<p></p>',
-		createRange: ( element ) => ( {
-			startOffset: 0,
-			startContainer: element.firstChild,
-			endOffset: 0,
-			endContainer: element.firstChild,
-		} ),
-		startPath: [ 0, 0, 0 ],
-		endPath: [ 0, 0, 0 ],
-		record: {
-			start: 0,
-			end: 0,
-			formats: [],
-			text: '',
-		},
-	},
-	{
-		description: 'should handle multiline value',
-		multilineTag: 'p',
-		html: '<p>one</p><p>two</p>',
-		createRange: ( element ) => ( {
-			startOffset: 1,
-			startContainer: element.querySelector( 'p' ).firstChild,
-			endOffset: 0,
-			endContainer: element.lastChild,
-		} ),
-		startPath: [ 0, 0, 1 ],
-		endPath: [ 1, 0, 0 ],
-		record: {
-			start: 1,
-			end: 4,
-			formats: [ , , , , , , , ],
-			text: 'one\u2028two',
-		},
-	},
-	{
-		description: 'should handle multiline list value',
-		multilineTag: 'li',
-		multilineWrapperTags: [ 'ul', 'ol' ],
-		html: '<li>one<ul><li>a</li><li>b<ol><li>1</li><li>2</li></ol></li></ul></li><li>three</li>',
-		createRange: ( element ) => ( {
-			startOffset: 0,
-			startContainer: element,
-			endOffset: 1,
-			endContainer: element.querySelector( 'ol > li' ).firstChild,
-		} ),
-		startPath: [ 0, 0, 0 ],
-		endPath: [ 0, 1, 1, 1, 0, 0, 1 ],
-		record: {
-			start: 0,
-			end: 9,
-			formats: [ , , , [ ul ], , [ ul ], , [ ul, ol ], , [ ul, ol ], , , , , , , , ],
-			text: 'one\u2028a\u2028b\u20281\u20282\u2028three',
-		},
-	},
-	{
-		description: 'should handle empty list value',
-		multilineTag: 'li',
-		multilineWrapperTags: [ 'ul', 'ol' ],
-		html: '<li></li>',
-		createRange: ( element ) => ( {
-			startOffset: 0,
-			startContainer: element.firstChild,
-			endOffset: 0,
-			endContainer: element.firstChild,
-		} ),
-		startPath: [ 0, 0, 0 ],
-		endPath: [ 0, 0, 0 ],
-		record: {
-			start: 0,
-			end: 0,
-			formats: [],
-			text: '',
-		},
-	},
-	{
-		description: 'should handle nested empty list value',
-		multilineTag: 'li',
-		multilineWrapperTags: [ 'ul', 'ol' ],
-		html: '<li><ul><li></li></ul></li>',
-		createRange: ( element ) => ( {
-			startOffset: 0,
-			startContainer: element.querySelector( 'ul > li' ),
-			endOffset: 0,
-			endContainer: element.querySelector( 'ul > li' ),
-		} ),
-		startPath: [ 0, 0, 0, 0, 0 ],
-		endPath: [ 0, 0, 0, 0, 0 ],
-		record: {
-			start: 1,
-			end: 1,
-			formats: [ [ ul ] ],
-			text: '\u2028',
-		},
-	},
-	{
-		description: 'should handle middle empty list value',
-		multilineTag: 'li',
-		multilineWrapperTags: [ 'ul', 'ol' ],
-		html: '<li></li><li></li><li></li>',
-		createRange: ( element ) => ( {
-			startOffset: 0,
-			startContainer: element.firstChild.nextSibling,
-			endOffset: 0,
-			endContainer: element.firstChild.nextSibling,
-		} ),
-		startPath: [ 1, 0, 0 ],
-		endPath: [ 1, 0, 0 ],
-		record: {
-			start: 1,
-			end: 1,
-			formats: [ , , ],
-			text: '\u2028\u2028',
-		},
-	},
-	{
-		description: 'should handle multiline value with empty',
-		multilineTag: 'p',
-		html: '<p>one</p><p></p>',
-		createRange: ( element ) => ( {
-			startOffset: 0,
-			startContainer: element.lastChild,
-			endOffset: 0,
-			endContainer: element.lastChild,
-		} ),
-		startPath: [ 1, 0, 0 ],
-		endPath: [ 1, 0, 0 ],
-		record: {
-			start: 4,
-			end: 4,
-			formats: [ , , , , ],
-			text: 'one\u2028',
-		},
-	},
-	{
-		description: 'should handle multiline value with element selection',
-		multilineTag: 'li',
-		multilineWrapperTags: [ 'ul', 'ol' ],
-		html: '<li>one</li>',
-		createRange: ( element ) => ( {
-			startOffset: 1,
-			startContainer: element.firstChild,
-			endOffset: 1,
-			endContainer: element.firstChild,
-		} ),
-		startPath: [ 0, 0, 3 ],
-		endPath: [ 0, 0, 3 ],
-		record: {
-			start: 3,
-			end: 3,
-			formats: [ , , , ],
-			text: 'one',
-		},
-	},
-	{
-		description: 'should remove with settings',
-		settings: {
-			unwrapNode: ( node ) => !! node.getAttribute( 'data-mce-bogus' ),
-		},
-		html: '<strong data-mce-bogus="true"></strong>',
+		description: 'should remove padding',
+		html: ZWNBSP,
 		createRange: ( element ) => ( {
 			startOffset: 0,
 			startContainer: element,
@@ -545,88 +434,13 @@ export const spec = [
 			start: 0,
 			end: 0,
 			formats: [],
+			replacements: [],
 			text: '',
 		},
 	},
 	{
-		description: 'should ignore formats at line separator',
-		multilineTag: 'p',
-		startPath: [],
-		endPath: [],
-		record: {
-			formats: [ [ em ], [ em ], [ em ], [ em ], [ em ], [ em ], [ em ] ],
-			text: 'one\u2028two',
-		},
-	},
-	{
-		description: 'should remove br with settings',
-		settings: {
-			unwrapNode: ( node ) => !! node.getAttribute( 'data-mce-bogus' ),
-		},
-		html: '<br data-mce-bogus="true">',
-		createRange: ( element ) => ( {
-			startOffset: 0,
-			startContainer: element,
-			endOffset: 1,
-			endContainer: element,
-		} ),
-		startPath: [ 0, 0 ],
-		endPath: [ 0, 0 ],
-		record: {
-			start: 0,
-			end: 0,
-			formats: [],
-			text: '',
-		},
-	},
-	{
-		description: 'should unwrap with settings',
-		settings: {
-			unwrapNode: ( node ) => !! node.getAttribute( 'data-mce-bogus' ),
-		},
-		html: '<strong data-mce-bogus="true">te<em>st</em></strong>',
-		createRange: ( element ) => ( {
-			startOffset: 0,
-			startContainer: element,
-			endOffset: 1,
-			endContainer: element,
-		} ),
-		startPath: [ 0, 0 ],
-		endPath: [ 1, 0, 2 ],
-		record: {
-			start: 0,
-			end: 4,
-			formats: [ , , [ em ], [ em ] ],
-			text: 'test',
-		},
-	},
-	{
-		description: 'should remove with children with settings',
-		settings: {
-			removeNode: ( node ) => node.getAttribute( 'data-mce-bogus' ) === 'all',
-		},
-		html: '<strong data-mce-bogus="all">one</strong>two',
-		createRange: ( element ) => ( {
-			startOffset: 0,
-			startContainer: element.lastChild,
-			endOffset: 1,
-			endContainer: element.lastChild,
-		} ),
-		startPath: [ 0, 0 ],
-		endPath: [ 0, 1 ],
-		record: {
-			start: 0,
-			end: 1,
-			formats: [ , , , ],
-			text: 'two',
-		},
-	},
-	{
-		description: 'should filter format attributes with settings',
-		settings: {
-			removeAttribute: ( attribute ) => attribute.indexOf( 'data-mce-' ) === 0,
-		},
-		html: '<strong data-mce-selected="inline-boundary">test</strong>',
+		description: 'should filter format boundary attributes',
+		html: '<strong data-rich-text-format-boundary="true">test</strong>',
 		createRange: ( element ) => ( {
 			startOffset: 0,
 			startContainer: element,
@@ -639,19 +453,61 @@ export const spec = [
 			start: 0,
 			end: 4,
 			formats: [ [ strong ], [ strong ], [ strong ], [ strong ] ],
+			replacements: [ , , , , ],
 			text: 'test',
 		},
 	},
 	{
-		description: 'should filter text with settings',
-		settings: {
-			filterString: ( string ) => string.replace( '\uFEFF', '' ),
+		description: 'should not error with overlapping formats (1)',
+		html: '<a href="#"><em>1</em><strong>2</strong></a>',
+		createRange: ( element ) => ( {
+			startOffset: 1,
+			startContainer: element.firstChild,
+			endOffset: 1,
+			endContainer: element.firstChild,
+		} ),
+		startPath: [ 0, 0, 0, 1 ],
+		endPath: [ 0, 0, 0, 1 ],
+		record: {
+			start: 1,
+			end: 1,
+			formats: [
+				[ a, em ],
+				[ a, strong ],
+			],
+			replacements: [ , , ],
+			text: '12',
 		},
-		html: '&#65279;',
+	},
+	{
+		description: 'should not error with overlapping formats (2)',
+		html: '<em><a href="#">1</a></em><strong><a href="#">2</a></strong>',
+		createRange: ( element ) => ( {
+			startOffset: 1,
+			startContainer: element.firstChild,
+			endOffset: 1,
+			endContainer: element.firstChild,
+		} ),
+		startPath: [ 0, 0, 0, 1 ],
+		endPath: [ 0, 0, 0, 1 ],
+		record: {
+			start: 1,
+			end: 1,
+			formats: [
+				[ em, a ],
+				[ strong, a ],
+			],
+			replacements: [ , , ],
+			text: '12',
+		},
+	},
+	{
+		description: 'should disarm script',
+		html: '<script>alert("1")</script>',
 		createRange: ( element ) => ( {
 			startOffset: 0,
 			startContainer: element,
-			endOffset: 1,
+			endOffset: 0,
 			endContainer: element,
 		} ),
 		startPath: [ 0, 0 ],
@@ -659,71 +515,92 @@ export const spec = [
 		record: {
 			start: 0,
 			end: 0,
-			formats: [],
-			text: '',
+			formats: [ , ],
+			replacements: [
+				{
+					attributes: { 'data-rich-text-script': 'alert(%221%22)' },
+					type: 'script',
+				},
+			],
+			text: '\ufffc',
 		},
 	},
 	{
-		description: 'should filter text at end with settings',
-		settings: {
-			filterString: ( string ) => string.replace( '\uFEFF', '' ),
-		},
-		html: 'test&#65279;',
+		description: 'should disarm on* attribute',
+		html: '<img onerror="alert(\'1\')">',
 		createRange: ( element ) => ( {
-			startOffset: 4,
-			startContainer: element.firstChild,
-			endOffset: 4,
-			endContainer: element.firstChild,
+			startOffset: 0,
+			startContainer: element,
+			endOffset: 0,
+			endContainer: element,
 		} ),
-		startPath: [ 0, 4 ],
-		endPath: [ 0, 4 ],
+		startPath: [ 0, 0 ],
+		endPath: [ 0, 0 ],
 		record: {
-			start: 4,
-			end: 4,
-			formats: [ , , , , ],
-			text: 'test',
+			start: 0,
+			end: 0,
+			formats: [ , ],
+			replacements: [
+				{
+					attributes: {
+						'data-disable-rich-text-onerror': "alert('1')",
+					},
+					type: 'img',
+				},
+			],
+			text: '\ufffc',
 		},
 	},
 	{
-		description: 'should filter text in format with settings',
-		settings: {
-			filterString: ( string ) => string.replace( '\uFEFF', '' ),
-		},
-		html: '<em>test&#65279;</em>',
+		description: 'should preserve comments',
+		html: '<!--comment-->',
 		createRange: ( element ) => ( {
-			startOffset: 5,
-			startContainer: element.querySelector( 'em' ).firstChild,
-			endOffset: 5,
-			endContainer: element.querySelector( 'em' ).firstChild,
-		} ),
-		startPath: [ 0, 0, 4 ],
-		endPath: [ 0, 0, 4 ],
-		record: {
-			start: 4,
-			end: 4,
-			formats: [ [ em ], [ em ], [ em ], [ em ] ],
-			text: 'test',
-		},
-	},
-	{
-		description: 'should filter text outside format with settings',
-		settings: {
-			filterString: ( string ) => string.replace( '\uFEFF', '' ),
-		},
-		html: '<em>test</em>&#65279;',
-		createRange: ( element ) => ( {
-			startOffset: 1,
-			startContainer: element.lastChild,
+			startOffset: 0,
+			startContainer: element,
 			endOffset: 1,
-			endContainer: element.lastChild,
+			endContainer: element,
 		} ),
-		startPath: [ 0, 0, 4 ],
-		endPath: [ 0, 0, 4 ],
+		startPath: [ 0, 0 ],
+		endPath: [ 2, 0 ],
 		record: {
-			start: 4,
-			end: 4,
-			formats: [ [ em ], [ em ], [ em ], [ em ] ],
-			text: 'test',
+			start: 0,
+			end: 1,
+			formats: [ , ],
+			replacements: [
+				{
+					attributes: {
+						'data-rich-text-comment': 'comment',
+					},
+					type: '#comment',
+				},
+			],
+			text: '\ufffc',
+		},
+	},
+	{
+		description: 'should preserve funky comments',
+		html: '<//funky>',
+		createRange: ( element ) => ( {
+			startOffset: 0,
+			startContainer: element,
+			endOffset: 1,
+			endContainer: element,
+		} ),
+		startPath: [ 0, 0 ],
+		endPath: [ 2, 0 ],
+		record: {
+			start: 0,
+			end: 1,
+			formats: [ , ],
+			replacements: [
+				{
+					attributes: {
+						'data-rich-text-comment': '/funky',
+					},
+					type: '#comment',
+				},
+			],
+			text: '\ufffc',
 		},
 	},
 ];
@@ -740,11 +617,17 @@ export const specWithRegistration = [
 		},
 		html: '<a class="custom-format">a</a>',
 		value: {
-			formats: [ [ {
-				type: 'my-plugin/link',
-				attributes: {},
-				unregisteredAttributes: {},
-			} ] ],
+			formats: [
+				[
+					{
+						type: 'my-plugin/link',
+						tagName: 'a',
+						attributes: {},
+						unregisteredAttributes: {},
+					},
+				],
+			],
+			replacements: [ , ],
 			text: 'a',
 		},
 	},
@@ -759,13 +642,19 @@ export const specWithRegistration = [
 		},
 		html: '<a class="custom-format test">a</a>',
 		value: {
-			formats: [ [ {
-				type: 'my-plugin/link',
-				attributes: {},
-				unregisteredAttributes: {
-					class: 'test',
-				},
-			} ] ],
+			formats: [
+				[
+					{
+						type: 'my-plugin/link',
+						tagName: 'a',
+						attributes: {},
+						unregisteredAttributes: {
+							class: 'test',
+						},
+					},
+				],
+			],
+			replacements: [ , ],
 			text: 'a',
 		},
 	},
@@ -780,13 +669,19 @@ export const specWithRegistration = [
 		},
 		html: '<a class="custom-format">a</a>',
 		value: {
-			formats: [ [ {
-				type: 'core/link',
-				attributes: {},
-				unregisteredAttributes: {
-					class: 'custom-format',
-				},
-			} ] ],
+			formats: [
+				[
+					{
+						type: 'core/link',
+						tagName: 'a',
+						attributes: {},
+						unregisteredAttributes: {
+							class: 'custom-format',
+						},
+					},
+				],
+			],
+			replacements: [ , ],
 			text: 'a',
 		},
 	},
@@ -794,13 +689,89 @@ export const specWithRegistration = [
 		description: 'should create fallback format',
 		html: '<a class="custom-format">a</a>',
 		value: {
-			formats: [ [ {
-				type: 'a',
-				attributes: {
-					class: 'custom-format',
-				},
-			} ] ],
+			formats: [
+				[
+					{
+						type: 'a',
+						attributes: {
+							class: 'custom-format',
+						},
+					},
+				],
+			],
+			replacements: [ , ],
 			text: 'a',
+		},
+	},
+	{
+		description: 'should not create format if editable tree only',
+		formatName: 'my-plugin/link',
+		formatType: {
+			title: 'Custom Link',
+			tagName: 'a',
+			className: 'custom-format',
+			edit() {},
+			__experimentalCreatePrepareEditableTree() {},
+		},
+		html: '<a class="custom-format">a</a>',
+		value: {
+			formats: [ , ],
+			replacements: [ , ],
+			text: 'a',
+		},
+		noToHTMLString: true,
+	},
+	{
+		description:
+			'should create format if editable tree only but changes need to be recorded',
+		formatName: 'my-plugin/link',
+		formatType: {
+			title: 'Custom Link',
+			tagName: 'a',
+			className: 'custom-format',
+			edit() {},
+			__experimentalCreatePrepareEditableTree() {},
+			__experimentalCreateOnChangeEditableValue() {},
+		},
+		html: '<a class="custom-format">a</a>',
+		value: {
+			formats: [
+				[
+					{
+						type: 'my-plugin/link',
+						tagName: 'a',
+						attributes: {},
+						unregisteredAttributes: {},
+					},
+				],
+			],
+			replacements: [ , ],
+			text: 'a',
+		},
+	},
+	{
+		description: 'should be non editable',
+		formatName: 'my-plugin/non-editable',
+		formatType: {
+			title: 'Non Editable',
+			tagName: 'a',
+			className: 'non-editable',
+			contentEditable: false,
+			edit() {},
+		},
+		html: '<a class="non-editable">a</a>',
+		value: {
+			formats: [ , ],
+			replacements: [
+				{
+					type: 'my-plugin/non-editable',
+					tagName: 'a',
+					attributes: {},
+					unregisteredAttributes: {},
+					innerHTML: 'a',
+				},
+			],
+			text: OBJECT_REPLACEMENT_CHARACTER,
 		},
 	},
 ];

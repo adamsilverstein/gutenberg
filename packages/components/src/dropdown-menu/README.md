@@ -1,13 +1,8 @@
 # DropdownMenu
 
-The DropdownMenu displays a list of actions (each contained in a MenuItem, MenuItemsChoice, or MenuGroup) in a compact way. It appears in a Popover after the user has interacted with an element (a button or icon) or when they perform a specific action. 
+The DropdownMenu displays a list of actions (each contained in a MenuItem, MenuItemsChoice, or MenuGroup) in a compact way. It appears in a Popover after the user has interacted with an element (a button or icon) or when they perform a specific action.
 
 ![An expanded DropdownMenu, containing a list of MenuItems.](https://wordpress.org/gutenberg/files/2019/01/DropdownMenuExample.png)
-
-## Table of contents
-
-1. [Design guidelines](#design-guidelines)
-2. [Development guidelines](#development-guidelines)
 
 ## Anatomy
 
@@ -25,8 +20,8 @@ The DropdownMenu displays a list of actions (each contained in a MenuItem, MenuI
 
 Use a DropdownMenu when you want users to:
 
-- Choose an action or change a setting from a list, AND
-- Only see the available choices contextually.
+-   Choose an action or change a setting from a list, AND
+-   Only see the available choices contextually.
 
 If you need to display all the available options at all times, consider using a Toolbar instead.
 
@@ -60,34 +55,70 @@ Render a Dropdown Menu with a set of controls:
 
 ```jsx
 import { DropdownMenu } from '@wordpress/components';
+import {
+	more,
+	arrowLeft,
+	arrowRight,
+	arrowUp,
+	arrowDown,
+} from '@wordpress/icons';
 
 const MyDropdownMenu = () => (
 	<DropdownMenu
-		icon="move"
+		icon={ more }
 		label="Select a direction"
 		controls={ [
 			{
 				title: 'Up',
-				icon: 'arrow-up-alt',
-				onClick: () => console.log( 'up' )
+				icon: arrowUp,
+				onClick: () => console.log( 'up' ),
 			},
 			{
 				title: 'Right',
-				icon: 'arrow-right-alt',
-				onClick: () => console.log( 'right' )
+				icon: arrowRight,
+				onClick: () => console.log( 'right' ),
 			},
 			{
 				title: 'Down',
-				icon: 'arrow-down-alt',
-				onClick: () => console.log( 'down' )
+				icon: arrowDown,
+				onClick: () => console.log( 'down' ),
 			},
 			{
 				title: 'Left',
-				icon: 'arrow-left-alt',
-				onClick: () => console.log( 'left' )
+				icon: arrowLeft,
+				onClick: () => console.log( 'left' ),
 			},
 		] }
 	/>
+);
+```
+
+Alternatively, specify a `children` function which returns elements valid for use in a DropdownMenu: `MenuItem`, `MenuItemsChoice`, or `MenuGroup`.
+
+```jsx
+import { DropdownMenu, MenuGroup, MenuItem } from '@wordpress/components';
+import { more, arrowUp, arrowDown, trash } from '@wordpress/icons';
+
+const MyDropdownMenu = () => (
+	<DropdownMenu icon={ more } label="Select a direction">
+		{ ( { onClose } ) => (
+			<>
+				<MenuGroup>
+					<MenuItem icon={ arrowUp } onClick={ onClose }>
+						Move Up
+					</MenuItem>
+					<MenuItem icon={ arrowDown } onClick={ onClose }>
+						Move Down
+					</MenuItem>
+				</MenuGroup>
+				<MenuGroup>
+					<MenuItem icon={ trash } onClick={ onClose }>
+						Remove
+					</MenuItem>
+				</MenuGroup>
+			</>
+		) }
+	</DropdownMenu>
 );
 ```
 
@@ -95,30 +126,88 @@ const MyDropdownMenu = () => (
 
 The component accepts the following props:
 
-#### icon
+#### `icon`: `string | null`
 
 The [Dashicon](https://developer.wordpress.org/resource/dashicons/) icon slug to be shown in the collapsed menu button.
 
-- Type: `String`
-- Required: No
-- Default: `"menu"`
+-   Required: No
+-   Default: `"menu"`
 
 See also: [https://developer.wordpress.org/resource/dashicons/](https://developer.wordpress.org/resource/dashicons/)
 
-#### label
+#### `label`: `string`
 
 A human-readable label to present as accessibility text on the focused collapsed menu button.
 
-- Type: `String`
-- Required: Yes
+-   Required: Yes
 
-#### controls
+#### `controls:` `DropdownOption[] | DropdownOption[][]`
 
-An array of objects describing the options to be shown in the expanded menu.
+An array or nested array of objects describing the options to be shown in the expanded menu.
 
 Each object should include an `icon` [Dashicon](https://developer.wordpress.org/resource/dashicons/) slug string, a human-readable `title` string, `isDisabled` boolean flag and an `onClick` function callback to invoke when the option is selected.
 
-- Type: `Array`
-- Required: Yes
+A valid DropdownMenu must specify a `controls` or `children` prop, or both.
+-   Required: No
+
+#### `children`: `( callbackProps: DropdownCallbackProps ) => ReactNode`
+
+A [function render prop](https://reactjs.org/docs/render-props.html#using-props-other-than-render) which should return an element or elements valid for use in a DropdownMenu: `MenuItem`, `MenuItemsChoice`, or `MenuGroup`. Its first argument is a props object including the same values as given to a [`Dropdown`'s `renderContent`](/packages/components/src/dropdown#rendercontent) (`isOpen`, `onToggle`, `onClose`).
+
+A valid DropdownMenu must specify a `controls` or `children` prop, or both.
+
+-   Required: No
 
 See also: [https://developer.wordpress.org/resource/dashicons/](https://developer.wordpress.org/resource/dashicons/)
+
+#### `className`: `string`
+
+A class name to apply to the dropdown menu's toggle element wrapper.
+
+-   Required: No
+
+#### `popoverProps`: `DropdownProps[ 'popoverProps' ]`
+
+Properties of `popoverProps` object will be passed as props to the nested `Popover` component.
+Use this object to modify props available for the `Popover` component that are not already exposed in the `DropdownMenu` component, e.g.: the direction in which the popover should open relative to its parent node set with `position` prop.
+
+-   Required: No
+
+#### `toggleProps`: `ToggleProps`
+
+Properties of `toggleProps` object will be passed as props to the nested `Button` component in the `renderToggle` implementation of the `Dropdown` component used internally.
+Use this object to modify props available for the `Button` component that are not already exposed in the `DropdownMenu` component, e.g.: the tooltip text displayed on hover set with `tooltip` prop.
+
+-   Required: No
+
+#### `menuProps`: `NavigableContainerProps`
+
+Properties of `menuProps` object will be passed as props to the nested `NavigableMenu` component in the `renderContent` implementation of the `Dropdown` component used internally.
+Use this object to modify props available for the `NavigableMenu` component that are not already exposed in the `DropdownMenu` component, e.g.: the orientation of the menu set with `orientation` prop.
+
+-   Required: No
+
+#### `disableOpenOnArrowDown`: `boolean`
+
+In some contexts, the arrow down key used to open the dropdown menu might need to be disabled—for example when that key is used to perform another action.
+
+-   Required: No
+-   Default: `false`
+
+### `defaultOpen`: `boolean`
+
+The open state of the dropdown menu when initially rendered. Use when you do not need to control its open state. It will be overridden by the `open` prop if it is specified on the component's first render.
+
+-   Required: No
+
+### `open`: `boolean`
+
+The controlled open state of the dropdown menu. Must be used in conjunction with `onToggle`.
+
+-   Required: No
+
+### `onToggle`: `( willOpen: boolean ) => void`
+
+A callback invoked when the state of the dropdown changes from open to closed and vice versa.
+
+-   Required: No

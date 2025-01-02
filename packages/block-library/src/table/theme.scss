@@ -1,12 +1,12 @@
 .wp-block-table {
-	width: 100%;
-	min-width: $break-mobile / 2;
-	border-collapse: collapse;
+	margin: 0 0 1em 0;
 
 	td,
 	th {
-		padding: 0.5em;
-		border: 1px solid currentColor;
-		word-break: break-all;
+		word-break: normal;
+	}
+
+	:where(figcaption) {
+		@include caption-style-theme();
 	}
 }

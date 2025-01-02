@@ -1,4 +1,3 @@
-
 /**
  * Internal dependencies
  */
@@ -13,11 +12,14 @@ import { pressKeyWithModifier } from './press-key-with-modifier';
  * @param {?string} username String to be used as user credential.
  * @param {?string} password String to be used as user credential.
  */
-export async function loginUser( username = WP_USERNAME, password = WP_PASSWORD ) {
+export async function loginUser(
+	username = WP_USERNAME,
+	password = WP_PASSWORD
+) {
 	if ( ! isCurrentURL( 'wp-login.php' ) ) {
-		await page.goto(
-			createURL( 'wp-login.php' )
-		);
+		const waitForLoginPageNavigation = page.waitForNavigation();
+		await page.goto( createURL( 'wp-login.php' ) );
+		await waitForLoginPageNavigation;
 	}
 
 	await page.focus( '#user_login' );
@@ -27,5 +29,8 @@ export async function loginUser( username = WP_USERNAME, password = WP_PASSWORD 
 	await pressKeyWithModifier( 'primary', 'a' );
 	await page.type( '#user_pass', password );
 
-	await Promise.all( [ page.waitForNavigation(), page.click( '#wp-submit' ) ] );
+	await Promise.all( [
+		page.click( '#wp-submit' ),
+		page.waitForNavigation( { waitUntil: 'networkidle0' } ),
+	] );
 }

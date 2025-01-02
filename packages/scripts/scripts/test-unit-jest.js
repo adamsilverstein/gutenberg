@@ -17,14 +17,12 @@ const jest = require( 'jest' );
 /**
  * Internal dependencies
  */
-const {
-	fromConfigRoot,
-	getCliArgs,
-	hasJestConfig,
-} = require( '../utils' );
+const { getJestOverrideConfigFile, getArgsFromCLI } = require( '../utils' );
 
-const config = ! hasJestConfig() ?
-	[ '--config', JSON.stringify( require( fromConfigRoot( 'jest-unit.config.js' ) ) ) ] :
-	[];
+const configFile = getJestOverrideConfigFile( 'unit' );
 
-jest.run( [ ...config, ...getCliArgs() ] );
+const config = configFile
+	? [ '--config', JSON.stringify( require( configFile ) ) ]
+	: [];
+
+jest.run( [ ...config, ...getArgsFromCLI() ] );

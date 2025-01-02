@@ -1,15 +1,14 @@
-/**
- * External dependencies
- */
-import { first } from 'lodash';
+/** @typedef {import('puppeteer-core').ElementHandle} ElementHandle */
 
 /**
- * Finds a sidebar panel with the provided title.
+ * Finds the button responsible for toggling the sidebar panel with the provided title.
  *
  * @param {string} panelTitle The name of sidebar panel.
  *
- * @return {?ElementHandle} Object that represents an in-page DOM element.
+ * @return {Promise<ElementHandle|undefined>} Object that represents an in-page DOM element.
  */
 export async function findSidebarPanelWithTitle( panelTitle ) {
-	return first( await page.$x( `//div[@class="edit-post-sidebar"]//button[@class="components-button components-panel__body-toggle"][contains(text(),"${ panelTitle }")]` ) );
+	const panelToggleSelector = `//div[contains(@class, "editor-sidebar")]//button[contains(@class, "components-panel__body-toggle") and contains(text(),"${ panelTitle }")]`;
+	const panelSelector = `${ panelToggleSelector }/ancestor::*[contains(concat(" ", @class, " "), " components-panel__body ")]`;
+	return await page.waitForXPath( panelSelector );
 }

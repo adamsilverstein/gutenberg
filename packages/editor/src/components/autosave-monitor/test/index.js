@@ -1,100 +1,197 @@
 /**
  * External dependencies
  */
-import { shallow } from 'enzyme';
+import { render } from '@testing-library/react';
 
 /**
  * Internal dependencies
  */
 import { AutosaveMonitor } from '../';
 
+jest.useFakeTimers();
+jest.spyOn( global, 'clearTimeout' );
+jest.spyOn( global, 'setTimeout' );
+
 describe( 'AutosaveMonitor', () => {
-	const toggleTimer = jest.fn();
-	let wrapper;
+	let setAutosaveTimerSpy;
 	beforeEach( () => {
-		toggleTimer.mockClear();
-		wrapper = shallow(
-			<AutosaveMonitor />,
-			{ lifecycleExperimental: true }
+		setAutosaveTimerSpy = jest.spyOn(
+			AutosaveMonitor.prototype,
+			'setAutosaveTimer'
+		);
+	} );
+
+	afterEach( () => {
+		setAutosaveTimerSpy.mockClear();
+	} );
+
+	it( 'should render nothing', () => {
+		const { container } = render( <AutosaveMonitor isDirty /> );
+
+		expect( container ).toBeEmptyDOMElement();
+	} );
+
+	it( 'should start autosave timer after being mounted', () => {
+		render( <AutosaveMonitor isDirty /> );
+
+		expect( setAutosaveTimerSpy ).toHaveBeenCalled();
+	} );
+
+	it( 'should clear the autosave timer after being unmounted', () => {
+		const { rerender } = render( <AutosaveMonitor isDirty /> );
+
+		rerender( <div /> );
+
+		expect( clearTimeout ).toHaveBeenCalled();
+	} );
+
+	it( 'should clear and restart autosave timer when the interval changes', () => {
+		const { rerender } = render( <AutosaveMonitor isDirty /> );
+
+		rerender( <AutosaveMonitor isDirty interval={ 999 } /> );
+
+		expect( clearTimeout ).toHaveBeenCalled();
+		expect( setAutosaveTimerSpy ).toHaveBeenCalledTimes( 2 );
+	} );
+
+	it( 'should autosave when `editReference` changes', () => {
+		const autosave = jest.fn();
+		const { rerender } = render(
+			<AutosaveMonitor isDirty isAutosaveable autosave={ autosave } />
 		);
 
-		wrapper.instance().toggleTimer = toggleTimer;
+		expect( autosave ).not.toHaveBeenCalled();
+
+		rerender(
+			<AutosaveMonitor
+				isDirty
+				isAutosaveable
+				autosave={ autosave }
+				editsReference={ [] }
+			/>
+		);
+
+		jest.runOnlyPendingTimers();
+
+		expect( autosave ).toHaveBeenCalledTimes( 1 );
 	} );
 
-	describe( '#componentDidUpdate()', () => {
-		it( 'should start autosave timer when having become dirty and saveable', () => {
-			wrapper.setProps( { isDirty: true, isAutosaveable: true } );
+	it( 'should autosave when `editReference` changes and the post becomes dirty', () => {
+		const autosave = jest.fn();
+		const { rerender } = render(
+			<AutosaveMonitor isAutosaveable autosave={ autosave } />
+		);
 
-			expect( toggleTimer ).toHaveBeenCalledWith( true );
-		} );
+		expect( autosave ).not.toHaveBeenCalled();
 
-		it( 'should restart autosave timer when edits reference changes', () => {
-			const beforeReference = [];
-			const afterReference = [];
-			wrapper.setProps( {
-				isDirty: true,
-				isAutosaveable: true,
-				editsReference: beforeReference,
-			} );
-			toggleTimer.mockClear();
+		rerender(
+			<AutosaveMonitor
+				isDirty
+				isAutosaveable
+				autosave={ autosave }
+				editsReference={ [] }
+			/>
+		);
 
-			wrapper.setProps( {
-				isDirty: true,
-				isAutosaveable: true,
-				editsReference: beforeReference,
-			} );
+		jest.runOnlyPendingTimers();
 
-			expect( toggleTimer ).not.toHaveBeenCalled();
-
-			wrapper.setProps( {
-				isDirty: true,
-				isAutosaveable: true,
-				editsReference: afterReference,
-			} );
-
-			expect( toggleTimer ).toHaveBeenCalledWith( true );
-		} );
-
-		it( 'should stop autosave timer when the autosave is up to date', () => {
-			wrapper.setProps( { isDirty: true, isAutosaveable: false } );
-
-			expect( toggleTimer ).toHaveBeenCalledWith( false );
-		} );
-
-		it( 'should stop autosave timer when having become dirty but not autosaveable', () => {
-			wrapper.setProps( { isDirty: true, isAutosaveable: false } );
-
-			expect( toggleTimer ).toHaveBeenCalledWith( false );
-		} );
-
-		it( 'should stop autosave timer when having become not dirty', () => {
-			wrapper.setProps( { isDirty: true } );
-			toggleTimer.mockClear();
-			wrapper.setProps( { isDirty: false } );
-
-			expect( toggleTimer ).toHaveBeenCalledWith( false );
-		} );
-
-		it( 'should stop autosave timer when having become not autosaveable', () => {
-			wrapper.setProps( { isDirty: true } );
-			toggleTimer.mockClear();
-			wrapper.setProps( { isAutosaveable: false } );
-
-			expect( toggleTimer ).toHaveBeenCalledWith( false );
-		} );
+		expect( autosave ).toHaveBeenCalledTimes( 1 );
 	} );
 
-	describe( '#componentWillUnmount()', () => {
-		it( 'should stop autosave timer', () => {
-			wrapper.unmount();
+	it( 'should not autosave when `editReference` changes and the post is not dirty anymore', () => {
+		const autosave = jest.fn();
+		const { rerender } = render(
+			<AutosaveMonitor isDirty isAutosaveable autosave={ autosave } />
+		);
 
-			expect( toggleTimer ).toHaveBeenCalledWith( false );
-		} );
+		expect( autosave ).not.toHaveBeenCalled();
+
+		rerender(
+			<AutosaveMonitor
+				isAutosaveable
+				autosave={ autosave }
+				editsReference={ [] }
+			/>
+		);
+
+		jest.runOnlyPendingTimers();
+
+		expect( autosave ).not.toHaveBeenCalled();
 	} );
 
-	describe( '#render()', () => {
-		it( 'should render nothing', () => {
-			expect( wrapper.type() ).toBe( null );
-		} );
+	it( 'should not autosave when `editReference` changes and the post is not autosaving', () => {
+		const autosave = jest.fn();
+		const { rerender } = render(
+			<AutosaveMonitor isAutosaveable autosave={ autosave } />
+		);
+
+		expect( autosave ).not.toHaveBeenCalled();
+
+		rerender(
+			<AutosaveMonitor
+				isAutosaveable
+				autosave={ autosave }
+				isAutosaving={ false }
+				editsReference={ [] }
+			/>
+		);
+
+		jest.runOnlyPendingTimers();
+
+		expect( autosave ).not.toHaveBeenCalled();
+	} );
+
+	it( 'should not autosave when `editReference` changes and the post started autosaving', () => {
+		const autosave = jest.fn();
+		const { rerender } = render(
+			<AutosaveMonitor
+				isAutosaveable
+				autosave={ autosave }
+				isAutosaving={ false }
+			/>
+		);
+
+		expect( autosave ).not.toHaveBeenCalled();
+
+		rerender(
+			<AutosaveMonitor
+				isAutosaveable
+				autosave={ autosave }
+				isAutosaving
+				editsReference={ [] }
+			/>
+		);
+
+		jest.runOnlyPendingTimers();
+
+		expect( autosave ).not.toHaveBeenCalled();
+	} );
+
+	it( 'should schedule itself in another {interval} ms', () => {
+		const { rerender } = render( <AutosaveMonitor isDirty /> );
+
+		rerender( <AutosaveMonitor isDirty isAutosaveable interval={ 5 } /> );
+
+		jest.runOnlyPendingTimers();
+
+		expect( setTimeout ).toHaveBeenLastCalledWith(
+			expect.any( Function ),
+			5000
+		);
+	} );
+
+	it( 'should schedule itself in 1000 ms if the post is not autosaveable at a time', () => {
+		const { rerender } = render( <AutosaveMonitor isDirty /> );
+
+		rerender(
+			<AutosaveMonitor isDirty isAutosaveable={ false } interval={ 5 } />
+		);
+
+		jest.runOnlyPendingTimers();
+
+		expect( setTimeout ).toHaveBeenLastCalledWith(
+			expect.any( Function ),
+			1000
+		);
 	} );
 } );

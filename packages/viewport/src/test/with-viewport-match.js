@@ -1,13 +1,12 @@
 /**
  * External dependencies
  */
-import renderer from 'react-test-renderer';
+import { render, screen } from '@testing-library/react';
 
 /**
  * WordPress dependencies
  */
-import { dispatch } from '@wordpress/data';
-import { Component } from '@wordpress/element';
+import { useViewportMatch } from '@wordpress/compose';
 
 /**
  * Internal dependencies
@@ -15,30 +14,51 @@ import { Component } from '@wordpress/element';
 import '../store';
 import withViewportMatch from '../with-viewport-match';
 
-describe( 'withViewportMatch()', () => {
-	const ChildComponent = () => <div>Hello</div>;
+jest.mock( '@wordpress/compose/src/hooks/use-viewport-match' );
 
-	// this is needed because TestUtils does not accept a stateless component.
-	// anything run through a HOC ends up as a stateless component.
-	const getTestComponent = ( WrappedComponent ) => {
-		class TestComponent extends Component {
-			render() {
-				return <WrappedComponent { ...this.props } />;
-			}
-		}
-		return <TestComponent />;
-	};
+const Component = ( { isWide, isSmall, isLarge, isLessThanSmall } ) => {
+	return (
+		<div>
+			<span>{ isWide && 'Is wide' }</span>
+			<span>{ isSmall && 'Is small' }</span>
+			<span>{ isLarge && 'Is large' }</span>
+			<span>{ isLessThanSmall && 'Is less than small' }</span>
+		</div>
+	);
+};
+
+describe( 'withViewportMatch()', () => {
+	afterEach( () => {
+		useViewportMatch.mockClear();
+	} );
 
 	it( 'should render with result of query as custom prop name', () => {
-		dispatch( 'core/viewport' ).setIsMatching( { '> wide': true } );
-		const EnhancedComponent = withViewportMatch(
-			{ isWide: '> wide' }
-		)( ChildComponent );
-		const wrapper = renderer.create( getTestComponent( EnhancedComponent ) );
+		const EnhancedComponent = withViewportMatch( {
+			isWide: '>= wide',
+			isSmall: '>= small',
+			isLarge: 'large',
+			isLessThanSmall: '< small',
+		} )( Component );
 
-		expect( wrapper.root.findByType( ChildComponent ).props.isWide )
-			.toBe( true );
+		useViewportMatch.mockReturnValueOnce( false );
+		useViewportMatch.mockReturnValueOnce( true );
+		useViewportMatch.mockReturnValueOnce( true );
+		useViewportMatch.mockReturnValueOnce( false );
 
-		wrapper.unmount();
+		render( <EnhancedComponent /> );
+
+		expect( useViewportMatch.mock.calls ).toEqual( [
+			[ 'wide', '>=' ],
+			[ 'small', '>=' ],
+			[ 'large', '>=' ],
+			[ 'small', '<' ],
+		] );
+
+		expect( screen.getByText( 'Is small' ) ).toBeInTheDocument();
+		expect( screen.getByText( 'Is large' ) ).toBeInTheDocument();
+		expect( screen.queryByText( 'Is wide' ) ).not.toBeInTheDocument();
+		expect(
+			screen.queryByText( 'Is less than small' )
+		).not.toBeInTheDocument();
 	} );
 } );

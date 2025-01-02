@@ -1,124 +1,221 @@
 /**
+ * External dependencies
+ */
+import clsx from 'clsx';
+
+/**
  * WordPress dependencies
  */
-import { __ } from '@wordpress/i18n';
-import { Component, Fragment } from '@wordpress/element';
-import { IconButton, ResizableBox, Toolbar } from '@wordpress/components';
+import { ResizableBox, Spinner, Placeholder } from '@wordpress/components';
 import {
 	BlockControls,
+	BlockIcon,
 	MediaPlaceholder,
-	MediaUpload,
-} from '@wordpress/editor';
+	MediaReplaceFlow,
+	store as blockEditorStore,
+} from '@wordpress/block-editor';
+import { __ } from '@wordpress/i18n';
+import { useViewportMatch } from '@wordpress/compose';
+import { useDispatch } from '@wordpress/data';
+import { forwardRef } from '@wordpress/element';
+import { isBlobURL } from '@wordpress/blob';
+import { store as noticesStore } from '@wordpress/notices';
+import { media as icon } from '@wordpress/icons';
+
+/**
+ * Internal dependencies
+ */
+import { imageFillStyles } from './image-fill';
 
 /**
  * Constants
  */
 const ALLOWED_MEDIA_TYPES = [ 'image', 'video' ];
+const noop = () => {};
 
-class MediaContainer extends Component {
-	renderToolbarEditButton() {
-		const { mediaId, onSelectMedia } = this.props;
+const ResizableBoxContainer = forwardRef(
+	( { isSelected, isStackedOnMobile, ...props }, ref ) => {
+		const isMobile = useViewportMatch( 'small', '<' );
 		return (
-			<BlockControls>
-				<Toolbar>
-					<MediaUpload
-						onSelect={ onSelectMedia }
-						allowedTypes={ ALLOWED_MEDIA_TYPES }
-						value={ mediaId }
-						render={ ( { open } ) => (
-							<IconButton
-								className="components-toolbar__control"
-								label={ __( 'Edit media' ) }
-								icon="edit"
-								onClick={ open }
-							/>
-						) }
-					/>
-				</Toolbar>
-			</BlockControls>
-		);
-	}
-
-	renderImage() {
-		const { mediaAlt, mediaUrl, className } = this.props;
-		return (
-			<Fragment>
-				{ this.renderToolbarEditButton() }
-				<figure className={ className }>
-					<img src={ mediaUrl } alt={ mediaAlt } />
-				</figure>
-			</Fragment>
-		);
-	}
-
-	renderVideo() {
-		const { mediaUrl, className } = this.props;
-		return (
-			<Fragment>
-				{ this.renderToolbarEditButton() }
-				<figure className={ className }>
-					<video controls src={ mediaUrl } />
-				</figure>
-			</Fragment>
-		);
-	}
-
-	renderPlaceholder() {
-		const { onSelectMedia, className } = this.props;
-		return (
-			<MediaPlaceholder
-				icon="format-image"
-				labels={ {
-					title: __( 'Media area' ),
-				} }
-				className={ className }
-				onSelect={ onSelectMedia }
-				accept="image/*,video/*"
-				allowedTypes={ ALLOWED_MEDIA_TYPES }
+			<ResizableBox
+				ref={ ref }
+				showHandle={
+					isSelected && ( ! isMobile || ! isStackedOnMobile )
+				}
+				{ ...props }
 			/>
 		);
 	}
+);
 
-	render() {
-		const { mediaPosition, mediaUrl, mediaType, mediaWidth, commitWidthChange, onWidthChange } = this.props;
-		if ( mediaType && mediaUrl ) {
-			const onResize = ( event, direction, elt ) => {
-				onWidthChange( parseInt( elt.style.width ) );
-			};
-			const onResizeStop = ( event, direction, elt ) => {
-				commitWidthChange( parseInt( elt.style.width ) );
-			};
-			const enablePositions = {
-				right: mediaPosition === 'left',
-				left: mediaPosition === 'right',
-			};
-
-			let mediaElement = null;
-			switch ( mediaType ) {
-				case 'image':
-					mediaElement = this.renderImage();
-					break;
-				case 'video':
-					mediaElement = this.renderVideo();
-					break;
-			}
-			return (
-				<ResizableBox
-					className="editor-media-container__resizer"
-					size={ { width: mediaWidth + '%' } }
-					minWidth="10%"
-					maxWidth="100%"
-					enable={ enablePositions }
-					onResize={ onResize }
-					onResizeStop={ onResizeStop }
-					axis="x"
-				>
-					{ mediaElement }
-				</ResizableBox>
-			);
-		}
-		return this.renderPlaceholder();
-	}
+function ToolbarEditButton( {
+	mediaId,
+	mediaUrl,
+	onSelectMedia,
+	toggleUseFeaturedImage,
+	useFeaturedImage,
+} ) {
+	return (
+		<BlockControls group="other">
+			<MediaReplaceFlow
+				mediaId={ mediaId }
+				mediaURL={ mediaUrl }
+				allowedTypes={ ALLOWED_MEDIA_TYPES }
+				accept="image/*,video/*"
+				onSelect={ onSelectMedia }
+				onToggleFeaturedImage={ toggleUseFeaturedImage }
+				useFeaturedImage={ useFeaturedImage }
+				onReset={ () => onSelectMedia( undefined ) }
+			/>
+		</BlockControls>
+	);
 }
 
-export default MediaContainer;
+function PlaceholderContainer( {
+	className,
+	mediaUrl,
+	onSelectMedia,
+	toggleUseFeaturedImage,
+} ) {
+	const { createErrorNotice } = useDispatch( noticesStore );
+
+	const onUploadError = ( message ) => {
+		createErrorNotice( message, { type: 'snackbar' } );
+	};
+
+	return (
+		<MediaPlaceholder
+			icon={ <BlockIcon icon={ icon } /> }
+			labels={ {
+				title: __( 'Media area' ),
+			} }
+			className={ className }
+			onSelect={ onSelectMedia }
+			accept="image/*,video/*"
+			onToggleFeaturedImage={ toggleUseFeaturedImage }
+			allowedTypes={ ALLOWED_MEDIA_TYPES }
+			onError={ onUploadError }
+			disableMediaButtons={ mediaUrl }
+		/>
+	);
+}
+
+function MediaContainer( props, ref ) {
+	const {
+		className,
+		commitWidthChange,
+		focalPoint,
+		imageFill,
+		isSelected,
+		isStackedOnMobile,
+		mediaAlt,
+		mediaId,
+		mediaPosition,
+		mediaType,
+		mediaUrl,
+		mediaWidth,
+		onSelectMedia,
+		onWidthChange,
+		enableResize,
+		toggleUseFeaturedImage,
+		useFeaturedImage,
+		featuredImageURL,
+		featuredImageAlt,
+		refMedia,
+	} = props;
+
+	const isTemporaryMedia = ! mediaId && isBlobURL( mediaUrl );
+
+	const { toggleSelection } = useDispatch( blockEditorStore );
+
+	if ( mediaUrl || featuredImageURL || useFeaturedImage ) {
+		const onResizeStart = () => {
+			toggleSelection( false );
+		};
+		const onResize = ( event, direction, elt ) => {
+			onWidthChange( parseInt( elt.style.width ) );
+		};
+		const onResizeStop = ( event, direction, elt ) => {
+			toggleSelection( true );
+			commitWidthChange( parseInt( elt.style.width ) );
+		};
+		const enablePositions = {
+			right: enableResize && mediaPosition === 'left',
+			left: enableResize && mediaPosition === 'right',
+		};
+
+		const positionStyles =
+			mediaType === 'image' && imageFill
+				? imageFillStyles( mediaUrl || featuredImageURL, focalPoint )
+				: {};
+
+		const mediaTypeRenderers = {
+			image: () =>
+				useFeaturedImage && featuredImageURL ? (
+					<img
+						ref={ refMedia }
+						src={ featuredImageURL }
+						alt={ featuredImageAlt }
+						style={ positionStyles }
+					/>
+				) : (
+					mediaUrl && (
+						<img
+							ref={ refMedia }
+							src={ mediaUrl }
+							alt={ mediaAlt }
+							style={ positionStyles }
+						/>
+					)
+				),
+			video: () => <video controls ref={ refMedia } src={ mediaUrl } />,
+		};
+
+		return (
+			<ResizableBoxContainer
+				as="figure"
+				className={ clsx(
+					className,
+					'editor-media-container__resizer',
+					{ 'is-transient': isTemporaryMedia }
+				) }
+				size={ { width: mediaWidth + '%' } }
+				minWidth="10%"
+				maxWidth="100%"
+				enable={ enablePositions }
+				onResizeStart={ onResizeStart }
+				onResize={ onResize }
+				onResizeStop={ onResizeStop }
+				axis="x"
+				isSelected={ isSelected }
+				isStackedOnMobile={ isStackedOnMobile }
+				ref={ ref }
+			>
+				<ToolbarEditButton
+					onSelectMedia={ onSelectMedia }
+					mediaUrl={
+						useFeaturedImage && featuredImageURL
+							? featuredImageURL
+							: mediaUrl
+					}
+					mediaId={ mediaId }
+					toggleUseFeaturedImage={ toggleUseFeaturedImage }
+				/>
+				{ ( mediaTypeRenderers[ mediaType ] || noop )() }
+				{ isTemporaryMedia && <Spinner /> }
+				{ ! useFeaturedImage && <PlaceholderContainer { ...props } /> }
+				{ ! featuredImageURL && useFeaturedImage && (
+					<Placeholder
+						className="wp-block-media-text--placeholder-image"
+						style={ positionStyles }
+						withIllustration
+					/>
+				) }
+			</ResizableBoxContainer>
+		);
+	}
+
+	return <PlaceholderContainer { ...props } />;
+}
+
+export default forwardRef( MediaContainer );

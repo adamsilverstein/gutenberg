@@ -1,6 +1,7 @@
 /**
  * External dependencies
  */
+// eslint-disable-next-line @typescript-eslint/no-restricted-imports
 import {
 	Children,
 	cloneElement,
@@ -11,19 +12,80 @@ import {
 	forwardRef,
 	Fragment,
 	isValidElement,
+	memo,
+	PureComponent,
 	StrictMode,
+	useCallback,
+	useContext,
+	useDebugValue,
+	useDeferredValue,
+	useEffect,
+	useId,
+	useMemo,
+	useImperativeHandle,
+	useInsertionEffect,
+	useLayoutEffect,
+	useReducer,
+	useRef,
+	useState,
+	useSyncExternalStore,
+	useTransition,
+	startTransition,
+	lazy,
+	Suspense,
 } from 'react';
-import { isString } from 'lodash';
 
+/**
+ * Object containing a React element.
+ *
+ * @typedef {import('react').ReactElement} Element
+ */
+
+/**
+ * Object containing a React component.
+ *
+ * @typedef {import('react').ComponentType} ComponentType
+ */
+
+/**
+ * Object containing a React synthetic event.
+ *
+ * @typedef {import('react').SyntheticEvent} SyntheticEvent
+ */
+
+/**
+ * Object containing a React ref object.
+ *
+ * @template T
+ * @typedef {import('react').RefObject<T>} RefObject<T>
+ */
+
+/**
+ * Object containing a React ref callback.
+ *
+ * @template T
+ * @typedef {import('react').RefCallback<T>} RefCallback<T>
+ */
+
+/**
+ * Object containing a React ref.
+ *
+ * @template T
+ * @typedef {import('react').Ref<T>} Ref<T>
+ */
+
+/**
+ * Object that provides utilities for dealing with React children.
+ */
 export { Children };
 
 /**
  * Creates a copy of an element with extended props.
  *
- * @param {WPElement} element Element
- * @param {?Object}   props   Props to apply to cloned element
+ * @param {Element} element Element
+ * @param {?Object} props   Props to apply to cloned element
  *
- * @return {WPElement} Cloned element.
+ * @return {Element} Cloned element.
  */
 export { cloneElement };
 
@@ -47,11 +109,11 @@ export { createContext };
  *
  * @param {?(string|Function)} type     Tag name or element creator
  * @param {Object}             props    Element properties, either attribute
- *                                       set to apply to DOM node or values to
- *                                       pass through to element creator
- * @param {...WPElement}       children Descendant elements
+ *                                      set to apply to DOM node or values to
+ *                                      pass through to element creator
+ * @param {...Element}         children Descendant elements
  *
- * @return {WPElement} Element.
+ * @return {Element} Element.
  */
 export { createElement };
 
@@ -73,7 +135,7 @@ export { createRef };
  * @param {Function} forwarder Function passed `props` and `ref`, expected to
  *                             return an element.
  *
- * @return {WPComponent} Enhanced component.
+ * @return {Component} Enhanced component.
  */
 export { forwardRef };
 
@@ -83,15 +145,118 @@ export { forwardRef };
 export { Fragment };
 
 /**
- * Checks if an object is a valid WPElement
+ * Checks if an object is a valid React Element.
  *
  * @param {Object} objectToCheck The object to be checked.
  *
- * @return {boolean} true if objectToTest is a valid WPElement and false otherwise.
+ * @return {boolean} true if objectToTest is a valid React Element and false otherwise.
  */
 export { isValidElement };
 
+/**
+ * @see https://react.dev/reference/react/memo
+ */
+export { memo };
+
+/**
+ * Component that activates additional checks and warnings for its descendants.
+ */
 export { StrictMode };
+
+/**
+ * @see https://react.dev/reference/react/useCallback
+ */
+export { useCallback };
+
+/**
+ * @see https://react.dev/reference/react/useContext
+ */
+export { useContext };
+
+/**
+ * @see https://react.dev/reference/react/useDebugValue
+ */
+export { useDebugValue };
+
+/**
+ * @see https://react.dev/reference/react/useDeferredValue
+ */
+export { useDeferredValue };
+
+/**
+ * @see https://react.dev/reference/react/useEffect
+ */
+export { useEffect };
+
+/**
+ * @see https://react.dev/reference/react/useId
+ */
+export { useId };
+
+/**
+ * @see https://react.dev/reference/react/useImperativeHandle
+ */
+export { useImperativeHandle };
+
+/**
+ * @see https://react.dev/reference/react/useInsertionEffect
+ */
+export { useInsertionEffect };
+
+/**
+ * @see https://react.dev/reference/react/useLayoutEffect
+ */
+export { useLayoutEffect };
+
+/**
+ * @see https://react.dev/reference/react/useMemo
+ */
+export { useMemo };
+
+/**
+ * @see https://react.dev/reference/react/useReducer
+ */
+export { useReducer };
+
+/**
+ * @see https://react.dev/reference/react/useRef
+ */
+export { useRef };
+
+/**
+ * @see https://react.dev/reference/react/useState
+ */
+export { useState };
+
+/**
+ * @see https://react.dev/reference/react/useSyncExternalStore
+ */
+export { useSyncExternalStore };
+
+/**
+ * @see https://react.dev/reference/react/useTransition
+ */
+export { useTransition };
+
+/**
+ * @see https://react.dev/reference/react/startTransition
+ */
+export { startTransition };
+
+/**
+ * @see https://react.dev/reference/react/lazy
+ */
+export { lazy };
+
+/**
+ * @see https://react.dev/reference/react/Suspense
+ */
+export { Suspense };
+
+/**
+ * @see https://react.dev/reference/react/PureComponent
+ */
+export { PureComponent };
 
 /**
  * Concatenate two or more React children objects.
@@ -101,7 +266,7 @@ export { StrictMode };
  * @return {Array} The concatenated value.
  */
 export function concatChildren( ...childrenArguments ) {
-	return childrenArguments.reduce( ( memo, children, i ) => {
+	return childrenArguments.reduce( ( accumulator, children, i ) => {
 		Children.forEach( children, ( child, j ) => {
 			if ( child && 'string' !== typeof child ) {
 				child = cloneElement( child, {
@@ -109,10 +274,10 @@ export function concatChildren( ...childrenArguments ) {
 				} );
 			}
 
-			memo.push( child );
+			accumulator.push( child );
 		} );
 
-		return memo;
+		return accumulator;
 	}, [] );
 }
 
@@ -125,11 +290,18 @@ export function concatChildren( ...childrenArguments ) {
  * @return {?Object} The updated children object.
  */
 export function switchChildrenNodeName( children, nodeName ) {
-	return children && Children.map( children, ( elt, index ) => {
-		if ( isString( elt ) ) {
-			return createElement( nodeName, { key: index }, elt );
-		}
-		const { children: childrenProp, ...props } = elt.props;
-		return createElement( nodeName, { key: index, ...props }, childrenProp );
-	} );
+	return (
+		children &&
+		Children.map( children, ( elt, index ) => {
+			if ( typeof elt?.valueOf() === 'string' ) {
+				return createElement( nodeName, { key: index }, elt );
+			}
+			const { children: childrenProp, ...props } = elt.props;
+			return createElement(
+				nodeName,
+				{ key: index, ...props },
+				childrenProp
+			);
+		} )
+	);
 }

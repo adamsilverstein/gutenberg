@@ -3,12 +3,15 @@
  */
 import { wrap, replaceTag } from '@wordpress/dom';
 
-export default function( node, doc ) {
-	if ( node.nodeName === 'SPAN' ) {
+export default function phrasingContentReducer( node, doc ) {
+	// In jsdom-jscore, 'node.style' can be null.
+	// TODO: Explore fixing this by patching jsdom-jscore.
+	if ( node.nodeName === 'SPAN' && node.style ) {
 		const {
 			fontWeight,
 			fontStyle,
 			textDecorationLine,
+			textDecoration,
 			verticalAlign,
 		} = node.style;
 
@@ -20,8 +23,14 @@ export default function( node, doc ) {
 			wrap( doc.createElement( 'em' ), node );
 		}
 
-		if ( textDecorationLine === 'line-through' ) {
-			wrap( doc.createElement( 'del' ), node );
+		// Some DOM implementations (Safari, JSDom) don't support
+		// style.textDecorationLine, so we check style.textDecoration as a
+		// fallback.
+		if (
+			textDecorationLine === 'line-through' ||
+			textDecoration.includes( 'line-through' )
+		) {
+			wrap( doc.createElement( 's' ), node );
 		}
 
 		if ( verticalAlign === 'super' ) {
@@ -34,11 +43,26 @@ export default function( node, doc ) {
 	} else if ( node.nodeName === 'I' ) {
 		node = replaceTag( node, 'em' );
 	} else if ( node.nodeName === 'A' ) {
-		if ( node.target.toLowerCase() === '_blank' ) {
+		// In jsdom-jscore, 'node.target' can be null.
+		// TODO: Explore fixing this by patching jsdom-jscore.
+		if ( node.target && node.target.toLowerCase() === '_blank' ) {
 			node.rel = 'noreferrer noopener';
 		} else {
 			node.removeAttribute( 'target' );
 			node.removeAttribute( 'rel' );
+		}
+
+		// Saves anchor elements name attribute as id
+		if ( node.name && ! node.id ) {
+			node.id = node.name;
+		}
+
+		// Keeps id only if there is an internal link pointing to it
+		if (
+			node.id &&
+			! node.ownerDocument.querySelector( `[href="#${ node.id }"]` )
+		) {
+			node.removeAttribute( 'id' );
 		}
 	}
 }

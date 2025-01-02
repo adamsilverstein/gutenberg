@@ -1,73 +1,40 @@
 /**
  * WordPress dependencies
  */
-import { Component } from '@wordpress/element';
-import { KeyboardShortcuts } from '@wordpress/components';
-import { withSelect, withDispatch } from '@wordpress/data';
-import { compose } from '@wordpress/compose';
+import { useEffect } from '@wordpress/element';
+import { useDispatch } from '@wordpress/data';
+import {
+	useShortcut,
+	store as keyboardShortcutsStore,
+} from '@wordpress/keyboard-shortcuts';
+import { __ } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
  */
-import shortcuts from '../../keyboard-shortcuts';
+import { store as editPostStore } from '../../store';
 
-class EditorModeKeyboardShortcuts extends Component {
-	constructor() {
-		super( ...arguments );
+function KeyboardShortcuts() {
+	const { toggleFullscreenMode } = useDispatch( editPostStore );
+	const { registerShortcut } = useDispatch( keyboardShortcutsStore );
 
-		this.toggleMode = this.toggleMode.bind( this );
-		this.toggleSidebar = this.toggleSidebar.bind( this );
-	}
+	useEffect( () => {
+		registerShortcut( {
+			name: 'core/edit-post/toggle-fullscreen',
+			category: 'global',
+			description: __( 'Enable or disable fullscreen mode.' ),
+			keyCombination: {
+				modifier: 'secondary',
+				character: 'f',
+			},
+		} );
+	}, [] );
 
-	toggleMode() {
-		const { mode, switchMode, isRichEditingEnabled } = this.props;
-		if ( ! isRichEditingEnabled ) {
-			return;
-		}
-		switchMode( mode === 'visual' ? 'text' : 'visual' );
-	}
+	useShortcut( 'core/edit-post/toggle-fullscreen', () => {
+		toggleFullscreenMode();
+	} );
 
-	toggleSidebar( event ) {
-		// This shortcut has no known clashes, but use preventDefault to prevent any
-		// obscure shortcuts from triggering.
-		event.preventDefault();
-		const { isEditorSidebarOpen, closeSidebar, openSidebar } = this.props;
-
-		if ( isEditorSidebarOpen ) {
-			closeSidebar();
-		} else {
-			openSidebar();
-		}
-	}
-
-	render() {
-		return (
-			<KeyboardShortcuts
-				bindGlobal
-				shortcuts={ {
-					[ shortcuts.toggleEditorMode.raw ]: this.toggleMode,
-					[ shortcuts.toggleSidebar.raw ]: this.toggleSidebar,
-				} }
-			/>
-		);
-	}
+	return null;
 }
 
-export default compose( [
-	withSelect( ( select ) => ( {
-		isRichEditingEnabled: select( 'core/editor' ).getEditorSettings().richEditingEnabled,
-		mode: select( 'core/edit-post' ).getEditorMode(),
-		isEditorSidebarOpen: select( 'core/edit-post' ).isEditorSidebarOpened(),
-	} ) ),
-	withDispatch( ( dispatch, ownProps, { select } ) => ( {
-		switchMode( mode ) {
-			dispatch( 'core/edit-post' ).switchEditorMode( mode );
-		},
-		openSidebar() {
-			const { getBlockSelectionStart } = select( 'core/editor' );
-			const sidebarToOpen = getBlockSelectionStart() ? 'edit-post/block' : 'edit-post/document';
-			dispatch( 'core/edit-post' ).openGeneralSidebar( sidebarToOpen );
-		},
-		closeSidebar: dispatch( 'core/edit-post' ).closeGeneralSidebar,
-	} ) ),
-] )( EditorModeKeyboardShortcuts );
+export default KeyboardShortcuts;

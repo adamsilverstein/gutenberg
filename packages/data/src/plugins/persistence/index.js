@@ -1,7 +1,8 @@
 /**
  * External dependencies
  */
-import { flow } from 'lodash';
+import { isPlainObject } from 'is-plain-object';
+import deepmerge from 'deepmerge';
 
 /**
  * Internal dependencies
@@ -9,15 +10,17 @@ import { flow } from 'lodash';
 import defaultStorage from './storage/default';
 import { combineReducers } from '../../';
 
+/** @typedef {import('../../registry').WPDataRegistry} WPDataRegistry */
+
+/** @typedef {import('../../registry').WPDataPlugin} WPDataPlugin */
+
 /**
- * Persistence plugin options.
+ * @typedef {Object} WPDataPersistencePluginOptions Persistence plugin options.
  *
  * @property {Storage} storage    Persistent storage implementation. This must
  *                                at least implement `getItem` and `setItem` of
  *                                the Web Storage API.
  * @property {string}  storageKey Key on which to set in persistent storage.
- *
- * @typedef {WPDataPersistencePluginOptions}
  */
 
 /**
@@ -33,20 +36,6 @@ const DEFAULT_STORAGE = defaultStorage;
  * @type {string}
  */
 const DEFAULT_STORAGE_KEY = 'WP_DATA';
-
-/**
- * Higher-order reducer to provides an initial value when state is undefined.
- *
- * @param {Function} reducer      Original reducer.
- * @param {*}        initialState Value to use as initial state.
- *
- * @return {Function} Enhanced reducer.
- */
-export function withInitialState( reducer, initialState ) {
-	return ( state = initialState, action ) => {
-		return reducer( state, action );
-	};
-}
 
 /**
  * Higher-order reducer which invokes the original reducer only if state is
@@ -74,10 +63,8 @@ export const withLazySameState = ( reducer ) => ( state, action ) => {
  * @return {Object} Persistence interface.
  */
 export function createPersistenceInterface( options ) {
-	const {
-		storage = DEFAULT_STORAGE,
-		storageKey = DEFAULT_STORAGE_KEY,
-	} = options;
+	const { storage = DEFAULT_STORAGE, storageKey = DEFAULT_STORAGE_KEY } =
+		options;
 
 	let data;
 
@@ -86,7 +73,7 @@ export function createPersistenceInterface( options ) {
 	 *
 	 * @return {Object} Persisted data.
 	 */
-	function get() {
+	function getData() {
 		if ( data === undefined ) {
 			// If unset, getItem is expected to return null. Fall back to
 			// empty object.
@@ -113,12 +100,15 @@ export function createPersistenceInterface( options ) {
 	 * @param {string} key   Key to update.
 	 * @param {*}      value Updated value.
 	 */
-	function set( key, value ) {
+	function setData( key, value ) {
 		data = { ...data, [ key ]: value };
 		storage.setItem( storageKey, JSON.stringify( data ) );
 	}
 
-	return { get, set };
+	return {
+		get: getData,
+		set: setData,
+	};
 }
 
 /**
@@ -129,20 +119,20 @@ export function createPersistenceInterface( options ) {
  *
  * @return {WPDataPlugin} Data plugin.
  */
-export default function( registry, pluginOptions ) {
+function persistencePlugin( registry, pluginOptions ) {
 	const persistence = createPersistenceInterface( pluginOptions );
 
 	/**
 	 * Creates an enhanced store dispatch function, triggering the state of the
-	 * given reducer key to be persisted when changed.
+	 * given store name to be persisted when changed.
 	 *
-	 * @param {Function}       getState   Function which returns current state.
-	 * @param {string}         reducerKey Reducer key.
-	 * @param {?Array<string>} keys       Optional subset of keys to save.
+	 * @param {Function}       getState  Function which returns current state.
+	 * @param {string}         storeName Store name.
+	 * @param {?Array<string>} keys      Optional subset of keys to save.
 	 *
 	 * @return {Function} Enhanced dispatch function.
 	 */
-	function createPersistOnChange( getState, reducerKey, keys ) {
+	function createPersistOnChange( getState, storeName, keys ) {
 		let getPersistedState;
 		if ( Array.isArray( keys ) ) {
 			// Given keys, the persisted state should by produced as an object
@@ -150,53 +140,88 @@ export default function( registry, pluginOptions ) {
 			// to leverage its behavior of returning the same object when none
 			// of the property values changes. This allows a strict reference
 			// equality to bypass a persistence set on an unchanging state.
-			const reducers = keys.reduce( ( result, key ) => Object.assign( result, {
-				[ key ]: ( state, action ) => action.nextState[ key ],
-			} ), {} );
+			const reducers = keys.reduce(
+				( accumulator, key ) =>
+					Object.assign( accumulator, {
+						[ key ]: ( state, action ) => action.nextState[ key ],
+					} ),
+				{}
+			);
 
-			getPersistedState = withLazySameState( combineReducers( reducers ) );
+			getPersistedState = withLazySameState(
+				combineReducers( reducers )
+			);
 		} else {
 			getPersistedState = ( state, action ) => action.nextState;
 		}
 
-		let lastState = getPersistedState( undefined, { nextState: getState() } );
+		let lastState = getPersistedState( undefined, {
+			nextState: getState(),
+		} );
 
-		return ( result ) => {
-			const state = getPersistedState( lastState, { nextState: getState() } );
+		return () => {
+			const state = getPersistedState( lastState, {
+				nextState: getState(),
+			} );
 			if ( state !== lastState ) {
-				persistence.set( reducerKey, state );
+				persistence.set( storeName, state );
 				lastState = state;
 			}
-
-			return result;
 		};
 	}
 
 	return {
-		registerStore( reducerKey, options ) {
+		registerStore( storeName, options ) {
 			if ( ! options.persist ) {
-				return registry.registerStore( reducerKey, options );
+				return registry.registerStore( storeName, options );
 			}
 
-			const initialState = persistence.get()[ reducerKey ];
+			// Load from persistence to use as initial state.
+			const persistedState = persistence.get()[ storeName ];
+			if ( persistedState !== undefined ) {
+				let initialState = options.reducer( options.initialState, {
+					type: '@@WP/PERSISTENCE_RESTORE',
+				} );
 
-			options = {
-				...options,
-				reducer: withInitialState( options.reducer, initialState ),
-			};
+				if (
+					isPlainObject( initialState ) &&
+					isPlainObject( persistedState )
+				) {
+					// If state is an object, ensure that:
+					// - Other keys are left intact when persisting only a
+					//   subset of keys.
+					// - New keys in what would otherwise be used as initial
+					//   state are deeply merged as base for persisted value.
+					initialState = deepmerge( initialState, persistedState, {
+						isMergeableObject: isPlainObject,
+					} );
+				} else {
+					// If there is a mismatch in object-likeness of default
+					// initial or persisted state, defer to persisted value.
+					initialState = persistedState;
+				}
 
-			const store = registry.registerStore( reducerKey, options );
+				options = {
+					...options,
+					initialState,
+				};
+			}
 
-			store.dispatch = flow( [
-				store.dispatch,
+			const store = registry.registerStore( storeName, options );
+
+			store.subscribe(
 				createPersistOnChange(
 					store.getState,
-					reducerKey,
+					storeName,
 					options.persist
-				),
-			] );
+				)
+			);
 
 			return store;
 		},
 	};
 }
+
+persistencePlugin.__unstableMigrate = () => {};
+
+export default persistencePlugin;

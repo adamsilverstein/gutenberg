@@ -7,14 +7,62 @@ import deepFreeze from 'deep-freeze';
  * Internal dependencies
  */
 import {
-	blockStyles,
+	addBlockVariations,
+	addBlockTypes,
+	removeBlockVariations,
+	addBlockStyles,
+} from '../actions';
+import {
+	unprocessedBlockTypes,
 	blockTypes,
+	blockStyles,
+	blockVariations,
 	categories,
 	defaultBlockName,
 	freeformFallbackBlockName,
 	unregisteredFallbackBlockName,
+	groupingBlockName,
 	DEFAULT_CATEGORIES,
 } from '../reducer';
+
+describe( 'unprocessedBlockTypes', () => {
+	it( 'should return an empty object as default state', () => {
+		expect( unprocessedBlockTypes( undefined, {} ) ).toEqual( {} );
+	} );
+
+	it( 'should add a new block type', () => {
+		const original = deepFreeze( {
+			'core/paragraph': { title: 'Paragraph' },
+		} );
+
+		const state = unprocessedBlockTypes( original, {
+			type: 'ADD_UNPROCESSED_BLOCK_TYPE',
+			name: 'core/code',
+			blockType: { title: 'Code' },
+		} );
+
+		expect( state ).toEqual( {
+			'core/paragraph': { title: 'Paragraph' },
+			'core/code': { title: 'Code' },
+		} );
+	} );
+
+	it( 'should remove unprocessed block types', () => {
+		const original = deepFreeze( {
+			'core/paragraph': { title: 'Paragraph' },
+			'core/code': { title: 'Code' },
+		} );
+
+		const state = blockTypes( original, {
+			type: 'REMOVE_BLOCK_TYPES',
+			names: [ 'core/code' ],
+		} );
+
+		expect( state ).toEqual( {
+			'core/paragraph': { title: 'Paragraph' },
+		} );
+	} );
+} );
 
 describe( 'blockTypes', () => {
 	it( 'should return an empty object as default state', () => {
@@ -55,82 +103,205 @@ describe( 'blockTypes', () => {
 } );
 
 describe( 'blockStyles', () => {
+	const blockName = 'core/image';
+
 	it( 'should return an empty object as default state', () => {
 		expect( blockStyles( undefined, {} ) ).toEqual( {} );
 	} );
 
-	it( 'should add a new block styles', () => {
+	it( 'should add new block styles for a single block type', () => {
 		const original = deepFreeze( {} );
 
-		let state = blockStyles( original, {
-			type: 'ADD_BLOCK_STYLES',
-			blockName: 'core/image',
-			styles: [ { name: 'fancy' } ],
-		} );
+		let state = blockStyles(
+			original,
+			addBlockStyles( blockName, [ { name: 'fancy' } ] )
+		);
 
 		expect( state ).toEqual( {
-			'core/image': [
-				{ name: 'fancy' },
-			],
+			[ blockName ]: [ { name: 'fancy' } ],
 		} );
 
-		state = blockStyles( state, {
-			type: 'ADD_BLOCK_STYLES',
-			blockName: 'core/image',
-			styles: [ { name: 'lightbox' } ],
-		} );
+		state = blockStyles(
+			state,
+			addBlockStyles( blockName, [ { name: 'lightbox' } ] )
+		);
 
 		expect( state ).toEqual( {
-			'core/image': [
-				{ name: 'fancy' },
-				{ name: 'lightbox' },
-			],
+			[ blockName ]: [ { name: 'fancy' }, { name: 'lightbox' } ],
 		} );
 	} );
 
-	it( 'should add block styles when adding a block', () => {
+	it( 'should add block styles for array of block types', () => {
+		const original = deepFreeze( {} );
+
+		let state = blockStyles(
+			original,
+			addBlockStyles(
+				[ 'core/group', 'core/columns' ],
+				[ { name: 'dark' } ]
+			)
+		);
+
+		expect( state ).toEqual( {
+			'core/group': [ { name: 'dark' } ],
+			'core/columns': [ { name: 'dark' } ],
+		} );
+
+		state = blockStyles(
+			state,
+			addBlockStyles( [ 'core/group' ], [ { name: 'light' } ] )
+		);
+
+		expect( state ).toEqual( {
+			'core/group': [ { name: 'dark' }, { name: 'light' } ],
+			'core/columns': [ { name: 'dark' } ],
+		} );
+	} );
+
+	it( 'should prepend block styles when adding a block', () => {
 		const original = deepFreeze( {
-			'core/image': [
-				{ name: 'fancy' },
-			],
+			[ blockName ]: [ { name: 'fancy' } ],
 		} );
 
 		const state = blockStyles( original, {
 			type: 'ADD_BLOCK_TYPES',
-			blockTypes: [ {
-				name: 'core/image',
-				styles: [
-					{ name: 'original' },
-				],
-			} ],
+			blockTypes: [
+				{
+					name: blockName,
+					styles: [ { name: 'original' } ],
+				},
+			],
 		} );
 
 		expect( state ).toEqual( {
-			'core/image': [
-				{ name: 'original' },
+			[ blockName ]: [
+				{ name: 'original', source: 'block' },
 				{ name: 'fancy' },
+			],
+		} );
+	} );
+
+	it( 'should replace block styles if block type added again', () => {
+		const original = deepFreeze( {
+			[ blockName ]: [ { name: 'original', source: 'block' } ],
+		} );
+
+		const state = blockStyles( original, {
+			type: 'ADD_BLOCK_TYPES',
+			blockTypes: [
+				{
+					name: blockName,
+					styles: [ { name: 'original', value: 'replace' } ],
+				},
+			],
+		} );
+
+		expect( state ).toEqual( {
+			[ blockName ]: [
+				{ name: 'original', value: 'replace', source: 'block' },
 			],
 		} );
 	} );
 
 	it( 'should remove block styles', () => {
 		const original = deepFreeze( {
-			'core/image': [
-				{ name: 'fancy' },
-				{ name: 'lightbox' },
-			],
+			[ blockName ]: [ { name: 'fancy' }, { name: 'lightbox' } ],
 		} );
 
 		const state = blockStyles( original, {
 			type: 'REMOVE_BLOCK_STYLES',
-			blockName: 'core/image',
+			blockName,
 			styleNames: [ 'fancy' ],
 		} );
 
 		expect( state ).toEqual( {
-			'core/image': [
-				{ name: 'lightbox' },
+			[ blockName ]: [ { name: 'lightbox' } ],
+		} );
+	} );
+} );
+
+describe( 'blockVariations', () => {
+	const blockName = 'block/name';
+
+	const blockVariationName = 'variation-name';
+	const blockVariation = {
+		name: blockVariationName,
+		label: 'My variation',
+	};
+
+	const secondBlockVariationName = 'second-variation-name';
+	const secondBlockVariation = {
+		name: secondBlockVariationName,
+		label: 'My Second Variation',
+	};
+
+	it( 'should return an empty object as default state', () => {
+		const state = blockVariations( undefined, {} );
+
+		expect( state ).toEqual( {} );
+	} );
+
+	it( 'should add a new block variation when no variation register', () => {
+		const initialState = deepFreeze( {} );
+
+		const state = blockVariations(
+			initialState,
+			addBlockVariations( blockName, blockVariation )
+		);
+
+		expect( state ).toEqual( {
+			[ blockName ]: [ blockVariation ],
+		} );
+	} );
+
+	it( 'should add another variation when a block variation already present for the block', () => {
+		const initialState = deepFreeze( {
+			[ blockName ]: [ blockVariation ],
+		} );
+
+		const state = blockVariations(
+			initialState,
+			addBlockVariations( blockName, secondBlockVariation )
+		);
+
+		expect( state ).toEqual( {
+			[ blockName ]: [ blockVariation, secondBlockVariation ],
+		} );
+	} );
+
+	it( 'should prepend block variations added when adding a block', () => {
+		const initialState = deepFreeze( {
+			[ blockName ]: [ secondBlockVariation ],
+		} );
+
+		const state = blockVariations(
+			initialState,
+			addBlockTypes( {
+				name: blockName,
+				variations: [ blockVariation ],
+			} )
+		);
+
+		expect( state ).toEqual( {
+			[ blockName ]: [
+				{ ...blockVariation, source: 'block' },
+				secondBlockVariation,
 			],
+		} );
+	} );
+
+	it( 'should remove a block variation', () => {
+		const initialState = deepFreeze( {
+			[ blockName ]: [ blockVariation, secondBlockVariation ],
+		} );
+
+		const state = blockVariations(
+			initialState,
+			removeBlockVariations( blockName, blockVariationName )
+		);
+
+		expect( state ).toEqual( {
+			[ blockName ]: [ secondBlockVariation ],
 		} );
 	} );
 } );
@@ -183,6 +354,30 @@ describe( 'freeformFallbackBlockName', () => {
 	} );
 } );
 
+describe( 'groupingBlockName', () => {
+	it( 'should return null as default state', () => {
+		expect( groupingBlockName( undefined, {} ) ).toBeNull();
+	} );
+
+	it( 'should set the grouping block name', () => {
+		const state = groupingBlockName( null, {
+			type: 'SET_GROUPING_BLOCK_NAME',
+			name: 'core/group',
+		} );
+
+		expect( state ).toBe( 'core/group' );
+	} );
+
+	it( 'should reset the group fallback block name', () => {
+		const state = groupingBlockName( 'core/group', {
+			type: 'REMOVE_BLOCK_TYPES',
+			names: [ 'core/group' ],
+		} );
+
+		expect( state ).toBeNull();
+	} );
+} );
+
 describe( 'unregisteredFallbackBlockName', () => {
 	it( 'should return null as default state', () => {
 		expect( unregisteredFallbackBlockName( undefined, {} ) ).toBeNull();
@@ -222,16 +417,32 @@ describe( 'categories', () => {
 			categories: [ { slug: 'wings', title: 'Wings' } ],
 		} );
 
-		expect( state ).toEqual( [
-			{ slug: 'wings', title: 'Wings' },
+		expect( state ).toEqual( [ { slug: 'wings', title: 'Wings' } ] );
+	} );
+
+	it( 'should ensure, that categories are unique by slug', () => {
+		const original = deepFreeze( [
+			{ slug: 'chicken', title: 'Chicken' },
 		] );
+
+		const state = categories( original, {
+			type: 'SET_CATEGORIES',
+			categories: [ { slug: 'chicken', title: 'Another chicken' } ],
+		} );
+
+		expect( state ).toEqual( [
+			{ slug: 'chicken', title: 'Another chicken' },
+		] );
+		expect( state.length ).toBe( 1 );
 	} );
 
 	it( 'should add the category icon', () => {
-		const original = deepFreeze( [ {
-			slug: 'chicken',
-			title: 'Chicken',
-		} ] );
+		const original = deepFreeze( [
+			{
+				slug: 'chicken',
+				title: 'Chicken',
+			},
+		] );
 
 		const state = categories( original, {
 			type: 'UPDATE_CATEGORY',
@@ -241,23 +452,28 @@ describe( 'categories', () => {
 			},
 		} );
 
-		expect( state ).toEqual( [ {
-			slug: 'chicken',
-			title: 'Chicken',
-			icon: 'new-icon',
-		} ] );
+		expect( state ).toEqual( [
+			{
+				slug: 'chicken',
+				title: 'Chicken',
+				icon: 'new-icon',
+			},
+		] );
 	} );
 
 	it( 'should update the category icon', () => {
-		const original = deepFreeze( [ {
-			slug: 'chicken',
-			title: 'Chicken',
-			icon: 'old-icon',
-		}, {
-			slug: 'wings',
-			title: 'Wings',
-			icon: 'old-icon',
-		} ] );
+		const original = deepFreeze( [
+			{
+				slug: 'chicken',
+				title: 'Chicken',
+				icon: 'old-icon',
+			},
+			{
+				slug: 'wings',
+				title: 'Wings',
+				icon: 'old-icon',
+			},
+		] );
 
 		const state = categories( original, {
 			type: 'UPDATE_CATEGORY',
@@ -267,27 +483,33 @@ describe( 'categories', () => {
 			},
 		} );
 
-		expect( state ).toEqual( [ {
-			slug: 'chicken',
-			title: 'Chicken',
-			icon: 'new-icon',
-		}, {
-			slug: 'wings',
-			title: 'Wings',
-			icon: 'old-icon',
-		} ] );
+		expect( state ).toEqual( [
+			{
+				slug: 'chicken',
+				title: 'Chicken',
+				icon: 'new-icon',
+			},
+			{
+				slug: 'wings',
+				title: 'Wings',
+				icon: 'old-icon',
+			},
+		] );
 	} );
 
 	it( 'should update multiple category properties', () => {
-		const original = deepFreeze( [ {
-			slug: 'chicken',
-			title: 'Chicken',
-			icon: 'old-icon',
-		}, {
-			slug: 'wings',
-			title: 'Wings',
-			icon: 'old-icon',
-		} ] );
+		const original = deepFreeze( [
+			{
+				slug: 'chicken',
+				title: 'Chicken',
+				icon: 'old-icon',
+			},
+			{
+				slug: 'wings',
+				title: 'Wings',
+				icon: 'old-icon',
+			},
+		] );
 
 		const state = categories( original, {
 			type: 'UPDATE_CATEGORY',
@@ -298,15 +520,18 @@ describe( 'categories', () => {
 			},
 		} );
 
-		expect( state ).toEqual( [ {
-			slug: 'chicken',
-			title: 'Chicken',
-			icon: 'old-icon',
-		}, {
-			slug: 'wings',
-			title: 'New Wings',
-			chicken: 'ribs',
-			icon: 'old-icon',
-		} ] );
+		expect( state ).toEqual( [
+			{
+				slug: 'chicken',
+				title: 'Chicken',
+				icon: 'old-icon',
+			},
+			{
+				slug: 'wings',
+				title: 'New Wings',
+				chicken: 'ribs',
+				icon: 'old-icon',
+			},
+		] );
 	} );
 } );

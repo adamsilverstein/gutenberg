@@ -1,46 +1,69 @@
 {
 	"name": "@wordpress/edit-post",
-	"version": "3.1.10",
+	"version": "8.14.0",
 	"description": "Edit Post module for WordPress.",
 	"author": "The WordPress Contributors",
 	"license": "GPL-2.0-or-later",
 	"keywords": [
 		"wordpress",
-		"editor"
+		"gutenberg",
+		"editor",
+		"post"
 	],
-	"homepage": "https://github.com/WordPress/gutenberg/tree/master/packages/edit-post/README.md",
+	"homepage": "https://github.com/WordPress/gutenberg/tree/HEAD/packages/edit-post/README.md",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/WordPress/gutenberg.git"
+		"url": "https://github.com/WordPress/gutenberg.git",
+		"directory": "packages/edit-post"
 	},
 	"bugs": {
 		"url": "https://github.com/WordPress/gutenberg/issues"
 	},
+	"engines": {
+		"node": ">=18.12.0",
+		"npm": ">=8.19.2"
+	},
 	"main": "build/index.js",
 	"module": "build-module/index.js",
+	"react-native": "src/index",
+	"wpScript": true,
 	"dependencies": {
-		"@babel/runtime": "^7.0.0",
-		"@wordpress/a11y": "file:../a11y",
-		"@wordpress/api-fetch": "file:../api-fetch",
-		"@wordpress/block-library": "file:../block-library",
-		"@wordpress/blocks": "file:../blocks",
-		"@wordpress/components": "file:../components",
-		"@wordpress/compose": "file:../compose",
-		"@wordpress/core-data": "file:../core-data",
-		"@wordpress/data": "file:../data",
-		"@wordpress/editor": "file:../editor",
-		"@wordpress/element": "file:../element",
-		"@wordpress/format-library": "file:../format-library",
-		"@wordpress/hooks": "file:../hooks",
-		"@wordpress/i18n": "file:../i18n",
-		"@wordpress/keycodes": "file:../keycodes",
-		"@wordpress/nux": "file:../nux",
-		"@wordpress/plugins": "file:../plugins",
-		"@wordpress/url": "file:../url",
-		"@wordpress/viewport": "file:../viewport",
-		"classnames": "^2.2.5",
-		"lodash": "^4.17.10",
-		"refx": "^3.0.0"
+		"@babel/runtime": "7.25.7",
+		"@wordpress/a11y": "*",
+		"@wordpress/api-fetch": "*",
+		"@wordpress/block-editor": "*",
+		"@wordpress/block-library": "*",
+		"@wordpress/blocks": "*",
+		"@wordpress/commands": "*",
+		"@wordpress/components": "*",
+		"@wordpress/compose": "*",
+		"@wordpress/core-commands": "*",
+		"@wordpress/core-data": "*",
+		"@wordpress/data": "*",
+		"@wordpress/deprecated": "*",
+		"@wordpress/dom": "*",
+		"@wordpress/editor": "*",
+		"@wordpress/element": "*",
+		"@wordpress/hooks": "*",
+		"@wordpress/html-entities": "*",
+		"@wordpress/i18n": "*",
+		"@wordpress/icons": "*",
+		"@wordpress/keyboard-shortcuts": "*",
+		"@wordpress/keycodes": "*",
+		"@wordpress/notices": "*",
+		"@wordpress/plugins": "*",
+		"@wordpress/preferences": "*",
+		"@wordpress/private-apis": "*",
+		"@wordpress/url": "*",
+		"@wordpress/viewport": "*",
+		"@wordpress/warning": "*",
+		"@wordpress/widgets": "*",
+		"clsx": "^2.1.1",
+		"memize": "^2.1.0"
+	},
+	"peerDependencies": {
+		"react": "^18.0.0",
+		"react-dom": "^18.0.0"
 	},
 	"publishConfig": {
 		"access": "public"

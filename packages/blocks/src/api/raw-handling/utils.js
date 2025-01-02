@@ -1,55 +1,52 @@
 /**
- * External dependencies
- */
-import { mapValues, mergeWith, includes, noop } from 'lodash';
-
-/**
  * WordPress dependencies
  */
-import { unwrap, insertAfter, remove } from '@wordpress/dom';
-import { hasBlockSupport } from '..';
+import { isPhrasingContent, getPhrasingContentSchema } from '@wordpress/dom';
 
 /**
  * Internal dependencies
  */
-import { isPhrasingContent } from './phrasing-content';
+import { hasBlockSupport } from '..';
+import { getRawTransforms } from './get-raw-transforms';
 
-/**
- * Browser dependencies
- */
-const { ELEMENT_NODE, TEXT_NODE } = window.Node;
-
-/**
- * Given raw transforms from blocks, merges all schemas into one.
- *
- * @param {Array} transforms Block transforms, of the `raw` type.
- *
- * @return {Object} A complete block content schema.
- */
-export function getBlockContentSchema( transforms ) {
+export function getBlockContentSchemaFromTransforms( transforms, context ) {
+	const phrasingContentSchema = getPhrasingContentSchema( context );
+	const schemaArgs = { phrasingContentSchema, isPaste: context === 'paste' };
 	const schemas = transforms.map( ( { isMatch, blockName, schema } ) => {
 		const hasAnchorSupport = hasBlockSupport( blockName, 'anchor' );
+
+		schema = typeof schema === 'function' ? schema( schemaArgs ) : schema;
+
 		// If the block does not has anchor support and the transform does not
 		// provides an isMatch we can return the schema right away.
 		if ( ! hasAnchorSupport && ! isMatch ) {
 			return schema;
 		}
 
-		return mapValues( schema, ( value ) => {
-			let attributes = value.attributes || [];
-			// If the block supports the "anchor" functionality, it needs to keep its ID attribute.
-			if ( hasAnchorSupport ) {
-				attributes = [ ...attributes, 'id' ];
-			}
-			return {
-				...value,
-				attributes,
-				isMatch: isMatch ? isMatch : undefined,
-			};
-		} );
+		if ( ! schema ) {
+			return {};
+		}
+
+		return Object.fromEntries(
+			Object.entries( schema ).map( ( [ key, value ] ) => {
+				let attributes = value.attributes || [];
+				// If the block supports the "anchor" functionality, it needs to keep its ID attribute.
+				if ( hasAnchorSupport ) {
+					attributes = [ ...attributes, 'id' ];
+				}
+				return [
+					key,
+					{
+						...value,
+						attributes,
+						isMatch: isMatch ? isMatch : undefined,
+					},
+				];
+			} )
+		);
 	} );
 
-	return mergeWith( {}, ...schemas, ( objValue, srcValue, key ) => {
+	function mergeTagNameSchemaProperties( objValue, srcValue, key ) {
 		switch ( key ) {
 			case 'children': {
 				if ( objValue === '*' || srcValue === '*' ) {
@@ -75,48 +72,52 @@ export function getBlockContentSchema( transforms ) {
 				};
 			}
 		}
-	} );
-}
-
-/**
- * Recursively checks if an element is empty. An element is not empty if it
- * contains text or contains elements with attributes such as images.
- *
- * @param {Element} element The element to check.
- *
- * @return {boolean} Wether or not the element is empty.
- */
-export function isEmpty( element ) {
-	if ( ! element.hasChildNodes() ) {
-		return true;
 	}
 
-	return Array.from( element.childNodes ).every( ( node ) => {
-		if ( node.nodeType === TEXT_NODE ) {
-			return ! node.nodeValue.trim();
+	// A tagName schema is an object with children, attributes, require, and
+	// isMatch properties.
+	function mergeTagNameSchemas( a, b ) {
+		for ( const key in b ) {
+			a[ key ] = a[ key ]
+				? mergeTagNameSchemaProperties( a[ key ], b[ key ], key )
+				: { ...b[ key ] };
 		}
+		return a;
+	}
 
-		if ( node.nodeType === ELEMENT_NODE ) {
-			if ( node.nodeName === 'BR' ) {
-				return true;
-			} else if ( node.hasAttributes() ) {
-				return false;
-			}
-
-			return isEmpty( node );
+	// A schema is an object with tagName schemas by tag name.
+	function mergeSchemas( a, b ) {
+		for ( const key in b ) {
+			a[ key ] = a[ key ]
+				? mergeTagNameSchemas( a[ key ], b[ key ] )
+				: { ...b[ key ] };
 		}
+		return a;
+	}
 
-		return true;
-	} );
+	return schemas.reduce( mergeSchemas, {} );
 }
 
 /**
- * Checks wether HTML can be considered plain text. That is, it does not contain
+ * Gets the block content schema, which is extracted and merged from all
+ * registered blocks with raw transfroms.
+ *
+ * @param {string} context Set to "paste" when in paste context, where the
+ *                         schema is more strict.
+ *
+ * @return {Object} A complete block content schema.
+ */
+export function getBlockContentSchema( context ) {
+	return getBlockContentSchemaFromTransforms( getRawTransforms(), context );
+}
+
+/**
+ * Checks whether HTML can be considered plain text. That is, it does not contain
  * any elements that are not line breaks.
  *
  * @param {string} HTML The HTML to check.
  *
- * @return {boolean} Wether the HTML can be considered plain text.
+ * @return {boolean} Whether the HTML can be considered plain text.
  */
 export function isPlain( HTML ) {
 	return ! /<(?!br[ />])/i.test( HTML );
@@ -166,132 +167,23 @@ export function deepFilterHTML( HTML, filters = [], schema ) {
 }
 
 /**
- * Given a schema, unwraps or removes nodes, attributes and classes on a node
- * list.
+ * Gets a sibling within text-level context.
  *
- * @param {NodeList} nodeList The nodeList to filter.
- * @param {Document} doc      The document of the nodeList.
- * @param {Object}   schema   An array of functions that can mutate with the provided node.
- * @param {Object}   inline   Whether to clean for inline mode.
+ * @param {Element} node  The subject node.
+ * @param {string}  which "next" or "previous".
  */
-function cleanNodeList( nodeList, doc, schema, inline ) {
-	Array.from( nodeList ).forEach( ( node ) => {
-		const tag = node.nodeName.toLowerCase();
+export function getSibling( node, which ) {
+	const sibling = node[ `${ which }Sibling` ];
 
-		// It's a valid child, if the tag exists in the schema without an isMatch
-		// function, or with an isMatch function that matches the node.
-		if (
-			schema.hasOwnProperty( tag ) &&
-			( ! schema[ tag ].isMatch || schema[ tag ].isMatch( node ) )
-		) {
-			if ( node.nodeType === ELEMENT_NODE ) {
-				const { attributes = [], classes = [], children, require = [] } = schema[ tag ];
+	if ( sibling && isPhrasingContent( sibling ) ) {
+		return sibling;
+	}
 
-				// If the node is empty and it's supposed to have children,
-				// remove the node.
-				if ( isEmpty( node ) && children ) {
-					remove( node );
-					return;
-				}
+	const { parentNode } = node;
 
-				if ( node.hasAttributes() ) {
-					// Strip invalid attributes.
-					Array.from( node.attributes ).forEach( ( { name } ) => {
-						if ( name !== 'class' && ! includes( attributes, name ) ) {
-							node.removeAttribute( name );
-						}
-					} );
+	if ( ! parentNode || ! isPhrasingContent( parentNode ) ) {
+		return;
+	}
 
-					// Strip invalid classes.
-					if ( node.classList.length ) {
-						const mattchers = classes.map( ( item ) => {
-							if ( typeof item === 'string' ) {
-								return ( className ) => className === item;
-							} else if ( item instanceof RegExp ) {
-								return ( className ) => item.test( className );
-							}
-
-							return noop;
-						} );
-
-						Array.from( node.classList ).forEach( ( name ) => {
-							if ( ! mattchers.some( ( isMatch ) => isMatch( name ) ) ) {
-								node.classList.remove( name );
-							}
-						} );
-
-						if ( ! node.classList.length ) {
-							node.removeAttribute( 'class' );
-						}
-					}
-				}
-
-				if ( node.hasChildNodes() ) {
-					// Do not filter any content.
-					if ( children === '*' ) {
-						return;
-					}
-
-					// Continue if the node is supposed to have children.
-					if ( children ) {
-						// If a parent requires certain children, but it does
-						// not have them, drop the parent and continue.
-						if ( require.length && ! node.querySelector( require.join( ',' ) ) ) {
-							cleanNodeList( node.childNodes, doc, schema, inline );
-							unwrap( node );
-						// If the node is at the top, phrasing content, and
-						// contains children that are block content, unwrap
-						// the node because it is invalid.
-						} else if (
-							node.parentNode.nodeName === 'BODY' &&
-							isPhrasingContent( node )
-						) {
-							cleanNodeList( node.childNodes, doc, schema, inline );
-
-							if ( Array.from( node.childNodes ).some( ( child ) => ! isPhrasingContent( child ) ) ) {
-								unwrap( node );
-							}
-						} else {
-							cleanNodeList( node.childNodes, doc, children, inline );
-						}
-					// Remove children if the node is not supposed to have any.
-					} else {
-						while ( node.firstChild ) {
-							remove( node.firstChild );
-						}
-					}
-				}
-			}
-		// Invalid child. Continue with schema at the same place and unwrap.
-		} else {
-			cleanNodeList( node.childNodes, doc, schema, inline );
-
-			// For inline mode, insert a line break when unwrapping nodes that
-			// are not phrasing content.
-			if ( inline && ! isPhrasingContent( node ) && node.nextElementSibling ) {
-				insertAfter( doc.createElement( 'br' ), node );
-			}
-
-			unwrap( node );
-		}
-	} );
-}
-
-/**
- * Given a schema, unwraps or removes nodes, attributes and classes on HTML.
- *
- * @param {string} HTML   The HTML to clean up.
- * @param {Object} schema Schema for the HTML.
- * @param {Object} inline Whether to clean for inline mode.
- *
- * @return {string} The cleaned up HTML.
- */
-export function removeInvalidHTML( HTML, schema, inline ) {
-	const doc = document.implementation.createHTMLDocument( '' );
-
-	doc.body.innerHTML = HTML;
-
-	cleanNodeList( doc.body.childNodes, doc, schema, inline );
-
-	return doc.body.innerHTML;
+	return getSibling( parentNode, which );
 }

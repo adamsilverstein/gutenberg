@@ -1,35 +1,43 @@
 /**
  * WordPress dependencies
  */
-import { __ } from '@wordpress/i18n';
+import { symbol as icon } from '@wordpress/icons';
+import { store as coreStore } from '@wordpress/core-data';
+import { select } from '@wordpress/data';
+import { decodeEntities } from '@wordpress/html-entities';
 
 /**
  * Internal dependencies
  */
+import initBlock from '../utils/init-block';
+import metadata from './block.json';
 import edit from './edit';
+import deprecated from './deprecated';
 
-export const name = 'core/block';
+const { name } = metadata;
+
+export { metadata, name };
 
 export const settings = {
-	title: __( 'Reusable Block' ),
-
-	category: 'reusable',
-
-	description: __( 'Create content, and save it for you and other contributors to reuse across your site. Update the block, and the changes apply everywhere it’s used.' ),
-
-	attributes: {
-		ref: {
-			type: 'number',
-		},
-	},
-
-	supports: {
-		customClassName: false,
-		html: false,
-		inserter: false,
-	},
-
+	deprecated,
 	edit,
+	icon,
+	__experimentalLabel: ( { ref } ) => {
+		if ( ! ref ) {
+			return;
+		}
 
-	save: () => null,
+		const entity = select( coreStore ).getEditedEntityRecord(
+			'postType',
+			'wp_block',
+			ref
+		);
+		if ( ! entity?.title ) {
+			return;
+		}
+
+		return decodeEntities( entity.title );
+	},
 };
+
+export const init = () => initBlock( { name, metadata, settings } );

@@ -1,12 +1,12 @@
 /**
  * External dependencies
  */
-import TestRenderer from 'react-test-renderer';
+import { render, screen } from '@testing-library/react';
 
 /**
  * WordPress dependencies
  */
-import { dispatch } from '@wordpress/data';
+import { useViewportMatch } from '@wordpress/compose';
 
 /**
  * Internal dependencies
@@ -14,22 +14,32 @@ import { dispatch } from '@wordpress/data';
 import '../store';
 import ifViewportMatches from '../if-viewport-matches';
 
+jest.mock( '@wordpress/compose/src/hooks/use-viewport-match' );
+
 describe( 'ifViewportMatches()', () => {
 	const Component = () => <div>Hello</div>;
 
-	it( 'should not render if query does not match', () => {
-		dispatch( 'core/viewport' ).setIsMatching( { '> wide': false } );
-		const EnhancedComponent = ifViewportMatches( '> wide' )( Component );
-		const testRenderer = TestRenderer.create( <EnhancedComponent /> );
+	afterEach( () => {
+		useViewportMatch.mockClear();
+	} );
 
-		expect( testRenderer.root.findAllByType( Component ) ).toHaveLength( 0 );
+	it( 'should not render if query does not match', () => {
+		useViewportMatch.mockReturnValueOnce( false );
+		const EnhancedComponent = ifViewportMatches( '< wide' )( Component );
+		render( <EnhancedComponent /> );
+
+		expect( useViewportMatch ).toHaveBeenCalledWith( 'wide', '<' );
+
+		expect( screen.queryByText( 'Hello' ) ).not.toBeInTheDocument();
 	} );
 
 	it( 'should render if query does match', () => {
-		dispatch( 'core/viewport' ).setIsMatching( { '> wide': true } );
-		const EnhancedComponent = ifViewportMatches( '> wide' )( Component );
-		const testRenderer = TestRenderer.create( <EnhancedComponent /> );
+		useViewportMatch.mockReturnValueOnce( true );
+		const EnhancedComponent = ifViewportMatches( '>= wide' )( Component );
+		render( <EnhancedComponent /> );
 
-		expect( testRenderer.root.findAllByType( Component ) ).toHaveLength( 1 );
+		expect( useViewportMatch ).toHaveBeenCalledWith( 'wide', '>=' );
+
+		expect( screen.getByText( 'Hello' ) ).toBeInTheDocument();
 	} );
 } );

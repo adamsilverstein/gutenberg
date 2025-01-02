@@ -1,19 +1,15 @@
 /**
- * WordPress dependencies
- */
-import '@wordpress/blocks';
-import '@wordpress/core-data';
-import '@wordpress/notices';
-import '@wordpress/nux';
-import '@wordpress/rich-text';
-import '@wordpress/viewport';
-
-/**
  * Internal dependencies
  */
-import './store';
 import './hooks';
 
+export { storeConfig, store } from './store';
 export * from './components';
 export * from './utils';
-export { default as transformStyles } from './editor-styles';
+export * from './private-apis';
+export * from './dataviews/api';
+
+/*
+ * Backward compatibility
+ */
+export { transformStyles } from '@wordpress/block-editor';

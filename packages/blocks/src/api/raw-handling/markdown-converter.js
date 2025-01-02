@@ -30,6 +30,10 @@ function slackMarkdownVariantCorrector( text ) {
 	);
 }
 
+function bulletsToAsterisks( text ) {
+	return text.replace( /(^|\n)•( +)/g, '$1*$2' );
+}
+
 /**
  * Converts a piece of text into HTML based on any Markdown present.
  * Also decodes any encoded HTML.
@@ -38,6 +42,8 @@ function slackMarkdownVariantCorrector( text ) {
  *
  * @return {string} HTML.
  */
-export default function( text ) {
-	return converter.makeHtml( slackMarkdownVariantCorrector( text ) );
+export default function markdownConverter( text ) {
+	return converter.makeHtml(
+		slackMarkdownVariantCorrector( bulletsToAsterisks( text ) )
+	);
 }
