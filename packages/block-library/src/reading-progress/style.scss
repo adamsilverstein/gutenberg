@@ -1,0 +1,8 @@
+.wp-block-create-block-reading-progress {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    width: 100%;
+    height: var(--wp--reading-progress--height, 5px);
+    background-color: var(--wp--reading-progress--color, #0000ff);
+}
