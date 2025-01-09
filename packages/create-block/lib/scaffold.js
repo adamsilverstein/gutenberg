@@ -2,6 +2,7 @@
  * External dependencies
  */
 const { pascalCase, snakeCase } = require( 'change-case' );
+const { join } = require( 'path' );
 
 /**
  * Internal dependencies
@@ -25,6 +26,7 @@ module.exports = async (
 		description,
 		dashicon,
 		category,
+		textdomain,
 		attributes,
 		supports,
 		author,
@@ -34,17 +36,22 @@ module.exports = async (
 		domainPath,
 		updateURI,
 		version,
+		requiresAtLeast,
+		requiresPHP,
+		testedUpTo,
 		wpScripts,
 		wpEnv,
 		npmDependencies,
 		npmDevDependencies,
 		customScripts,
 		folderName,
+		targetDir,
 		editorScript,
 		editorStyle,
 		style,
+		viewStyle,
 		render,
-		viewModule,
+		viewScriptModule,
 		viewScript,
 		variantVars,
 		customPackageJSON,
@@ -54,13 +61,12 @@ module.exports = async (
 	}
 ) => {
 	slug = slug.toLowerCase();
-	namespace = namespace.toLowerCase();
-
+	const rootDirectory = join( process.cwd(), targetDir || slug );
 	const transformedValues = transformer( {
 		$schema,
 		apiVersion,
 		plugin,
-		namespace,
+		namespace: namespace.toLowerCase(),
 		slug,
 		title,
 		description,
@@ -75,28 +81,34 @@ module.exports = async (
 		domainPath,
 		updateURI,
 		version,
+		requiresAtLeast,
+		requiresPHP,
+		testedUpTo,
 		wpScripts,
 		wpEnv,
 		npmDependencies,
 		npmDevDependencies,
 		customScripts,
-		folderName,
+		folderName: folderName.replace( /\$slug/g, slug ),
 		editorScript,
 		editorStyle,
 		style,
+		viewStyle,
 		render,
-		viewModule,
+		viewScriptModule,
 		viewScript,
 		variantVars,
 		customPackageJSON,
 		customBlockJSON,
 		example,
-		textdomain: slug,
+		textdomain: textdomain || slug,
+		rootDirectory,
 	} );
 
 	const view = {
 		...transformedValues,
-		namespaceSnakeCase: snakeCase( transformedValues.slug ),
+		namespaceSnakeCase: snakeCase( transformedValues.namespace ),
+		namespacePascalCase: pascalCase( transformedValues.namespace ),
 		slugSnakeCase: snakeCase( transformedValues.slug ),
 		slugPascalCase: pascalCase( transformedValues.slug ),
 		...variantVars,
@@ -114,11 +126,10 @@ module.exports = async (
 		return;
 	}
 
+	const projectType = plugin ? 'plugin' : 'block';
 	info( '' );
 	info(
-		plugin
-			? `Creating a new WordPress plugin in the ${ view.slug } directory.`
-			: `Creating a new block in the ${ view.slug } directory.`
+		`Creating a new WordPress ${ projectType } in the ${ rootDirectory } directory.`
 	);
 
 	if ( plugin ) {
@@ -161,9 +172,7 @@ module.exports = async (
 	info( '' );
 
 	success(
-		plugin
-			? `Done: WordPress plugin ${ title } bootstrapped in the ${ slug } directory.`
-			: `Done: Block "${ title }" bootstrapped in the ${ slug } directory.`
+		`Done: WordPress ${ projectType } ${ title } bootstrapped in the ${ rootDirectory } directory.`
 	);
 
 	if ( plugin && wpScripts ) {

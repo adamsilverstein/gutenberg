@@ -119,9 +119,7 @@ describe( 'Cover block', () => {
 				'min-height: 100vh;'
 			);
 
-			await userEvent.click(
-				screen.getByLabelText( 'Toggle full height' )
-			);
+			await userEvent.click( screen.getByLabelText( 'Full height' ) );
 
 			expect( screen.getByLabelText( 'Block: Cover' ) ).toHaveStyle(
 				'min-height: 100vh;'
@@ -155,6 +153,34 @@ describe( 'Cover block', () => {
 				'is-position-top-left'
 			);
 		} );
+
+		test( 'clears media when clear media button clicked', async () => {
+			await setup( {
+				url: 'http://localhost/my-image.jpg',
+			} );
+
+			await selectBlock( 'Block: Cover' );
+			expect(
+				within( screen.getByLabelText( 'Block: Cover' ) ).getByRole(
+					'img'
+				)
+			).toBeInTheDocument();
+
+			await userEvent.click(
+				screen.getByRole( 'button', { name: 'Replace' } )
+			);
+			await userEvent.click(
+				screen.getByRole( 'menuitem', {
+					name: 'Reset',
+				} )
+			);
+
+			expect(
+				within( screen.getByLabelText( 'Block: Cover' ) ).queryByRole(
+					'img'
+				)
+			).not.toBeInTheDocument();
+		} );
 	} );
 
 	describe( 'Inspector controls', () => {
@@ -162,8 +188,8 @@ describe( 'Cover block', () => {
 			test( 'does not display media settings panel if url is not set', async () => {
 				await setup();
 				expect(
-					screen.queryByRole( 'button', {
-						name: 'Media settings',
+					screen.queryByRole( 'heading', {
+						name: 'Settings',
 					} )
 				).not.toBeInTheDocument();
 			} );
@@ -174,9 +200,7 @@ describe( 'Cover block', () => {
 
 				await selectBlock( 'Block: Cover' );
 				expect(
-					screen.getByRole( 'button', {
-						name: 'Media settings',
-					} )
+					await screen.findByRole( 'heading', { name: 'Settings' } )
 				).toBeInTheDocument();
 			} );
 		} );
@@ -190,7 +214,7 @@ describe( 'Cover block', () => {
 			);
 			await selectBlock( 'Block: Cover' );
 			await userEvent.click(
-				screen.getByLabelText( 'Fixed background' )
+				await screen.findByLabelText( 'Fixed background' )
 			);
 			expect( screen.getByLabelText( 'Block: Cover' ) ).toHaveClass(
 				'has-parallax'
@@ -206,7 +230,7 @@ describe( 'Cover block', () => {
 			);
 			await selectBlock( 'Block: Cover' );
 			await userEvent.click(
-				screen.getByLabelText( 'Repeated background' )
+				await screen.findByLabelText( 'Repeated background' )
 			);
 			expect( screen.getByLabelText( 'Block: Cover' ) ).toHaveClass(
 				'is-repeated'
@@ -219,7 +243,7 @@ describe( 'Cover block', () => {
 			} );
 
 			await selectBlock( 'Block: Cover' );
-			await userEvent.clear( screen.getByLabelText( 'Left' ) );
+			await userEvent.clear( await screen.findByLabelText( 'Left' ) );
 			await userEvent.type( screen.getByLabelText( 'Left' ), '100' );
 
 			expect(
@@ -236,34 +260,10 @@ describe( 'Cover block', () => {
 
 			await selectBlock( 'Block: Cover' );
 			await userEvent.type(
-				screen.getByLabelText( 'Alternative text' ),
+				await screen.findByLabelText( 'Alternative text' ),
 				'Me'
 			);
 			expect( screen.getByAltText( 'Me' ) ).toBeInTheDocument();
-		} );
-
-		test( 'clears media  when clear media button clicked', async () => {
-			await setup( {
-				url: 'http://localhost/my-image.jpg',
-			} );
-
-			await selectBlock( 'Block: Cover' );
-			expect(
-				within( screen.getByLabelText( 'Block: Cover' ) ).getByRole(
-					'img'
-				)
-			).toBeInTheDocument();
-
-			await userEvent.click(
-				screen.getByRole( 'button', {
-					name: 'Clear Media',
-				} )
-			);
-			expect(
-				within( screen.getByLabelText( 'Block: Cover' ) ).queryByRole(
-					'img'
-				)
-			).not.toBeInTheDocument();
 		} );
 
 		describe( 'Color panel', () => {
@@ -335,7 +335,7 @@ describe( 'Cover block', () => {
 			describe( 'when colors are disabled', () => {
 				test( 'does not render overlay control', async () => {
 					await setup( undefined, true, disabledColorSettings );
-					await createAndSelectBlock();
+					await selectBlock( 'Block: Cover' );
 					await userEvent.click(
 						screen.getByRole( 'tab', { name: 'Styles' } )
 					);
@@ -348,7 +348,7 @@ describe( 'Cover block', () => {
 				} );
 				test( 'does not render opacity control', async () => {
 					await setup( undefined, true, disabledColorSettings );
-					await createAndSelectBlock();
+					await selectBlock( 'Block: Cover' );
 					await userEvent.click(
 						screen.getByRole( 'tab', { name: 'Styles' } )
 					);
@@ -372,10 +372,10 @@ describe( 'Cover block', () => {
 					} )
 				);
 				await userEvent.clear(
-					screen.getByLabelText( 'Minimum height of cover' )
+					screen.getByLabelText( 'Minimum height' )
 				);
 				await userEvent.type(
-					screen.getByLabelText( 'Minimum height of cover' ),
+					screen.getByLabelText( 'Minimum height' ),
 					'300'
 				);
 

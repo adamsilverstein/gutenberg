@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import classnames from 'classnames';
+import clsx from 'clsx';
 
 /**
  * WordPress dependencies
@@ -23,18 +23,18 @@ import { useEffect, useRef } from '@wordpress/element';
 import {
 	ToolbarDropdownMenu,
 	ToolbarGroup,
-	Button,
-	ButtonGroup,
 	ToolbarButton,
 	ResizableBox,
 	PanelBody,
-	BaseControl,
+	__experimentalVStack as VStack,
 	__experimentalUseCustomUnits as useCustomUnits,
 	__experimentalUnitControl as UnitControl,
+	__experimentalToggleGroupControl as ToggleGroupControl,
+	__experimentalToggleGroupControlOption as ToggleGroupControlOption,
 } from '@wordpress/components';
 import { useInstanceId } from '@wordpress/compose';
 import { Icon, search } from '@wordpress/icons';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 import { __unstableStripHTML as stripHTML } from '@wordpress/dom';
 
 /**
@@ -58,6 +58,7 @@ import {
 // Used to calculate border radius adjustment to avoid "fat" corners when
 // button is placed inside wrapper.
 const DEFAULT_INNER_PADDING = '4px';
+const PERCENTAGE_WIDTHS = [ 25, 50, 75, 100 ];
 
 export default function SearchEdit( {
 	className,
@@ -112,13 +113,19 @@ export default function SearchEdit( {
 	] );
 
 	const borderRadius = style?.border?.radius;
-	const borderProps = useBorderProps( attributes );
+	let borderProps = useBorderProps( attributes );
 
 	// Check for old deprecated numerical border radius. Done as a separate
 	// check so that a borderRadius style won't overwrite the longhand
 	// per-corner styles.
 	if ( typeof borderRadius === 'number' ) {
-		borderProps.style.borderRadius = `${ borderRadius }px`;
+		borderProps = {
+			...borderProps,
+			style: {
+				...borderProps.style,
+				borderRadius: `${ borderRadius }px`,
+			},
+		};
 	}
 
 	const colorProps = useColorProps( attributes );
@@ -168,7 +175,7 @@ export default function SearchEdit( {
 	}, [ hasOnlyButton, isSelected, setAttributes, width ] );
 
 	const getBlockClassNames = () => {
-		return classnames(
+		return clsx(
 			className,
 			isButtonPositionInside
 				? 'wp-block-search__button-inside'
@@ -267,7 +274,7 @@ export default function SearchEdit( {
 
 	const renderTextField = () => {
 		// If the input is inside the wrapper, the wrapper gets the border color styles/classes, not the input control.
-		const textFieldClasses = classnames(
+		const textFieldClasses = clsx(
 			'wp-block-search__input',
 			isButtonPositionInside ? undefined : borderProps.className,
 			typographyProps.className
@@ -303,7 +310,7 @@ export default function SearchEdit( {
 
 	const renderButton = () => {
 		// If the button is inside the wrapper, the wrapper gets the border color styles/classes, not the button.
-		const buttonClasses = classnames(
+		const buttonClasses = clsx(
 			'wp-block-search__button',
 			colorProps.className,
 			typographyProps.className,
@@ -347,6 +354,7 @@ export default function SearchEdit( {
 
 				{ ! buttonUseIcon && (
 					<RichText
+						identifier="buttonText"
 						className={ buttonClasses }
 						style={ buttonStyles }
 						aria-label={ __( 'Button text' ) }
@@ -368,7 +376,7 @@ export default function SearchEdit( {
 			<BlockControls>
 				<ToolbarGroup>
 					<ToolbarButton
-						title={ __( 'Toggle search label' ) }
+						title={ __( 'Show search label' ) }
 						icon={ toggleLabel }
 						onClick={ () => {
 							setAttributes( {
@@ -400,13 +408,15 @@ export default function SearchEdit( {
 			</BlockControls>
 
 			<InspectorControls>
-				<PanelBody title={ __( 'Display Settings' ) }>
-					<BaseControl
-						label={ __( 'Width' ) }
-						id={ unitControlInputId }
+				<PanelBody title={ __( 'Settings' ) }>
+					<VStack
+						className="wp-block-search__inspector-controls"
+						spacing={ 4 }
 					>
 						<UnitControl
-							id={ unitControlInputId }
+							__next40pxDefaultSize
+							label={ __( 'Width' ) }
+							id={ unitControlInputId } // unused, kept for backwards compatibility
 							min={
 								isPercentageUnit( widthUnit ) ? 0 : MIN_WIDTH
 							}
@@ -415,14 +425,12 @@ export default function SearchEdit( {
 							}
 							step={ 1 }
 							onChange={ ( newWidth ) => {
-								const filteredWidth =
-									widthUnit === '%' &&
-									parseInt( newWidth, 10 ) > 100
-										? 100
-										: newWidth;
-
+								const parsedNewWidth =
+									newWidth === ''
+										? undefined
+										: parseInt( newWidth, 10 );
 								setAttributes( {
-									width: parseInt( filteredWidth, 10 ),
+									width: parsedNewWidth,
 								} );
 							} }
 							onUnitChange={ ( newUnit ) => {
@@ -434,39 +442,44 @@ export default function SearchEdit( {
 									widthUnit: newUnit,
 								} );
 							} }
-							__unstableInputWidth={ '80px' }
+							__unstableInputWidth="80px"
 							value={ `${ width }${ widthUnit }` }
 							units={ units }
 						/>
-
-						<ButtonGroup
-							className="wp-block-search__components-button-group"
-							aria-label={ __( 'Percentage Width' ) }
+						<ToggleGroupControl
+							label={ __( 'Percentage Width' ) }
+							value={
+								PERCENTAGE_WIDTHS.includes( width ) &&
+								widthUnit === '%'
+									? width
+									: undefined
+							}
+							hideLabelFromVision
+							onChange={ ( newWidth ) => {
+								setAttributes( {
+									width: newWidth,
+									widthUnit: '%',
+								} );
+							} }
+							isBlock
+							__next40pxDefaultSize
+							__nextHasNoMarginBottom
 						>
-							{ [ 25, 50, 75, 100 ].map( ( widthValue ) => {
+							{ PERCENTAGE_WIDTHS.map( ( widthValue ) => {
 								return (
-									<Button
+									<ToggleGroupControlOption
 										key={ widthValue }
-										size="small"
-										variant={
-											widthValue === width &&
-											widthUnit === '%'
-												? 'primary'
-												: undefined
-										}
-										onClick={ () =>
-											setAttributes( {
-												width: widthValue,
-												widthUnit: '%',
-											} )
-										}
-									>
-										{ widthValue }%
-									</Button>
+										value={ widthValue }
+										label={ sprintf(
+											/* translators: Percentage value. */
+											__( '%1$d%%' ),
+											widthValue
+										) }
+									/>
 								);
 							} ) }
-						</ButtonGroup>
-					</BaseControl>
+						</ToggleGroupControl>
+					</VStack>
 				</PanelBody>
 			</InspectorControls>
 		</>
@@ -535,7 +548,7 @@ export default function SearchEdit( {
 		},
 	} );
 
-	const labelClassnames = classnames(
+	const labelClassnames = clsx(
 		'wp-block-search__label',
 		typographyProps.className
 	);
@@ -546,6 +559,7 @@ export default function SearchEdit( {
 
 			{ showLabel && (
 				<RichText
+					identifier="label"
 					className={ labelClassnames }
 					aria-label={ __( 'Label text' ) }
 					placeholder={ __( 'Add label…' ) }
@@ -558,9 +572,13 @@ export default function SearchEdit( {
 
 			<ResizableBox
 				size={ {
-					width: `${ width }${ widthUnit }`,
+					width:
+						width === undefined
+							? 'auto'
+							: `${ width }${ widthUnit }`,
+					height: 'auto',
 				} }
-				className={ classnames(
+				className={ clsx(
 					'wp-block-search__inside-wrapper',
 					isButtonPositionInside ? borderProps.className : undefined
 				) }

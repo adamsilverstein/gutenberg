@@ -4,8 +4,6 @@
  *
  * @package gutenberg-test-interactive-blocks
  */
-
-gutenberg_enqueue_module( 'directive-class-view' );
 ?>
 
 <div data-wp-interactive='{"namespace": "directive-class"}'>
@@ -61,17 +59,17 @@ gutenberg_enqueue_module( 'directive-class-view' );
 		data-testid="can toggle class when class attribute is missing"
 	></div>
 
-	<div data-wp-context='{ "falseValue": false }'>
+	<div data-wp-context='{ "value": false }'>
 		<div
 			class="foo"
-			data-wp-class--foo="context.falseValue"
+			data-wp-class--foo="context.value"
 			data-testid="can use context values"
 		></div>
 		<button
-			data-wp-on--click="actions.toggleContextFalseValue"
+			data-wp-on--click="actions.toggleContextValue"
 			data-testid="toggle context false value"
 		>
-			Toggle context falseValue
+			Toggle context value
 		</button>
 	</div>
 
@@ -85,4 +83,16 @@ gutenberg_enqueue_module( 'directive-class-view' );
 		data-testid="can use classes with several dashes"
 	></div>
 
+	<div data-wp-context='{ "value": false }'>
+		<div
+			data-wp-class--default="context.value"
+			data-testid="class name default"
+		></div>
+		<button
+			data-wp-on--click="actions.toggleContextValue"
+			data-testid="toggle class name default"
+		>
+			Toggle context val
+		</button>
+	</div>
 </div>

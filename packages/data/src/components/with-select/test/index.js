@@ -18,7 +18,19 @@ import withDispatch from '../../with-dispatch';
 import { createRegistry } from '../../../registry';
 import { RegistryProvider } from '../../registry-provider';
 
+/* eslint-disable @wordpress/wp-global-usage */
 describe( 'withSelect', () => {
+	const initialScriptDebug = globalThis.SCRIPT_DEBUG;
+
+	beforeAll( () => {
+		// Do not run HOC in development mode; it will call `mapSelect` an extra time.
+		globalThis.SCRIPT_DEBUG = false;
+	} );
+
+	afterAll( () => {
+		globalThis.SCRIPT_DEBUG = initialScriptDebug;
+	} );
+
 	it( 'passes the relevant data to the component', () => {
 		const registry = createRegistry();
 		registry.registerStore( 'reactReducer', {
@@ -143,7 +155,7 @@ describe( 'withSelect', () => {
 			},
 		} );
 
-		// @todo, Should we allow this behaviour? Side-effects
+		// @todo Should we allow this behaviour? Side-effects
 		// on mount are discouraged in React (breaks Suspense and React Async Mode)
 		// leaving in place for now under the assumption there's current usage
 		// of withSelect in GB that expects support.
@@ -615,3 +627,4 @@ describe( 'withSelect', () => {
 		expect( screen.getByRole( 'status' ) ).toHaveTextContent( 'second' );
 	} );
 } );
+/* eslint-enable @wordpress/wp-global-usage */

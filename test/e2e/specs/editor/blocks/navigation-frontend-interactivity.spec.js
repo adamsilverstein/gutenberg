@@ -26,8 +26,8 @@ test.describe( 'Navigation block - Frontend interactivity', () => {
 			await admin.visitSiteEditor( {
 				postId: 'emptytheme//header',
 				postType: 'wp_template_part',
+				canvas: 'edit',
 			} );
-			await editor.canvas.locator( 'body' ).click();
 			await requestUtils.createNavigationMenu( {
 				title: 'Hidden menu',
 				content: `
@@ -39,7 +39,9 @@ test.describe( 'Navigation block - Frontend interactivity', () => {
 				name: 'core/navigation',
 				attributes: { overlayMenu: 'always' },
 			} );
-			await editor.saveSiteEditorEntities();
+			await editor.saveSiteEditorEntities( {
+				isOnlyCurrentEntityDirty: true,
+			} );
 		} );
 
 		test( 'Overlay menu interactions', async ( { page, pageUtils } ) => {
@@ -84,7 +86,7 @@ test.describe( 'Navigation block - Frontend interactivity', () => {
 		/**
 		 * These are already tested within the Overlay Interactions test above, but Safari is flakey on the Tab
 		 * keypresses (passes 50 - 70% of the time). Tab keypresses are testing fine manually in Safari, but not
-		 * in the test. nce we figure out why the Tab keypresses are flakey in the test, we can
+		 * in the test. Once we figure out why the Tab keypresses are flakey in the test, we can
 		 * remove this test and only rely on the Overlay Interactions test above and add a (@firefox, @webkit)
 		 * directive to the describe() statement. https://github.com/WordPress/gutenberg/pull/55198
 		 */
@@ -136,8 +138,8 @@ test.describe( 'Navigation block - Frontend interactivity', () => {
 			await admin.visitSiteEditor( {
 				postId: 'emptytheme//header',
 				postType: 'wp_template_part',
+				canvas: 'edit',
 			} );
-			await editor.canvas.locator( 'body' ).click();
 			await requestUtils.createNavigationMenu( {
 				title: 'Hidden menu',
 				content: `
@@ -159,7 +161,9 @@ test.describe( 'Navigation block - Frontend interactivity', () => {
 				name: 'core/navigation',
 				attributes: { overlayMenu: 'off', openSubmenusOnClick: true },
 			} );
-			await editor.saveSiteEditorEntities();
+			await editor.saveSiteEditorEntities( {
+				isOnlyCurrentEntityDirty: true,
+			} );
 		} );
 
 		test( 'Submenu interactions', async ( { page, pageUtils } ) => {
@@ -349,8 +353,8 @@ test.describe( 'Navigation block - Frontend interactivity', () => {
 			await admin.visitSiteEditor( {
 				postId: 'emptytheme//header',
 				postType: 'wp_template_part',
+				canvas: 'edit',
 			} );
-			await editor.canvas.locator( 'body' ).click();
 			await requestUtils.createNavigationMenu( {
 				title: 'Hidden menu',
 				content: `
@@ -366,7 +370,9 @@ test.describe( 'Navigation block - Frontend interactivity', () => {
 				name: 'core/navigation',
 				attributes: { overlayMenu: 'off' },
 			} );
-			await editor.saveSiteEditorEntities();
+			await editor.saveSiteEditorEntities( {
+				isOnlyCurrentEntityDirty: true,
+			} );
 		} );
 
 		test( 'submenu click on the arrow interactions', async ( { page } ) => {
@@ -443,8 +449,8 @@ test.describe( 'Navigation block - Frontend interactivity', () => {
 			await admin.visitSiteEditor( {
 				postId: 'emptytheme//header',
 				postType: 'wp_template_part',
+				canvas: 'edit',
 			} );
-			await editor.canvas.locator( 'body' ).click();
 			await requestUtils.createNavigationMenu( {
 				title: 'Page list menu',
 				content: `
@@ -456,7 +462,9 @@ test.describe( 'Navigation block - Frontend interactivity', () => {
 				name: 'core/navigation',
 				attributes: { overlayMenu: 'off', openSubmenusOnClick: true },
 			} );
-			await editor.saveSiteEditorEntities();
+			await editor.saveSiteEditorEntities( {
+				isOnlyCurrentEntityDirty: true,
+			} );
 		} );
 
 		test( 'page-list submenu user interactions', async ( {

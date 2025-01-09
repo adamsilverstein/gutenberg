@@ -1,14 +1,18 @@
 /**
  * WordPress dependencies
  */
-import { store, directive, getContext } from '@wordpress/interactivity';
+import { store, getContext, privateApis } from '@wordpress/interactivity';
+
+const { directive } = privateApis(
+	'I acknowledge that using private APIs means my theme or plugin will inevitably break in the next version of WordPress.'
+);
 
 // Mock `data-wp-show` directive to test when things are removed from the
 // DOM.  Replace with `data-wp-show` when it's ready.
 directive(
 	'show-mock',
 	( { directives: { 'show-mock': showMock }, element, evaluate } ) => {
-		const entry = showMock.find( ( { suffix } ) => suffix === 'default' );
+		const entry = showMock.find( ( { suffix } ) => suffix === null );
 		if ( ! evaluate( entry ) ) {
 			return null;
 		}

@@ -2,7 +2,7 @@
  * External dependencies
  */
 import type { ForwardedRef } from 'react';
-import classnames from 'classnames';
+import clsx from 'clsx';
 
 /**
  * WordPress dependencies
@@ -35,7 +35,7 @@ function UnforwardedMenuItem(
 		...buttonProps
 	} = props;
 
-	className = classnames( 'components-menu-item__button', className );
+	className = clsx( 'components-menu-item__button', className );
 
 	if ( info ) {
 		children = (
@@ -48,7 +48,7 @@ function UnforwardedMenuItem(
 
 	if ( icon && typeof icon !== 'string' ) {
 		icon = cloneElement( icon, {
-			className: classnames( 'components-menu-items__item-icon', {
+			className: clsx( 'components-menu-items__item-icon', {
 				'has-icon-right': iconPosition === 'right',
 			} ),
 		} );
@@ -56,6 +56,7 @@ function UnforwardedMenuItem(
 
 	return (
 		<Button
+			__next40pxDefaultSize
 			ref={ ref }
 			// Make sure aria-checked matches spec https://www.w3.org/TR/wai-aria-1.1/#aria-checked
 			aria-checked={

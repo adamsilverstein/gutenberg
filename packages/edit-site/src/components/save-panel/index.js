@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import classnames from 'classnames';
+import clsx from 'clsx';
 
 /**
  * WordPress dependencies
@@ -14,8 +14,9 @@ import {
 } from '@wordpress/editor';
 import { useDispatch, useSelect } from '@wordpress/data';
 import { __, sprintf } from '@wordpress/i18n';
-import { NavigableRegion } from '@wordpress/interface';
 import { store as coreStore } from '@wordpress/core-data';
+import { privateApis as routerPrivateApis } from '@wordpress/router';
+import { useEffect } from '@wordpress/element';
 
 /**
  * Internal dependencies
@@ -26,9 +27,11 @@ import { useActivateTheme } from '../../utils/use-activate-theme';
 import { useActualCurrentTheme } from '../../utils/use-actual-current-theme';
 import { isPreviewingTheme } from '../../utils/is-previewing-theme';
 
-const { EntitiesSavedStatesExtensible } = unlock( privateApis );
+const { EntitiesSavedStatesExtensible, NavigableRegion } =
+	unlock( privateApis );
+const { useLocation } = unlock( routerPrivateApis );
 
-const EntitiesSavedStatesForPreview = ( { onClose } ) => {
+const EntitiesSavedStatesForPreview = ( { onClose, renderDialog } ) => {
 	const isDirtyProps = useEntitiesSavedStatesIsDirty();
 	let activateSaveLabel;
 	if ( isDirtyProps.isDirty ) {
@@ -47,7 +50,7 @@ const EntitiesSavedStatesForPreview = ( { onClose } ) => {
 	const additionalPrompt = (
 		<p>
 			{ sprintf(
-				/* translators: %1$s: The name of active theme, %2$s: The name of theme to be activated. */
+				/* translators: 1: The name of active theme, 2: The name of theme to be activated. */
 				__(
 					'Saving your changes will change your active theme from %1$s to %2$s.'
 				),
@@ -72,35 +75,57 @@ const EntitiesSavedStatesForPreview = ( { onClose } ) => {
 				onSave,
 				saveEnabled: true,
 				saveLabel: activateSaveLabel,
+				renderDialog,
 			} }
 		/>
 	);
 };
 
-const _EntitiesSavedStates = ( { onClose } ) => {
+const _EntitiesSavedStates = ( { onClose, renderDialog } ) => {
 	if ( isPreviewingTheme() ) {
-		return <EntitiesSavedStatesForPreview onClose={ onClose } />;
+		return (
+			<EntitiesSavedStatesForPreview
+				onClose={ onClose }
+				renderDialog={ renderDialog }
+			/>
+		);
 	}
-	return <EntitiesSavedStates close={ onClose } />;
+	return (
+		<EntitiesSavedStates close={ onClose } renderDialog={ renderDialog } />
+	);
 };
 
 export default function SavePanel() {
-	const { isSaveViewOpen, canvasMode } = useSelect( ( select ) => {
-		const { isSaveViewOpened, getCanvasMode } = unlock(
-			select( editSiteStore )
-		);
+	const { query } = useLocation();
+	const { canvas = 'view' } = query;
+	const { isSaveViewOpen, isDirty, isSaving } = useSelect( ( select ) => {
+		const {
+			__experimentalGetDirtyEntityRecords,
+			isSavingEntityRecord,
+			isResolving,
+		} = select( coreStore );
+		const dirtyEntityRecords = __experimentalGetDirtyEntityRecords();
+		const isActivatingTheme = isResolving( 'activateTheme' );
+		const { isSaveViewOpened } = unlock( select( editSiteStore ) );
 
 		// The currently selected entity to display.
 		// Typically template or template part in the site editor.
 		return {
 			isSaveViewOpen: isSaveViewOpened(),
-			canvasMode: getCanvasMode(),
+			isDirty: dirtyEntityRecords.length > 0,
+			isSaving:
+				dirtyEntityRecords.some( ( record ) =>
+					isSavingEntityRecord( record.kind, record.name, record.key )
+				) || isActivatingTheme,
 		};
 	}, [] );
 	const { setIsSaveViewOpened } = useDispatch( editSiteStore );
 	const onClose = () => setIsSaveViewOpened( false );
+	useEffect( () => {
+		setIsSaveViewOpened( false );
+	}, [ canvas, setIsSaveViewOpened ] );
 
-	if ( canvasMode === 'view' ) {
+	if ( canvas === 'view' ) {
 		return isSaveViewOpen ? (
 			<Modal
 				className="edit-site-save-panel__modal"
@@ -114,27 +139,34 @@ export default function SavePanel() {
 			</Modal>
 		) : null;
 	}
-
+	const activateSaveEnabled = isPreviewingTheme() || isDirty;
+	const disabled = isSaving || ! activateSaveEnabled;
 	return (
 		<NavigableRegion
-			className={ classnames( 'edit-site-layout__actions', {
+			className={ clsx( 'edit-site-layout__actions', {
 				'is-entity-save-view-open': isSaveViewOpen,
 			} ) }
 			ariaLabel={ __( 'Save panel' ) }
 		>
-			{ isSaveViewOpen ? (
-				<_EntitiesSavedStates onClose={ onClose } />
-			) : (
-				<div className="edit-site-editor__toggle-save-panel">
-					<Button
-						variant="secondary"
-						className="edit-site-editor__toggle-save-panel-button"
-						onClick={ () => setIsSaveViewOpened( true ) }
-						aria-expanded={ false }
-					>
-						{ __( 'Open save panel' ) }
-					</Button>
-				</div>
+			<div
+				className={ clsx( 'edit-site-editor__toggle-save-panel', {
+					'screen-reader-text': isSaveViewOpen,
+				} ) }
+			>
+				<Button
+					__next40pxDefaultSize
+					variant="secondary"
+					className="edit-site-editor__toggle-save-panel-button"
+					onClick={ () => setIsSaveViewOpened( true ) }
+					aria-haspopup="dialog"
+					disabled={ disabled }
+					accessibleWhenDisabled
+				>
+					{ __( 'Open save panel' ) }
+				</Button>
+			</div>
+			{ isSaveViewOpen && (
+				<_EntitiesSavedStates onClose={ onClose } renderDialog />
 			) }
 		</NavigableRegion>
 	);

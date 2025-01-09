@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import classnames from 'classnames';
+import clsx from 'clsx';
 
 /**
  * WordPress dependencies
@@ -19,16 +19,17 @@ import {
 	RichText,
 	useBlockProps,
 	useSettings,
+	useBlockEditingMode,
+	store as blockEditorStore,
 } from '@wordpress/block-editor';
-import { createBlock } from '@wordpress/blocks';
+import { useSelect } from '@wordpress/data';
+import { getBlockSupport } from '@wordpress/blocks';
 import { formatLtr } from '@wordpress/icons';
-
 /**
  * Internal dependencies
  */
 import { useOnEnter } from './use-enter';
-
-const name = 'core/paragraph';
+import { unlock } from '../lock-unlock';
 
 function ParagraphRTLControl( { direction, setDirection } ) {
 	return (
@@ -49,10 +50,10 @@ function hasDropCapDisabled( align ) {
 	return align === ( isRTL() ? 'left' : 'right' ) || align === 'center';
 }
 
-function DropCapControl( { clientId, attributes, setAttributes } ) {
-	// Please do no add a useSelect call to the paragraph block unconditionaly.
-	// Every useSelect added to a (frequestly used) block will degrade the load
-	// and type bit. By moving it within InspectorControls, the subscription is
+function DropCapControl( { clientId, attributes, setAttributes, name } ) {
+	// Please do not add a useSelect call to the paragraph block unconditionally.
+	// Every useSelect added to a (frequently used) block will degrade load
+	// and type performance. By moving it within InspectorControls, the subscription is
 	// now only added for the selected block(s).
 	const [ isDropCapFeatureEnabled ] = useSettings( 'typography.dropCap' );
 
@@ -68,26 +69,35 @@ function DropCapControl( { clientId, attributes, setAttributes } ) {
 	} else if ( dropCap ) {
 		helpText = __( 'Showing large initial letter.' );
 	} else {
-		helpText = __( 'Toggle to show a large initial letter.' );
+		helpText = __( 'Show a large initial letter.' );
 	}
 
+	const isDropCapControlEnabledByDefault = getBlockSupport(
+		name,
+		'typography.defaultControls.dropCap',
+		false
+	);
+
 	return (
-		<ToolsPanelItem
-			hasValue={ () => !! dropCap }
-			label={ __( 'Drop cap' ) }
-			onDeselect={ () => setAttributes( { dropCap: undefined } ) }
-			resetAllFilter={ () => ( { dropCap: undefined } ) }
-			panelId={ clientId }
-		>
-			<ToggleControl
-				__nextHasNoMarginBottom
+		<InspectorControls group="typography">
+			<ToolsPanelItem
+				hasValue={ () => !! dropCap }
 				label={ __( 'Drop cap' ) }
-				checked={ !! dropCap }
-				onChange={ () => setAttributes( { dropCap: ! dropCap } ) }
-				help={ helpText }
-				disabled={ hasDropCapDisabled( align ) ? true : false }
-			/>
-		</ToolsPanelItem>
+				isShownByDefault={ isDropCapControlEnabledByDefault }
+				onDeselect={ () => setAttributes( { dropCap: undefined } ) }
+				resetAllFilter={ () => ( { dropCap: undefined } ) }
+				panelId={ clientId }
+			>
+				<ToggleControl
+					__nextHasNoMarginBottom
+					label={ __( 'Drop cap' ) }
+					checked={ !! dropCap }
+					onChange={ () => setAttributes( { dropCap: ! dropCap } ) }
+					help={ helpText }
+					disabled={ hasDropCapDisabled( align ) }
+				/>
+			</ToolsPanelItem>
+		</InspectorControls>
 	);
 }
 
@@ -98,45 +108,61 @@ function ParagraphBlock( {
 	onRemove,
 	setAttributes,
 	clientId,
+	isSelected: isSingleSelected,
+	name,
 } ) {
-	const { align, content, direction, dropCap, placeholder } = attributes;
+	const isZoomOut = useSelect( ( select ) =>
+		unlock( select( blockEditorStore ) ).isZoomOut()
+	);
+
+	const { align, content, direction, dropCap } = attributes;
 	const blockProps = useBlockProps( {
 		ref: useOnEnter( { clientId, content } ),
-		className: classnames( {
+		className: clsx( {
 			'has-drop-cap': hasDropCapDisabled( align ) ? false : dropCap,
 			[ `has-text-align-${ align }` ]: align,
 		} ),
 		style: { direction },
 	} );
+	const blockEditingMode = useBlockEditingMode();
+	let { placeholder } = attributes;
+	if ( isZoomOut ) {
+		placeholder = '';
+	} else if ( ! placeholder ) {
+		placeholder = __( 'Type / to choose a block' );
+	}
 
 	return (
 		<>
-			<BlockControls group="block">
-				<AlignmentControl
-					value={ align }
-					onChange={ ( newAlign ) =>
-						setAttributes( {
-							align: newAlign,
-							dropCap: hasDropCapDisabled( newAlign )
-								? false
-								: dropCap,
-						} )
-					}
-				/>
-				<ParagraphRTLControl
-					direction={ direction }
-					setDirection={ ( newDirection ) =>
-						setAttributes( { direction: newDirection } )
-					}
-				/>
-			</BlockControls>
-			<InspectorControls group="typography">
+			{ blockEditingMode === 'default' && (
+				<BlockControls group="block">
+					<AlignmentControl
+						value={ align }
+						onChange={ ( newAlign ) =>
+							setAttributes( {
+								align: newAlign,
+								dropCap: hasDropCapDisabled( newAlign )
+									? false
+									: dropCap,
+							} )
+						}
+					/>
+					<ParagraphRTLControl
+						direction={ direction }
+						setDirection={ ( newDirection ) =>
+							setAttributes( { direction: newDirection } )
+						}
+					/>
+				</BlockControls>
+			) }
+			{ isSingleSelected && (
 				<DropCapControl
+					name={ name }
 					clientId={ clientId }
 					attributes={ attributes }
 					setAttributes={ setAttributes }
 				/>
-			</InspectorControls>
+			) }
 			<RichText
 				identifier="content"
 				tagName="p"
@@ -145,24 +171,6 @@ function ParagraphBlock( {
 				onChange={ ( newContent ) =>
 					setAttributes( { content: newContent } )
 				}
-				onSplit={ ( value, isOriginal ) => {
-					let newAttributes;
-
-					if ( isOriginal || value ) {
-						newAttributes = {
-							...attributes,
-							content: value,
-						};
-					}
-
-					const block = createBlock( name, newAttributes );
-
-					if ( isOriginal ) {
-						block.clientId = clientId;
-					}
-
-					return block;
-				} }
 				onMerge={ mergeBlocks }
 				onReplace={ onReplace }
 				onRemove={ onRemove }
@@ -174,8 +182,10 @@ function ParagraphBlock( {
 						: __( 'Block: Paragraph' )
 				}
 				data-empty={ RichText.isEmpty( content ) }
-				placeholder={ placeholder || __( 'Type / to choose a block' ) }
-				data-custom-placeholder={ placeholder ? true : undefined }
+				placeholder={ placeholder }
+				data-custom-placeholder={
+					placeholder && ! isZoomOut ? true : undefined
+				}
 				__unstableEmbedURLOnPaste
 				__unstableAllowPrefixTransformations
 			/>

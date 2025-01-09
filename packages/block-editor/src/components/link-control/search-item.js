@@ -17,6 +17,7 @@ import {
 import { __unstableStripHTML as stripHTML } from '@wordpress/dom';
 import { safeDecodeURI, filterURLForDisplay, getPath } from '@wordpress/url';
 import { pipe } from '@wordpress/compose';
+import deprecated from '@wordpress/deprecated';
 
 const ICONS_MAP = {
 	post: postList,
@@ -63,7 +64,9 @@ function SearchItemIcon( { isURL, suggestion } ) {
 function addLeadingSlash( url ) {
 	const trimmedURL = url?.trim();
 
-	if ( ! trimmedURL?.length ) return url;
+	if ( ! trimmedURL?.length ) {
+		return url;
+	}
 
 	return url?.replace( /^\/?/, '/' );
 }
@@ -71,7 +74,9 @@ function addLeadingSlash( url ) {
 function removeTrailingSlash( url ) {
 	const trimmedURL = url?.trim();
 
-	if ( ! trimmedURL?.length ) return url;
+	if ( ! trimmedURL?.length ) {
+		return url;
+	}
 
 	return url?.replace( /\/$/, '' );
 }
@@ -95,7 +100,9 @@ const defaultTo = ( d ) => ( v ) => {
  * @return {string} the processed url to display.
  */
 function getURLForDisplay( url ) {
-	if ( ! url ) return url;
+	if ( ! url ) {
+		return url;
+	}
 
 	return pipe(
 		safeDecodeURI,
@@ -154,3 +161,11 @@ function getVisualTypeName( suggestion ) {
 }
 
 export default LinkControlSearchItem;
+
+export const __experimentalLinkControlSearchItem = ( props ) => {
+	deprecated( 'wp.blockEditor.__experimentalLinkControlSearchItem', {
+		since: '6.8',
+	} );
+
+	return <LinkControlSearchItem { ...props } />;
+};

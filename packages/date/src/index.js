@@ -31,9 +31,10 @@ import deprecated from '@wordpress/deprecated';
 
 /**
  * @typedef TimezoneConfig
- * @property {string} offset Offset setting.
- * @property {string} string The timezone as a string (e.g., `'America/Los_Angeles'`).
- * @property {string} abbr   Abbreviation for the timezone.
+ * @property {string} offset          Offset setting.
+ * @property {string} offsetFormatted Offset setting with decimals formatted to minutes.
+ * @property {string} string          The timezone as a string (e.g., `'America/Los_Angeles'`).
+ * @property {string} abbr            Abbreviation for the timezone.
  */
 
 /* eslint-disable jsdoc/valid-types */
@@ -63,8 +64,8 @@ const WP_ZONE = 'WP';
 // See: https://en.wikipedia.org/wiki/ISO_8601#Time_offsets_from_UTC
 const VALID_UTC_OFFSET = /^[+-][0-1][0-9](:?[0-9][0-9])?$/;
 
-// Changes made here will likely need to be made in `lib/client-assets.php` as
-// well because it uses the `setSettings()` function to change these settings.
+// Changes made here will likely need to be synced with Core in the file
+// src/wp-includes/script-loader.php in `wp_default_packages_inline_scripts()`.
 /** @type {DateSettings} */
 let settings = {
 	l10n: {
@@ -132,7 +133,7 @@ let settings = {
 		datetime: 'F j, Y g: i a',
 		datetimeAbbreviated: 'M j, Y g: i a',
 	},
-	timezone: { offset: '0', string: '', abbr: '' },
+	timezone: { offset: '0', offsetFormatted: '0', string: '', abbr: '' },
 };
 
 /**
@@ -524,15 +525,15 @@ export function gmdate( dateFormat, dateValue = new Date() ) {
  * Backward Compatibility Notice: if `timezone` is set to `true`, the function
  * behaves like `gmdateI18n`.
  *
- * @param {string}                                dateFormat PHP-style formatting string.
- *                                                           See php.net/date.
- * @param {Moment | Date | string | undefined}    dateValue  Date object or string, parsable by
- *                                                           moment.js.
- * @param {string | number | boolean | undefined} timezone   Timezone to output result in or a
- *                                                           UTC offset. Defaults to timezone from
- *                                                           site. Notice: `boolean` is effectively
- *                                                           deprecated, but still supported for
- *                                                           backward compatibility reasons.
+ * @param {string}                                 dateFormat PHP-style formatting string.
+ *                                                            See php.net/date.
+ * @param {Moment | Date | string | undefined}     dateValue  Date object or string, parsable by
+ *                                                            moment.js.
+ * @param {string | number | boolean | undefined=} timezone   Timezone to output result in or a
+ *                                                            UTC offset. Defaults to timezone from
+ *                                                            site. Notice: `boolean` is effectively
+ *                                                            deprecated, but still supported for
+ *                                                            backward compatibility reasons.
  *
  * @see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
  * @see https://en.wikipedia.org/wiki/ISO_8601#Time_offsets_from_UTC
@@ -587,7 +588,7 @@ export function isInTheFuture( dateValue ) {
 /**
  * Create and return a JavaScript Date Object from a date string in the WP timezone.
  *
- * @param {string?} dateString Date formatted in the WP timezone.
+ * @param {?string} dateString Date formatted in the WP timezone.
  *
  * @return {Date} Date
  */

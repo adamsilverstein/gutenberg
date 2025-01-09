@@ -18,7 +18,9 @@ import { store as blockEditorStore } from '../../store';
 function setContentEditableWrapper( node, value ) {
 	node.contentEditable = value;
 	// Firefox doesn't automatically move focus.
-	if ( value ) node.focus();
+	if ( value ) {
+		node.focus();
+	}
 }
 
 /**
@@ -63,19 +65,38 @@ export default function useDragSelection() {
 					const selection = defaultView.getSelection();
 
 					if ( selection.rangeCount ) {
-						const { commonAncestorContainer } =
-							selection.getRangeAt( 0 );
+						const range = selection.getRangeAt( 0 );
+						const { commonAncestorContainer } = range;
+						const clonedRange = range.cloneRange();
 
 						if (
 							anchorElement.contains( commonAncestorContainer )
 						) {
 							anchorElement.focus();
+							selection.removeAllRanges();
+							selection.addRange( clonedRange );
 						}
 					}
 				} );
 			}
 
-			function onMouseLeave( { buttons, target } ) {
+			let lastMouseDownTarget;
+
+			function onMouseDown( { target } ) {
+				lastMouseDownTarget = target;
+			}
+
+			function onMouseLeave( { buttons, target, relatedTarget } ) {
+				if ( ! target.contains( lastMouseDownTarget ) ) {
+					return;
+				}
+
+				// If we're moving into a child element, ignore. We're tracking
+				// the mouse leaving the element to a parent, no a child.
+				if ( target.contains( relatedTarget ) ) {
+					return;
+				}
+
 				// Avoid triggering a multi-selection if the user is already
 				// dragging blocks.
 				if ( isDraggingBlocks() ) {
@@ -130,6 +151,7 @@ export default function useDragSelection() {
 			}
 
 			node.addEventListener( 'mouseout', onMouseLeave );
+			node.addEventListener( 'mousedown', onMouseDown );
 
 			return () => {
 				node.removeEventListener( 'mouseout', onMouseLeave );

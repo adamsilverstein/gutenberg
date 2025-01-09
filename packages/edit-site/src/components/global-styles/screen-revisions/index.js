@@ -3,7 +3,6 @@
  */
 import { __, sprintf } from '@wordpress/i18n';
 import {
-	__experimentalUseNavigator as useNavigator,
 	__experimentalConfirmDialog as ConfirmDialog,
 	Spinner,
 } from '@wordpress/components';
@@ -33,7 +32,6 @@ const { GlobalStylesContext, areGlobalStyleConfigsEqual } = unlock(
 const PAGE_SIZE = 10;
 
 function ScreenRevisions() {
-	const { goTo } = useNavigator();
 	const { user: currentEditorGlobalStyles, setUserConfig } =
 		useContext( GlobalStylesContext );
 	const { blocks, editorCanvasContainerView } = useSelect(
@@ -71,37 +69,21 @@ function ScreenRevisions() {
 		currentEditorGlobalStyles
 	);
 
+	// The actual code that triggers the revisions screen to navigate back
+	// to the home screen in in `packages/edit-site/src/components/global-styles/ui.js`.
 	const onCloseRevisions = () => {
-		goTo( '/' ); // Return to global styles main panel.
-		setEditorCanvasContainerView( undefined );
+		const canvasContainerView =
+			editorCanvasContainerView === 'global-styles-revisions:style-book'
+				? 'style-book'
+				: undefined;
+		setEditorCanvasContainerView( canvasContainerView );
 	};
 
 	const restoreRevision = ( revision ) => {
-		setUserConfig( () => ( {
-			styles: revision?.styles,
-			settings: revision?.settings,
-		} ) );
+		setUserConfig( () => revision );
 		setIsLoadingRevisionWithUnsavedChanges( false );
 		onCloseRevisions();
 	};
-
-	const selectRevision = ( revision ) => {
-		setCurrentlySelectedRevision( {
-			styles: revision?.styles || {},
-			settings: revision?.settings || {},
-			id: revision?.id,
-		} );
-	};
-
-	useEffect( () => {
-		if (
-			! editorCanvasContainerView ||
-			! editorCanvasContainerView.startsWith( 'global-styles-revisions' )
-		) {
-			goTo( '/' ); // Return to global styles main panel.
-			setEditorCanvasContainerView( editorCanvasContainerView );
-		}
-	}, [ editorCanvasContainerView ] );
 
 	useEffect( () => {
 		if ( ! isLoading && revisions.length ) {
@@ -125,11 +107,7 @@ function ScreenRevisions() {
 		 * See: https://github.com/WordPress/gutenberg/issues/55866
 		 */
 		if ( shouldSelectFirstItem ) {
-			setCurrentlySelectedRevision( {
-				styles: firstRevision?.styles || {},
-				settings: firstRevision?.settings || {},
-				id: firstRevision?.id,
-			} );
+			setCurrentlySelectedRevision( firstRevision );
 		}
 	}, [ shouldSelectFirstItem, firstRevision ] );
 
@@ -177,7 +155,7 @@ function ScreenRevisions() {
 					/>
 				) ) }
 			<RevisionsButtons
-				onChange={ selectRevision }
+				onChange={ setCurrentlySelectedRevision }
 				selectedRevisionId={ currentlySelectedRevisionId }
 				userRevisions={ currentRevisions }
 				canApplyRevision={ isLoadButtonEnabled }
@@ -210,9 +188,10 @@ function ScreenRevisions() {
 					onCancel={ () =>
 						setIsLoadingRevisionWithUnsavedChanges( false )
 					}
+					size="medium"
 				>
 					{ __(
-						'Any unsaved changes will be lost when you apply this revision.'
+						'Are you sure you want to apply this revision? Any unsaved changes will be lost.'
 					) }
 				</ConfirmDialog>
 			) }

@@ -208,7 +208,10 @@ test.describe( 'Post-type locking', () => {
 			await expect(
 				page
 					.getByRole( 'toolbar', { name: 'Document tools' } )
-					.getByRole( 'button', { name: 'Toggle block inserter' } )
+					.getByRole( 'button', {
+						name: 'Block Inserter',
+						exact: true,
+					} )
 			).toBeEnabled();
 
 			await editor.insertBlock( { name: 'core/list' } );
@@ -326,6 +329,48 @@ test.describe( 'Post-type locking', () => {
 						},
 					],
 				},
+			] );
+		} );
+
+		test( 'should allow blocks to be switched to other types', async ( {
+			editor,
+			page,
+		} ) => {
+			await editor.canvas
+				.getByRole( 'document', {
+					name: 'Empty block',
+				} )
+				.first()
+				.fill( 'p1' );
+
+			const blockSwitcher = page
+				.getByRole( 'toolbar', { name: 'Block tools' } )
+				.getByRole( 'button', { name: 'Paragraph' } );
+
+			// Verify the block switcher exists.
+			await expect( blockSwitcher ).toHaveAttribute(
+				'aria-haspopup',
+				'true'
+			);
+
+			// Verify the correct block transforms appear.
+			await blockSwitcher.click();
+			await expect(
+				page
+					.getByRole( 'menu', { name: 'Paragraph' } )
+					.getByRole( 'menuitem' )
+			).toHaveText( [
+				'Heading',
+				'List',
+				'Quote',
+				'Buttons',
+				'Code',
+				'Columns',
+				'Details',
+				'Group',
+				'Preformatted',
+				'Pullquote',
+				'Verse',
 			] );
 		} );
 	} );

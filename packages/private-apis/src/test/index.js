@@ -16,7 +16,7 @@ beforeEach( () => {
 } );
 
 const requiredConsent =
-	'I know using unstable features means my theme or plugin will inevitably break in the next version of WordPress.';
+	'I acknowledge private features are not for use in themes or plugins and doing so will break in the next version of WordPress.';
 
 describe( '__dangerousOptInToUnstableAPIsOnlyForCoreModules', () => {
 	it( 'Should require a consent string', () => {
@@ -236,7 +236,7 @@ describe( 'Specific use-cases of sharing private APIs', () => {
 		 *
 		 * ```js
 		 * import { logData } from 'package1';
-		 * const experimenalLogData = unlock( logData );
+		 * const experimentalLogData = unlock( logData );
 		 * ```
 		 */
 		expect( unlock( logData ) ).toBe( __privateLogData );

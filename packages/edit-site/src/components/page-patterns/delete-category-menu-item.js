@@ -9,7 +9,7 @@ import { store as coreStore } from '@wordpress/core-data';
 import { useDispatch } from '@wordpress/data';
 import { useState } from '@wordpress/element';
 import { decodeEntities } from '@wordpress/html-entities';
-import { __, sprintf } from '@wordpress/i18n';
+import { __, _x, sprintf } from '@wordpress/i18n';
 import { store as noticesStore } from '@wordpress/notices';
 import { privateApis as routerPrivateApis } from '@wordpress/router';
 
@@ -51,19 +51,17 @@ export default function DeleteCategoryMenuItem( { category, onClose } ) {
 
 			createSuccessNotice(
 				sprintf(
-					/* translators: The pattern category's name */
-					__( '"%s" deleted.' ),
+					/* translators: %s: The pattern category's name */
+					_x( '"%s" deleted.', 'pattern category' ),
 					category.label
 				),
 				{ type: 'snackbar', id: 'pattern-category-delete' }
 			);
 
 			onClose?.();
-			history.push( {
-				path: `/patterns`,
-				categoryType: PATTERN_TYPES.theme,
-				categoryId: PATTERN_DEFAULT_CATEGORY,
-			} );
+			history.navigate(
+				`/pattern?categoryId=${ PATTERN_DEFAULT_CATEGORY }`
+			);
 		} catch ( error ) {
 			const errorMessage =
 				error.message && error.code !== 'unknown_error'
@@ -90,6 +88,13 @@ export default function DeleteCategoryMenuItem( { category, onClose } ) {
 				onCancel={ () => setIsModalOpen( false ) }
 				confirmButtonText={ __( 'Delete' ) }
 				className="edit-site-patterns__delete-modal"
+				title={ sprintf(
+					// translators: %s: The pattern category's name.
+					_x( 'Delete "%s"?', 'pattern category' ),
+					decodeEntities( category.label )
+				) }
+				size="medium"
+				__experimentalHideHeader={ false }
 			>
 				{ sprintf(
 					// translators: %s: The pattern category's name.

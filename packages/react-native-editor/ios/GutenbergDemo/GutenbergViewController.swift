@@ -219,7 +219,7 @@ extension GutenbergViewController: GutenbergBridgeDelegate {
         }
         alertController.addAction(dismissAction)
 
-        if progress.fractionCompleted < 1 && mediaUploadCoordinator.successfullUpload {
+        if progress.fractionCompleted < 1 && mediaUploadCoordinator.successfulUpload {
             let cancelUploadAction = UIAlertAction(title: "Cancel upload", style: .destructive) { (action) in
                 self.mediaUploadCoordinator.cancelUpload(with: mediaID)
             }
@@ -288,14 +288,6 @@ extension GutenbergViewController: GutenbergBridgeDelegate {
         callback(.success("ma.tt"))
     }
 
-    func gutenbergDidRequestMediaSaveSync() {
-        print(#function)
-    }
-
-    func gutenbergDidRequestMediaFilesBlockReplaceSync(_ mediaFiles: [[String: Any]], clientId: String) {
-        print(#function)
-    }
-
     func gutenbergDidRequestFocalPointPickerTooltipShown() -> Bool {
         return false;
     }
@@ -325,7 +317,7 @@ extension GutenbergViewController: GutenbergBridgeDelegate {
     }
 
     func gutenbergDidRequestSendEventToHost(_ eventName: String, properties: [AnyHashable: Any]) -> Void {
-        print("Gutenberg requested sending '\(eventName)' event to host with propreties: \(properties).")
+        print("Gutenberg requested sending '\(eventName)' event to host with properties: \(properties).")
     }
     
     func gutenbergDidRequestToggleUndoButton(_ isDisabled: Bool) -> Void {
@@ -348,6 +340,10 @@ extension GutenbergViewController: GutenbergBridgeDelegate {
 
     func gutenbergDidRequestConnectionStatus() -> Bool {
         return true
+    }
+
+    func gutenbergDidRequestLogException(_ exception: GutenbergJSException, with callback: @escaping () -> Void) {
+        print(#function)
     }
 }
 
@@ -374,9 +370,6 @@ extension GutenbergViewController: GutenbergWebDelegate {
 extension GutenbergViewController: GutenbergBridgeDataSource {
     class EditorSettings: GutenbergEditorSettings {
         var isFSETheme: Bool = true
-        var galleryWithImageBlocks: Bool = true
-        var quoteBlockV2: Bool = true
-        var listBlockV2: Bool = true
         var rawStyles: String? = nil
         var rawFeatures: String? = nil
         var colors: [[String: String]]? = nil
@@ -419,9 +412,9 @@ extension GutenbergViewController: GutenbergBridgeDataSource {
             .xposts: true,
             .unsupportedBlockEditor: unsupportedBlockEnabled,
             .canEnableUnsupportedBlockEditor: unsupportedBlockCanBeActivated,
-            .mediaFilesCollectionBlock: true,
             .tiledGalleryBlock: true,
             .videoPressBlock: true,
+            .videoPressV5Support: true,
             .isAudioBlockMediaUploadEnabled: true,
             .reusableBlock: false,
             .facebookEmbed: true,

@@ -15,11 +15,14 @@ import { useState } from '@wordpress/element';
 import BoxControl from '..';
 import type { BoxControlProps, BoxControlValue } from '../types';
 
-const Example = ( extraProps: Omit< BoxControlProps, 'onChange' > ) => {
+const ControlledBoxControl = (
+	extraProps: Omit< BoxControlProps, 'onChange' >
+) => {
 	const [ state, setState ] = useState< BoxControlValue >();
 
 	return (
 		<BoxControl
+			__next40pxDefaultSize
 			values={ state }
 			onChange={ ( next ) => setState( next ) }
 			{ ...extraProps }
@@ -27,10 +30,17 @@ const Example = ( extraProps: Omit< BoxControlProps, 'onChange' > ) => {
 	);
 };
 
+const UncontrolledBoxControl = ( {
+	onChange = () => {},
+	...props
+}: Omit< BoxControlProps, 'onChange' > & {
+	onChange?: BoxControlProps[ 'onChange' ];
+} ) => <BoxControl __next40pxDefaultSize onChange={ onChange } { ...props } />;
+
 describe( 'BoxControl', () => {
 	describe( 'Basic rendering', () => {
 		it( 'should render a box control input', () => {
-			render( <BoxControl onChange={ () => {} } /> );
+			render( <UncontrolledBoxControl /> );
 
 			expect(
 				screen.getByRole( 'group', { name: 'Box Control' } )
@@ -43,7 +53,7 @@ describe( 'BoxControl', () => {
 		it( 'should update values when interacting with input', async () => {
 			const user = userEvent.setup();
 
-			render( <BoxControl onChange={ () => {} } /> );
+			render( <UncontrolledBoxControl /> );
 
 			const input = screen.getByRole( 'textbox', { name: 'All sides' } );
 
@@ -54,7 +64,7 @@ describe( 'BoxControl', () => {
 		} );
 
 		it( 'should update input values when interacting with slider', () => {
-			render( <BoxControl onChange={ () => {} } /> );
+			render( <UncontrolledBoxControl /> );
 
 			const slider = screen.getByRole( 'slider' );
 
@@ -68,7 +78,7 @@ describe( 'BoxControl', () => {
 
 		it( 'should update slider values when interacting with input', async () => {
 			const user = userEvent.setup();
-			render( <BoxControl onChange={ () => {} } /> );
+			render( <UncontrolledBoxControl /> );
 
 			const input = screen.getByRole( 'textbox', {
 				name: 'All sides',
@@ -80,13 +90,32 @@ describe( 'BoxControl', () => {
 			expect( input ).toHaveValue( '50' );
 			expect( screen.getByRole( 'slider' ) ).toHaveValue( '50' );
 		} );
+
+		it( 'should render the number input with a default min value of 0', () => {
+			render( <UncontrolledBoxControl /> );
+
+			const input = screen.getByRole( 'textbox', { name: 'All sides' } );
+
+			expect( input ).toHaveAttribute( 'min', '0' );
+		} );
+
+		it( 'should pass down `inputProps` to the underlying number input', () => {
+			render(
+				<UncontrolledBoxControl inputProps={ { min: 10, max: 50 } } />
+			);
+
+			const input = screen.getByRole( 'textbox', { name: 'All sides' } );
+
+			expect( input ).toHaveAttribute( 'min', '10' );
+			expect( input ).toHaveAttribute( 'max', '50' );
+		} );
 	} );
 
 	describe( 'Reset', () => {
 		it( 'should reset values when clicking Reset', async () => {
 			const user = userEvent.setup();
 
-			render( <BoxControl onChange={ () => {} } /> );
+			render( <UncontrolledBoxControl /> );
 
 			const input = screen.getByRole( 'textbox', {
 				name: 'All sides',
@@ -105,7 +134,7 @@ describe( 'BoxControl', () => {
 		it( 'should reset values when clicking Reset, if controlled', async () => {
 			const user = userEvent.setup();
 
-			render( <Example /> );
+			render( <ControlledBoxControl /> );
 
 			const input = screen.getByRole( 'textbox', {
 				name: 'All sides',
@@ -124,7 +153,7 @@ describe( 'BoxControl', () => {
 		it( 'should reset values when clicking Reset, if controlled <-> uncontrolled state changes', async () => {
 			const user = userEvent.setup();
 
-			render( <Example /> );
+			render( <ControlledBoxControl /> );
 
 			const input = screen.getByRole( 'textbox', {
 				name: 'All sides',
@@ -144,7 +173,9 @@ describe( 'BoxControl', () => {
 			const user = userEvent.setup();
 			const spyChange = jest.fn();
 
-			render( <BoxControl onChange={ ( v ) => spyChange( v ) } /> );
+			render(
+				<UncontrolledBoxControl onChange={ ( v ) => spyChange( v ) } />
+			);
 
 			const input = screen.getByRole( 'textbox', {
 				name: 'All sides',
@@ -174,7 +205,7 @@ describe( 'BoxControl', () => {
 		it( 'should update a single side value when unlinked', async () => {
 			const user = userEvent.setup();
 
-			render( <Example /> );
+			render( <ControlledBoxControl /> );
 
 			await user.click(
 				screen.getByRole( 'button', { name: 'Unlink sides' } )
@@ -202,7 +233,7 @@ describe( 'BoxControl', () => {
 		it( 'should update a single side value when using slider unlinked', async () => {
 			const user = userEvent.setup();
 
-			render( <Example /> );
+			render( <ControlledBoxControl /> );
 
 			await user.click(
 				screen.getByRole( 'button', { name: 'Unlink sides' } )
@@ -230,7 +261,7 @@ describe( 'BoxControl', () => {
 		it( 'should update a whole axis when value is changed when unlinked', async () => {
 			const user = userEvent.setup();
 
-			render( <Example splitOnAxis /> );
+			render( <ControlledBoxControl splitOnAxis /> );
 
 			await user.click(
 				screen.getByRole( 'button', { name: 'Unlink sides' } )
@@ -254,7 +285,7 @@ describe( 'BoxControl', () => {
 		it( 'should update a whole axis using a slider when value is changed when unlinked', async () => {
 			const user = userEvent.setup();
 
-			render( <Example splitOnAxis /> );
+			render( <ControlledBoxControl splitOnAxis /> );
 
 			await user.click(
 				screen.getByRole( 'button', { name: 'Unlink sides' } )
@@ -278,7 +309,7 @@ describe( 'BoxControl', () => {
 		it( 'should show "Mixed" label when sides have different values but are linked', async () => {
 			const user = userEvent.setup();
 
-			render( <Example /> );
+			render( <ControlledBoxControl /> );
 
 			const unlinkButton = screen.getByRole( 'button', {
 				name: 'Unlink sides',
@@ -308,7 +339,7 @@ describe( 'BoxControl', () => {
 			const user = userEvent.setup();
 
 			// Render control.
-			render( <BoxControl onChange={ () => {} } /> );
+			render( <UncontrolledBoxControl /> );
 
 			// Make unit selection on all input control.
 			await user.selectOptions(
@@ -340,7 +371,7 @@ describe( 'BoxControl', () => {
 			const user = userEvent.setup();
 
 			// Render control.
-			const { rerender } = render( <BoxControl onChange={ () => {} } /> );
+			const { rerender } = render( <UncontrolledBoxControl /> );
 
 			// Make unit selection on all input control.
 			await user.selectOptions(
@@ -368,9 +399,7 @@ describe( 'BoxControl', () => {
 			} );
 
 			// Rerender with individual side value & confirm unit is selected.
-			rerender(
-				<BoxControl values={ { top: '2.5em' } } onChange={ () => {} } />
-			);
+			rerender( <UncontrolledBoxControl values={ { top: '2.5em' } } /> );
 
 			const rerenderedControls = screen.getAllByRole( 'combobox', {
 				name: 'Select unit',
@@ -392,7 +421,7 @@ describe( 'BoxControl', () => {
 			const user = userEvent.setup();
 			const onChangeSpy = jest.fn();
 
-			render( <BoxControl onChange={ onChangeSpy } /> );
+			render( <UncontrolledBoxControl onChange={ onChangeSpy } /> );
 
 			const valueInput = screen.getByRole( 'textbox', {
 				name: 'All sides',
@@ -421,7 +450,7 @@ describe( 'BoxControl', () => {
 			const user = userEvent.setup();
 			const setState = jest.fn();
 
-			render( <BoxControl onChange={ setState } /> );
+			render( <UncontrolledBoxControl onChange={ setState } /> );
 
 			await user.selectOptions(
 				screen.getByRole( 'combobox', {

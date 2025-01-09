@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import classnames from 'classnames';
+import clsx from 'clsx';
 
 /**
  * WordPress dependencies
@@ -10,10 +10,10 @@ import {
 	__experimentalToolsPanel as ToolsPanel,
 	__experimentalToolsPanelItem as ToolsPanelItem,
 	__experimentalItemGroup as ItemGroup,
+	__experimentalItem as Item,
 	__experimentalHStack as HStack,
 	__experimentalZStack as ZStack,
 	__experimentalDropdownContentWrapper as DropdownContentWrapper,
-	Button,
 	MenuGroup,
 	ColorIndicator,
 	DuotonePicker,
@@ -28,7 +28,7 @@ import { useCallback, useMemo } from '@wordpress/element';
 /**
  * Internal dependencies
  */
-import { getValueFromVariable, TOOLSPANEL_DROPDOWNMENU_PROPS } from './utils';
+import { getValueFromVariable, useToolsPanelDropdownMenuProps } from './utils';
 import { setImmutably } from '../../utils/object';
 
 const EMPTY_ARRAY = [];
@@ -72,6 +72,7 @@ function FiltersToolsPanel( {
 	panelId,
 	children,
 } ) {
+	const dropdownMenuProps = useToolsPanelDropdownMenuProps();
 	const resetAll = () => {
 		const updatedValue = resetAllFilter( value );
 		onChange( updatedValue );
@@ -82,7 +83,7 @@ function FiltersToolsPanel( {
 			label={ _x( 'Filters', 'Name for applying graphical effects' ) }
 			resetAll={ resetAll }
 			panelId={ panelId }
-			dropdownMenuProps={ TOOLSPANEL_DROPDOWNMENU_PROPS }
+			dropdownMenuProps={ dropdownMenuProps }
 		>
 			{ children }
 		</ToolsPanel>
@@ -143,10 +144,12 @@ export default function FiltersPanel( {
 		const duotonePreset = duotonePalette.find( ( { colors } ) => {
 			return colors === newValue;
 		} );
-		const settedValue = duotonePreset
+		const duotoneValue = duotonePreset
 			? `var:preset|duotone|${ duotonePreset.slug }`
 			: newValue;
-		onChange( setImmutably( value, [ 'filter', 'duotone' ], settedValue ) );
+		onChange(
+			setImmutably( value, [ 'filter', 'duotone' ], duotoneValue )
+		);
 	};
 	const hasDuotone = () => !! value?.filter?.duotone;
 	const resetDuotone = () => setDuotone( undefined );
@@ -182,18 +185,18 @@ export default function FiltersPanel( {
 						renderToggle={ ( { onToggle, isOpen } ) => {
 							const toggleProps = {
 								onClick: onToggle,
-								className: classnames( { 'is-open': isOpen } ),
+								className: clsx( { 'is-open': isOpen } ),
 								'aria-expanded': isOpen,
 							};
 
 							return (
 								<ItemGroup isBordered isSeparated>
-									<Button { ...toggleProps }>
+									<Item as="button" { ...toggleProps }>
 										<LabeledColorIndicator
 											indicator={ duotone }
 											label={ __( 'Duotone' ) }
 										/>
-									</Button>
+									</Item>
 								</ItemGroup>
 							);
 						} }

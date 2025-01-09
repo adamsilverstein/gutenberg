@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import classNames from 'classnames';
+import clsx from 'clsx';
 import removeAccents from 'remove-accents';
 
 /**
@@ -46,7 +46,7 @@ export default function save( { attributes } ) {
 		...colorProps.style,
 	};
 
-	const inputClasses = classNames(
+	const inputClasses = clsx(
 		'wp-block-form-input__input',
 		colorProps.className,
 		borderProps.className
@@ -54,6 +54,9 @@ export default function save( { attributes } ) {
 	const TagName = type === 'textarea' ? 'textarea' : 'input';
 
 	const blockProps = useBlockProps.save();
+
+	// Note: radio inputs aren't implemented yet.
+	const isCheckboxOrRadio = type === 'checkbox' || type === 'radio';
 
 	if ( 'hidden' === type ) {
 		return <input type={ type } name={ name } value={ value } />;
@@ -63,13 +66,15 @@ export default function save( { attributes } ) {
 		<div { ...blockProps }>
 			{ /* eslint-disable jsx-a11y/label-has-associated-control */ }
 			<label
-				className={ classNames( 'wp-block-form-input__label', {
+				className={ clsx( 'wp-block-form-input__label', {
 					'is-label-inline': inlineLabel,
 				} ) }
 			>
-				<span className="wp-block-form-input__label-content">
-					<RichText.Content value={ label } />
-				</span>
+				{ ! isCheckboxOrRadio && (
+					<span className="wp-block-form-input__label-content">
+						<RichText.Content value={ label } />
+					</span>
+				) }
 				<TagName
 					className={ inputClasses }
 					type={ 'textarea' === type ? undefined : type }
@@ -79,6 +84,11 @@ export default function save( { attributes } ) {
 					placeholder={ placeholder || undefined }
 					style={ inputStyle }
 				/>
+				{ isCheckboxOrRadio && (
+					<span className="wp-block-form-input__label-content">
+						<RichText.Content value={ label } />
+					</span>
+				) }
 			</label>
 			{ /* eslint-enable jsx-a11y/label-has-associated-control */ }
 		</div>

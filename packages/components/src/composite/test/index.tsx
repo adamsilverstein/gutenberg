@@ -1,576 +1,714 @@
 /**
  * External dependencies
  */
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { queryByAttribute, render, screen } from '@testing-library/react';
+import { click, press, waitFor } from '@ariakit/test';
+import type { ComponentProps } from 'react';
+
+/**
+ * WordPress dependencies
+ */
+import { useState } from '@wordpress/element';
 
 /**
  * Internal dependencies
  */
-import {
-	Composite as ReakitComposite,
-	CompositeGroup as ReakitCompositeGroup,
-	CompositeItem as ReakitCompositeItem,
-	useCompositeState as ReakitUseCompositeState,
-} from '..';
+import { Composite } from '..';
 
-const COMPOSITE_SUITES = {
-	reakit: {
-		Composite: ReakitComposite,
-		CompositeGroup: ReakitCompositeGroup,
-		CompositeItem: ReakitCompositeItem,
-		useCompositeState: ReakitUseCompositeState,
-	},
-};
+async function renderAndValidate( ...args: Parameters< typeof render > ) {
+	const view = render( ...args );
+	await waitFor( () => {
+		const activeButton = queryByAttribute(
+			'data-active-item',
+			view.baseElement,
+			'true'
+		);
+		expect( activeButton ).not.toBeNull();
+	} );
+	return view;
+}
 
-type InitialState = Parameters< typeof ReakitUseCompositeState >[ 0 ];
+describe( 'Composite', () => {
+	let clientHeightSpy: jest.SpiedGetter<
+		typeof HTMLElement.prototype.clientHeight
+	>;
 
-// It was decided not to test the full API, instead opting
-// to cover basic usage, with a view to adding broader support
-// for the original API should the need arise. As such we are
-// only testing here for standard usage.
-// See https://github.com/WordPress/gutenberg/pull/56645
+	beforeAll( () => {
+		// This is necessary because of how Ariakit calculates page up and
+		// page down. Without this, nothing has a height, and so paging up
+		// and down doesn't behave as expected in tests.
+		clientHeightSpy = jest
+			.spyOn( HTMLElement.prototype, 'clientHeight', 'get' )
+			.mockImplementation( function getClientHeight( this: HTMLElement ) {
+				if ( this.tagName === 'BODY' ) {
+					return window.outerHeight;
+				}
+				return 50;
+			} );
+	} );
 
-describe.each( Object.entries( COMPOSITE_SUITES ) )(
-	'Validate %s implementation',
-	( _, { Composite, CompositeGroup, CompositeItem, useCompositeState } ) => {
-		function useSpreadProps( initialState?: InitialState ) {
-			return useCompositeState( initialState );
-		}
+	afterAll( () => {
+		clientHeightSpy?.mockRestore();
+	} );
 
-		function useStateProps( initialState?: InitialState ) {
-			return {
-				state: useCompositeState( initialState ),
-			};
-		}
-
-		function OneDimensionalTest( { ...props } ) {
-			return (
-				<Composite
-					{ ...props }
-					aria-label={ expect.getState().currentTestName }
-				>
-					<CompositeItem { ...props }>Item 1</CompositeItem>
-					<CompositeItem { ...props }>Item 2</CompositeItem>
-					<CompositeItem { ...props }>Item 3</CompositeItem>
+	test( 'Renders as a single tab stop', async () => {
+		await renderAndValidate(
+			<>
+				<button>Before</button>
+				<Composite>
+					<Composite.Item>Item 1</Composite.Item>
+					<Composite.Item>Item 2</Composite.Item>
+					<Composite.Item>Item 3</Composite.Item>
 				</Composite>
-			);
-		}
+				<button>After</button>
+			</>
+		);
 
-		function getOneDimensionalItems() {
-			return {
-				item1: screen.getByText( 'Item 1' ),
-				item2: screen.getByText( 'Item 2' ),
-				item3: screen.getByText( 'Item 3' ),
-			};
-		}
+		await press.Tab();
+		expect(
+			screen.getByRole( 'button', { name: 'Before' } )
+		).toHaveFocus();
+		await press.Tab();
+		expect(
+			screen.getByRole( 'button', { name: 'Item 1' } )
+		).toHaveFocus();
+		await press.Tab();
+		expect( screen.getByRole( 'button', { name: 'After' } ) ).toHaveFocus();
+		await press.ShiftTab();
+		expect(
+			screen.getByRole( 'button', { name: 'Item 1' } )
+		).toHaveFocus();
+	} );
 
-		function TwoDimensionalTest( { ...props } ) {
+	test( 'Excludes disabled items', async () => {
+		await renderAndValidate(
+			<Composite>
+				<Composite.Item>Item 1</Composite.Item>
+				<Composite.Item disabled>Item 2</Composite.Item>
+				<Composite.Item>Item 3</Composite.Item>
+			</Composite>
+		);
+
+		const item1 = screen.getByRole( 'button', { name: 'Item 1' } );
+		const item2 = screen.getByRole( 'button', { name: 'Item 2' } );
+		const item3 = screen.getByRole( 'button', { name: 'Item 3' } );
+
+		expect( item2 ).toBeDisabled();
+
+		await press.Tab();
+		expect( item1 ).toHaveFocus();
+		await press.ArrowDown();
+		expect( item2 ).not.toHaveFocus();
+		expect( item3 ).toHaveFocus();
+	} );
+
+	test( 'Includes focusable disabled items', async () => {
+		await renderAndValidate(
+			<Composite>
+				<Composite.Item>Item 1</Composite.Item>
+				<Composite.Item disabled accessibleWhenDisabled>
+					Item 2
+				</Composite.Item>
+				<Composite.Item>Item 3</Composite.Item>
+			</Composite>
+		);
+
+		const item1 = screen.getByRole( 'button', { name: 'Item 1' } );
+		const item2 = screen.getByRole( 'button', { name: 'Item 2' } );
+		const item3 = screen.getByRole( 'button', { name: 'Item 3' } );
+
+		expect( item2 ).toBeEnabled();
+		expect( item2 ).toHaveAttribute( 'aria-disabled', 'true' );
+
+		await press.Tab();
+		expect( item1 ).toHaveFocus();
+		await press.ArrowDown();
+		expect( item2 ).toHaveFocus();
+		expect( item3 ).not.toHaveFocus();
+	} );
+
+	test( 'Supports `activeId`', async () => {
+		/* eslint-disable no-restricted-syntax */
+		await renderAndValidate(
+			<Composite activeId="item-2">
+				<Composite.Item id="item-1">Item 1</Composite.Item>
+				<Composite.Item id="item-2">Item 2</Composite.Item>
+				<Composite.Item id="item-3">Item 3</Composite.Item>
+			</Composite>
+		);
+		/* eslint-enable no-restricted-syntax */
+
+		const item2 = screen.getByRole( 'button', { name: 'Item 2' } );
+
+		await press.Tab();
+		await waitFor( () => expect( item2 ).toHaveFocus() );
+	} );
+
+	it( 'should remain focusable even when there are no elements in the DOM associated with the currently active ID', async () => {
+		const RemoveItemTest = (
+			props: ComponentProps< typeof Composite >
+		) => {
+			const [ showThirdItem, setShowThirdItem ] = useState( true );
 			return (
-				<Composite
-					{ ...props }
-					aria-label={ expect.getState().currentTestName }
-				>
-					<CompositeGroup role="row" { ...props }>
-						<CompositeItem { ...props }>Item A1</CompositeItem>
-						<CompositeItem { ...props }>Item A2</CompositeItem>
-						<CompositeItem { ...props }>Item A3</CompositeItem>
-					</CompositeGroup>
-					<CompositeGroup role="row" { ...props }>
-						<CompositeItem { ...props }>Item B1</CompositeItem>
-						<CompositeItem { ...props }>Item B2</CompositeItem>
-						<CompositeItem { ...props }>Item B3</CompositeItem>
-					</CompositeGroup>
-					<CompositeGroup role="row" { ...props }>
-						<CompositeItem { ...props }>Item C1</CompositeItem>
-						<CompositeItem { ...props }>Item C2</CompositeItem>
-						<CompositeItem { ...props }>Item C3</CompositeItem>
-					</CompositeGroup>
-				</Composite>
+				<>
+					<button>Focus trap before composite</button>
+					<Composite { ...props }>
+						<Composite.Item>Item 1</Composite.Item>
+						<Composite.Item>Item 2</Composite.Item>
+						{ showThirdItem && (
+							<Composite.Item>Item 3</Composite.Item>
+						) }
+					</Composite>
+					<button
+						onClick={ () =>
+							setShowThirdItem( ( value ) => ! value )
+						}
+					>
+						Toggle third item
+					</button>
+				</>
 			);
-		}
+		};
 
-		function getTwoDimensionalItems() {
-			return {
-				itemA1: screen.getByText( 'Item A1' ),
-				itemA2: screen.getByText( 'Item A2' ),
-				itemA3: screen.getByText( 'Item A3' ),
-				itemB1: screen.getByText( 'Item B1' ),
-				itemB2: screen.getByText( 'Item B2' ),
-				itemB3: screen.getByText( 'Item B3' ),
-				itemC1: screen.getByText( 'Item C1' ),
-				itemC2: screen.getByText( 'Item C2' ),
-				itemC3: screen.getByText( 'Item C3' ),
-			};
-		}
+		await renderAndValidate( <RemoveItemTest /> );
 
-		function ShiftTest( { ...props } ) {
-			return (
-				<Composite
-					{ ...props }
-					aria-label={ expect.getState().currentTestName }
-				>
-					<CompositeGroup role="row" { ...props }>
-						<CompositeItem { ...props }>Item A1</CompositeItem>
-					</CompositeGroup>
-					<CompositeGroup role="row" { ...props }>
-						<CompositeItem { ...props }>Item B1</CompositeItem>
-						<CompositeItem { ...props }>Item B2</CompositeItem>
-					</CompositeGroup>
-					<CompositeGroup role="row" { ...props }>
-						<CompositeItem { ...props }>Item C1</CompositeItem>
-						<CompositeItem { ...props } disabled>
-							Item C2
-						</CompositeItem>
-					</CompositeGroup>
-				</Composite>
-			);
-		}
+		const toggleButton = screen.getByRole( 'button', {
+			name: 'Toggle third item',
+		} );
 
-		function getShiftTestItems() {
-			return {
-				itemA1: screen.getByText( 'Item A1' ),
-				itemB1: screen.getByText( 'Item B1' ),
-				itemB2: screen.getByText( 'Item B2' ),
-				itemC1: screen.getByText( 'Item C1' ),
-				itemC2: screen.getByText( 'Item C2' ),
-			};
-		}
+		await press.Tab();
+		await press.Tab();
 
-		describe.each( [
-			[ 'With spread state', useSpreadProps ],
-			[ 'With `state` prop', useStateProps ],
-		] )( '%s', ( __, useProps ) => {
-			function useOneDimensionalTest( initialState?: InitialState ) {
-				const Test = () => (
-					<OneDimensionalTest { ...useProps( initialState ) } />
+		expect(
+			screen.getByRole( 'button', { name: 'Item 1' } )
+		).toHaveFocus();
+
+		await press.ArrowRight();
+		await press.ArrowRight();
+
+		expect(
+			screen.getByRole( 'button', { name: 'Item 3' } )
+		).toHaveFocus();
+
+		await click( toggleButton );
+
+		expect(
+			screen.queryByRole( 'button', { name: 'Item 3' } )
+		).not.toBeInTheDocument();
+
+		await press.ShiftTab();
+
+		expect(
+			screen.getByRole( 'button', { name: 'Item 2' } )
+		).toHaveFocus();
+
+		await click( toggleButton );
+
+		expect(
+			screen.getByRole( 'button', { name: 'Item 3' } )
+		).toBeVisible();
+
+		await press.ShiftTab();
+
+		expect(
+			screen.getByRole( 'button', { name: 'Item 2' } )
+		).toHaveFocus();
+
+		await press.ArrowRight();
+
+		expect(
+			screen.getByRole( 'button', { name: 'Item 3' } )
+		).toHaveFocus();
+	} );
+
+	describe.each( [
+		[ 'When LTR', false ],
+		[ 'When RTL', true ],
+	] )( '%s', ( _when, rtl ) => {
+		const previousArrowKey = rtl ? 'ArrowRight' : 'ArrowLeft';
+		const nextArrowKey = rtl ? 'ArrowLeft' : 'ArrowRight';
+		const firstArrowKey = rtl ? 'End' : 'Home';
+		const lastArrowKey = rtl ? 'Home' : 'End';
+
+		describe( 'In one dimension', () => {
+			test( 'All directions work with no orientation', async () => {
+				await renderAndValidate(
+					<Composite rtl={ rtl }>
+						<Composite.Item>Item 1</Composite.Item>
+						<Composite.Item>Item 2</Composite.Item>
+						<Composite.Item>Item 3</Composite.Item>
+					</Composite>
 				);
-				render( <Test /> );
-				return getOneDimensionalItems();
-			}
 
-			test( 'Renders as a single tab stop', async () => {
-				const user = userEvent.setup();
-				const Test = () => (
-					<>
-						<button>Before</button>
-						<OneDimensionalTest { ...useProps() } />
-						<button>After</button>
-					</>
-				);
-				render( <Test /> );
+				const item1 = screen.getByRole( 'button', { name: 'Item 1' } );
+				const item2 = screen.getByRole( 'button', { name: 'Item 2' } );
+				const item3 = screen.getByRole( 'button', { name: 'Item 3' } );
 
-				await user.tab();
-				expect( screen.getByText( 'Before' ) ).toHaveFocus();
-				await user.tab();
-				expect( screen.getByText( 'Item 1' ) ).toHaveFocus();
-				await user.tab();
-				expect( screen.getByText( 'After' ) ).toHaveFocus();
-				await user.tab( { shift: true } );
-				expect( screen.getByText( 'Item 1' ) ).toHaveFocus();
+				await press.Tab();
+				expect( item1 ).toHaveFocus();
+				await press.ArrowDown();
+				expect( item2 ).toHaveFocus();
+				await press.ArrowDown();
+				expect( item3 ).toHaveFocus();
+				await press.ArrowDown();
+				expect( item3 ).toHaveFocus();
+				await press.ArrowUp();
+				expect( item2 ).toHaveFocus();
+				await press.ArrowUp();
+				expect( item1 ).toHaveFocus();
+				await press.ArrowUp();
+				expect( item1 ).toHaveFocus();
+				await press( nextArrowKey );
+				expect( item2 ).toHaveFocus();
+				await press( nextArrowKey );
+				expect( item3 ).toHaveFocus();
+				await press( previousArrowKey );
+				expect( item2 ).toHaveFocus();
+				await press( previousArrowKey );
+				expect( item1 ).toHaveFocus();
+				await press.End();
+				expect( item3 ).toHaveFocus();
+				await press.Home();
+				expect( item1 ).toHaveFocus();
+				await press.PageDown();
+				expect( item3 ).toHaveFocus();
+				await press.PageUp();
+				expect( item1 ).toHaveFocus();
 			} );
 
-			test( 'Excludes disabled items', async () => {
-				const user = userEvent.setup();
-				const Test = () => {
-					const props = useProps();
-					return (
-						<Composite
-							{ ...props }
-							aria-label={ expect.getState().currentTestName }
-						>
-							<CompositeItem { ...props }>Item 1</CompositeItem>
-							<CompositeItem { ...props } disabled>
-								Item 2
-							</CompositeItem>
-							<CompositeItem { ...props }>Item 3</CompositeItem>
-						</Composite>
-					);
-				};
-				render( <Test /> );
+			test( 'Only left/right work with horizontal orientation', async () => {
+				await renderAndValidate(
+					<Composite rtl={ rtl } orientation="horizontal">
+						<Composite.Item>Item 1</Composite.Item>
+						<Composite.Item>Item 2</Composite.Item>
+						<Composite.Item>Item 3</Composite.Item>
+					</Composite>
+				);
 
-				const { item1, item2, item3 } = getOneDimensionalItems();
+				const item1 = screen.getByRole( 'button', { name: 'Item 1' } );
+				const item2 = screen.getByRole( 'button', { name: 'Item 2' } );
+				const item3 = screen.getByRole( 'button', { name: 'Item 3' } );
 
-				expect( item2 ).toBeDisabled();
-
-				await user.tab();
+				await press.Tab();
 				expect( item1 ).toHaveFocus();
-				await user.keyboard( '[ArrowDown]' );
-				expect( item2 ).not.toHaveFocus();
+				await press.ArrowDown();
+				expect( item1 ).toHaveFocus();
+				await press( nextArrowKey );
+				expect( item2 ).toHaveFocus();
+				await press( nextArrowKey );
+				expect( item3 ).toHaveFocus();
+				await press.ArrowUp();
+				expect( item3 ).toHaveFocus();
+				await press( previousArrowKey );
+				expect( item2 ).toHaveFocus();
+				await press( previousArrowKey );
+				expect( item1 ).toHaveFocus();
+				await press.End();
+				expect( item3 ).toHaveFocus();
+				await press.Home();
+				expect( item1 ).toHaveFocus();
+				await press.PageDown();
+				expect( item3 ).toHaveFocus();
+				await press.PageUp();
+				expect( item1 ).toHaveFocus();
+			} );
+
+			test( 'Only up/down work with vertical orientation', async () => {
+				await renderAndValidate(
+					<Composite rtl={ rtl } orientation="vertical">
+						<Composite.Item>Item 1</Composite.Item>
+						<Composite.Item>Item 2</Composite.Item>
+						<Composite.Item>Item 3</Composite.Item>
+					</Composite>
+				);
+
+				const item1 = screen.getByRole( 'button', { name: 'Item 1' } );
+				const item2 = screen.getByRole( 'button', { name: 'Item 2' } );
+				const item3 = screen.getByRole( 'button', { name: 'Item 3' } );
+
+				await press.Tab();
+				expect( item1 ).toHaveFocus();
+				await press( nextArrowKey );
+				expect( item1 ).toHaveFocus();
+				await press.ArrowDown();
+				expect( item2 ).toHaveFocus();
+				await press.ArrowDown();
+				expect( item3 ).toHaveFocus();
+				await press( previousArrowKey );
+				expect( item3 ).toHaveFocus();
+				await press.ArrowUp();
+				expect( item2 ).toHaveFocus();
+				await press.ArrowUp();
+				expect( item1 ).toHaveFocus();
+				await press.End();
+				expect( item3 ).toHaveFocus();
+				await press.Home();
+				expect( item1 ).toHaveFocus();
+				await press.PageDown();
+				expect( item3 ).toHaveFocus();
+				await press.PageUp();
+				expect( item1 ).toHaveFocus();
+			} );
+
+			test( 'Focus wraps with loop enabled', async () => {
+				await renderAndValidate(
+					<Composite rtl={ rtl } focusLoop>
+						<Composite.Item>Item 1</Composite.Item>
+						<Composite.Item>Item 2</Composite.Item>
+						<Composite.Item>Item 3</Composite.Item>
+					</Composite>
+				);
+
+				const item1 = screen.getByRole( 'button', { name: 'Item 1' } );
+				const item2 = screen.getByRole( 'button', { name: 'Item 2' } );
+				const item3 = screen.getByRole( 'button', { name: 'Item 3' } );
+
+				await press.Tab();
+				expect( item1 ).toHaveFocus();
+				await press.ArrowDown();
+				expect( item2 ).toHaveFocus();
+				await press.ArrowDown();
+				expect( item3 ).toHaveFocus();
+				await press.ArrowDown();
+				expect( item1 ).toHaveFocus();
+				await press.ArrowUp();
+				expect( item3 ).toHaveFocus();
+				await press( nextArrowKey );
+				expect( item1 ).toHaveFocus();
+				await press( previousArrowKey );
 				expect( item3 ).toHaveFocus();
 			} );
-
-			test( 'Includes focusable disabled items', async () => {
-				const user = userEvent.setup();
-				const Test = () => {
-					const props = useProps();
-					return (
-						<Composite
-							{ ...props }
-							aria-label={ expect.getState().currentTestName }
-						>
-							<CompositeItem { ...props }>Item 1</CompositeItem>
-							<CompositeItem { ...props } disabled focusable>
-								Item 2
-							</CompositeItem>
-							<CompositeItem { ...props }>Item 3</CompositeItem>
-						</Composite>
-					);
-				};
-				render( <Test /> );
-				const { item1, item2, item3 } = getOneDimensionalItems();
-
-				expect( item2 ).toBeEnabled();
-				expect( item2 ).toHaveAttribute( 'aria-disabled', 'true' );
-
-				await user.tab();
-				expect( item1 ).toHaveFocus();
-				await user.keyboard( '[ArrowDown]' );
-				expect( item2 ).toHaveFocus();
-				expect( item3 ).not.toHaveFocus();
-			} );
-
-			test( 'Supports `baseId`', async () => {
-				const { item1, item2, item3 } = useOneDimensionalTest( {
-					baseId: 'test-id',
-				} );
-
-				expect( item1.id ).toMatch( 'test-id-1' );
-				expect( item2.id ).toMatch( 'test-id-2' );
-				expect( item3.id ).toMatch( 'test-id-3' );
-			} );
-
-			test( 'Supports `currentId`', async () => {
-				const user = userEvent.setup();
-				const { item2 } = useOneDimensionalTest( {
-					baseId: 'test-id',
-					currentId: 'test-id-2',
-				} );
-
-				await user.tab();
-				expect( item2 ).toHaveFocus();
-			} );
 		} );
 
-		describe.each( [
-			[
-				'When LTR',
-				false,
-				{ previous: 'ArrowLeft', next: 'ArrowRight' },
-			],
-			[ 'When RTL', true, { previous: 'ArrowRight', next: 'ArrowLeft' } ],
-		] )( '%s', ( _when, rtl, { previous, next } ) => {
-			function useOneDimensionalTest( initialState?: InitialState ) {
-				const Test = () => (
-					<OneDimensionalTest { ...useStateProps( initialState ) } />
+		describe( 'In two dimensions', () => {
+			test( 'All directions work as standard', async () => {
+				await renderAndValidate(
+					<Composite rtl={ rtl }>
+						<Composite.Row>
+							<Composite.Item>Item A1</Composite.Item>
+							<Composite.Item>Item A2</Composite.Item>
+							<Composite.Item>Item A3</Composite.Item>
+						</Composite.Row>
+						<Composite.Row>
+							<Composite.Item>Item B1</Composite.Item>
+							<Composite.Item>Item B2</Composite.Item>
+							<Composite.Item>Item B3</Composite.Item>
+						</Composite.Row>
+						<Composite.Row>
+							<Composite.Item>Item C1</Composite.Item>
+							<Composite.Item>Item C2</Composite.Item>
+							<Composite.Item>Item C3</Composite.Item>
+						</Composite.Row>
+					</Composite>
 				);
-				render( <Test /> );
-				return getOneDimensionalItems();
-			}
 
-			function useTwoDimensionalTest( initialState?: InitialState ) {
-				const Test = () => (
-					<TwoDimensionalTest { ...useStateProps( initialState ) } />
-				);
-				render( <Test /> );
-				return getTwoDimensionalItems();
-			}
-
-			function useShiftTest( shift: boolean ) {
-				const Test = () => (
-					<ShiftTest { ...useStateProps( { rtl, shift } ) } />
-				);
-				render( <Test /> );
-				return getShiftTestItems();
-			}
-
-			describe( 'In one dimension', () => {
-				test( 'All directions work with no orientation', async () => {
-					const user = userEvent.setup();
-					const { item1, item2, item3 } = useOneDimensionalTest( {
-						rtl,
-					} );
-
-					await user.tab();
-					expect( item1 ).toHaveFocus();
-					await user.keyboard( '[ArrowDown]' );
-					expect( item2 ).toHaveFocus();
-					await user.keyboard( '[ArrowDown]' );
-					expect( item3 ).toHaveFocus();
-					await user.keyboard( '[ArrowDown]' );
-					expect( item3 ).toHaveFocus();
-					await user.keyboard( '[ArrowUp]' );
-					expect( item2 ).toHaveFocus();
-					await user.keyboard( '[ArrowUp]' );
-					expect( item1 ).toHaveFocus();
-					await user.keyboard( '[ArrowUp]' );
-					expect( item1 ).toHaveFocus();
-					await user.keyboard( `[${ next }]` );
-					expect( item2 ).toHaveFocus();
-					await user.keyboard( `[${ next }]` );
-					expect( item3 ).toHaveFocus();
-					await user.keyboard( `[${ previous }]` );
-					expect( item2 ).toHaveFocus();
-					await user.keyboard( `[${ previous }]` );
-					expect( item1 ).toHaveFocus();
-					await user.keyboard( '[End]' );
-					expect( item3 ).toHaveFocus();
-					await user.keyboard( '[Home]' );
-					expect( item1 ).toHaveFocus();
-					await user.keyboard( '[PageDown]' );
-					expect( item3 ).toHaveFocus();
-					await user.keyboard( '[PageUp]' );
-					expect( item1 ).toHaveFocus();
+				const itemA1 = screen.getByRole( 'button', {
+					name: 'Item A1',
+				} );
+				const itemA2 = screen.getByRole( 'button', {
+					name: 'Item A2',
+				} );
+				const itemA3 = screen.getByRole( 'button', {
+					name: 'Item A3',
+				} );
+				const itemB1 = screen.getByRole( 'button', {
+					name: 'Item B1',
+				} );
+				const itemB2 = screen.getByRole( 'button', {
+					name: 'Item B2',
+				} );
+				const itemC1 = screen.getByRole( 'button', {
+					name: 'Item C1',
+				} );
+				const itemC3 = screen.getByRole( 'button', {
+					name: 'Item C3',
 				} );
 
-				test( 'Only left/right work with horizontal orientation', async () => {
-					const user = userEvent.setup();
-					const { item1, item2, item3 } = useOneDimensionalTest( {
-						rtl,
-						orientation: 'horizontal',
-					} );
-
-					await user.tab();
-					expect( item1 ).toHaveFocus();
-					await user.keyboard( '[ArrowDown]' );
-					expect( item1 ).toHaveFocus();
-					await user.keyboard( `[${ next }]` );
-					expect( item2 ).toHaveFocus();
-					await user.keyboard( `[${ next }]` );
-					expect( item3 ).toHaveFocus();
-					await user.keyboard( '[ArrowUp]' );
-					expect( item3 ).toHaveFocus();
-					await user.keyboard( `[${ previous }]` );
-					expect( item2 ).toHaveFocus();
-					await user.keyboard( `[${ previous }]` );
-					expect( item1 ).toHaveFocus();
-					await user.keyboard( '[End]' );
-					expect( item3 ).toHaveFocus();
-					await user.keyboard( '[Home]' );
-					expect( item1 ).toHaveFocus();
-					await user.keyboard( '[PageDown]' );
-					expect( item3 ).toHaveFocus();
-					await user.keyboard( '[PageUp]' );
-					expect( item1 ).toHaveFocus();
-				} );
-
-				test( 'Only up/down work with vertical orientation', async () => {
-					const user = userEvent.setup();
-					const { item1, item2, item3 } = useOneDimensionalTest( {
-						rtl,
-						orientation: 'vertical',
-					} );
-
-					await user.tab();
-					expect( item1 ).toHaveFocus();
-					await user.keyboard( `[${ next }]` );
-					expect( item1 ).toHaveFocus();
-					await user.keyboard( '[ArrowDown]' );
-					expect( item2 ).toHaveFocus();
-					await user.keyboard( '[ArrowDown]' );
-					expect( item3 ).toHaveFocus();
-					await user.keyboard( `[${ previous }]` );
-					expect( item3 ).toHaveFocus();
-					await user.keyboard( '[ArrowUp]' );
-					expect( item2 ).toHaveFocus();
-					await user.keyboard( '[ArrowUp]' );
-					expect( item1 ).toHaveFocus();
-					await user.keyboard( '[End]' );
-					expect( item3 ).toHaveFocus();
-					await user.keyboard( '[Home]' );
-					expect( item1 ).toHaveFocus();
-					await user.keyboard( '[PageDown]' );
-					expect( item3 ).toHaveFocus();
-					await user.keyboard( '[PageUp]' );
-					expect( item1 ).toHaveFocus();
-				} );
-
-				test( 'Focus wraps with loop enabled', async () => {
-					const user = userEvent.setup();
-					const { item1, item2, item3 } = useOneDimensionalTest( {
-						rtl,
-						loop: true,
-					} );
-
-					await user.tab();
-					expect( item1 ).toHaveFocus();
-					await user.keyboard( '[ArrowDown]' );
-					expect( item2 ).toHaveFocus();
-					await user.keyboard( '[ArrowDown]' );
-					expect( item3 ).toHaveFocus();
-					await user.keyboard( '[ArrowDown]' );
-					expect( item1 ).toHaveFocus();
-					await user.keyboard( '[ArrowUp]' );
-					expect( item3 ).toHaveFocus();
-					await user.keyboard( `[${ next }]` );
-					expect( item1 ).toHaveFocus();
-					await user.keyboard( `[${ previous }]` );
-					expect( item3 ).toHaveFocus();
-				} );
+				await press.Tab();
+				expect( itemA1 ).toHaveFocus();
+				await press.ArrowUp();
+				expect( itemA1 ).toHaveFocus();
+				await press( previousArrowKey );
+				expect( itemA1 ).toHaveFocus();
+				await press.ArrowDown();
+				expect( itemB1 ).toHaveFocus();
+				await press( nextArrowKey );
+				expect( itemB2 ).toHaveFocus();
+				await press.ArrowUp();
+				expect( itemA2 ).toHaveFocus();
+				await press( previousArrowKey );
+				expect( itemA1 ).toHaveFocus();
+				await press( lastArrowKey );
+				expect( itemA3 ).toHaveFocus();
+				await press.PageDown();
+				expect( itemC3 ).toHaveFocus();
+				await press( nextArrowKey );
+				expect( itemC3 ).toHaveFocus();
+				await press.ArrowDown();
+				expect( itemC3 ).toHaveFocus();
+				await press( firstArrowKey );
+				expect( itemC1 ).toHaveFocus();
+				await press.PageUp();
+				expect( itemA1 ).toHaveFocus();
+				await press.End( null, { ctrlKey: true } );
+				expect( itemC3 ).toHaveFocus();
+				await press.Home( null, { ctrlKey: true } );
+				expect( itemA1 ).toHaveFocus();
 			} );
 
-			describe( 'In two dimensions', () => {
-				test( 'All directions work as standard', async () => {
-					const user = userEvent.setup();
-					const {
-						itemA1,
-						itemA2,
-						itemA3,
-						itemB1,
-						itemB2,
-						itemC1,
-						itemC3,
-					} = useTwoDimensionalTest( { rtl } );
+			test( 'Focus wraps around rows/columns with loop enabled', async () => {
+				await renderAndValidate(
+					<Composite rtl={ rtl } focusLoop>
+						<Composite.Row>
+							<Composite.Item>Item A1</Composite.Item>
+							<Composite.Item>Item A2</Composite.Item>
+							<Composite.Item>Item A3</Composite.Item>
+						</Composite.Row>
+						<Composite.Row>
+							<Composite.Item>Item B1</Composite.Item>
+							<Composite.Item>Item B2</Composite.Item>
+							<Composite.Item>Item B3</Composite.Item>
+						</Composite.Row>
+						<Composite.Row>
+							<Composite.Item>Item C1</Composite.Item>
+							<Composite.Item>Item C2</Composite.Item>
+							<Composite.Item>Item C3</Composite.Item>
+						</Composite.Row>
+					</Composite>
+				);
 
-					await user.tab();
-					expect( itemA1 ).toHaveFocus();
-					await user.keyboard( '[ArrowUp]' );
-					expect( itemA1 ).toHaveFocus();
-					await user.keyboard( `[${ previous }]` );
-					expect( itemA1 ).toHaveFocus();
-					await user.keyboard( '[ArrowDown]' );
-					expect( itemB1 ).toHaveFocus();
-					await user.keyboard( `[${ next }]` );
-					expect( itemB2 ).toHaveFocus();
-					await user.keyboard( '[ArrowUp]' );
-					expect( itemA2 ).toHaveFocus();
-					await user.keyboard( `[${ previous }]` );
-					expect( itemA1 ).toHaveFocus();
-					await user.keyboard( '[End]' );
-					expect( itemA3 ).toHaveFocus();
-					await user.keyboard( '[PageDown]' );
-					expect( itemC3 ).toHaveFocus();
-					await user.keyboard( `[${ next }]` );
-					expect( itemC3 ).toHaveFocus();
-					await user.keyboard( '[ArrowDown]' );
-					expect( itemC3 ).toHaveFocus();
-					await user.keyboard( '[Home]' );
-					expect( itemC1 ).toHaveFocus();
-					await user.keyboard( '[PageUp]' );
-					expect( itemA1 ).toHaveFocus();
-					await user.keyboard( '{Control>}[End]{/Control}' );
-					expect( itemC3 ).toHaveFocus();
-					await user.keyboard( '{Control>}[Home]{/Control}' );
-					expect( itemA1 ).toHaveFocus();
+				const itemA1 = screen.getByRole( 'button', {
+					name: 'Item A1',
+				} );
+				const itemA2 = screen.getByRole( 'button', {
+					name: 'Item A2',
+				} );
+				const itemA3 = screen.getByRole( 'button', {
+					name: 'Item A3',
+				} );
+				const itemB1 = screen.getByRole( 'button', {
+					name: 'Item B1',
+				} );
+				const itemC1 = screen.getByRole( 'button', {
+					name: 'Item C1',
+				} );
+				const itemC3 = screen.getByRole( 'button', {
+					name: 'Item C3',
 				} );
 
-				test( 'Focus wraps around rows/columns with loop enabled', async () => {
-					const user = userEvent.setup();
-					const { itemA1, itemA2, itemA3, itemB1, itemC1, itemC3 } =
-						useTwoDimensionalTest( { rtl, loop: true } );
+				await press.Tab();
+				expect( itemA1 ).toHaveFocus();
+				await press( nextArrowKey );
+				expect( itemA2 ).toHaveFocus();
+				await press( nextArrowKey );
+				expect( itemA3 ).toHaveFocus();
+				await press( nextArrowKey );
+				expect( itemA1 ).toHaveFocus();
+				await press.ArrowDown();
+				expect( itemB1 ).toHaveFocus();
+				await press.ArrowDown();
+				expect( itemC1 ).toHaveFocus();
+				await press.ArrowDown();
+				expect( itemA1 ).toHaveFocus();
+				await press( previousArrowKey );
+				expect( itemA3 ).toHaveFocus();
+				await press.ArrowUp();
+				expect( itemC3 ).toHaveFocus();
+			} );
 
-					await user.tab();
-					expect( itemA1 ).toHaveFocus();
-					await user.keyboard( `[${ next }]` );
-					expect( itemA2 ).toHaveFocus();
-					await user.keyboard( `[${ next }]` );
-					expect( itemA3 ).toHaveFocus();
-					await user.keyboard( `[${ next }]` );
-					expect( itemA1 ).toHaveFocus();
-					await user.keyboard( '[ArrowDown]' );
-					expect( itemB1 ).toHaveFocus();
-					await user.keyboard( '[ArrowDown]' );
-					expect( itemC1 ).toHaveFocus();
-					await user.keyboard( '[ArrowDown]' );
-					expect( itemA1 ).toHaveFocus();
-					await user.keyboard( `[${ previous }]` );
-					expect( itemA3 ).toHaveFocus();
-					await user.keyboard( '[ArrowUp]' );
-					expect( itemC3 ).toHaveFocus();
+			test( 'Focus moves between rows/columns with wrap enabled', async () => {
+				await renderAndValidate(
+					<Composite rtl={ rtl } focusWrap>
+						<Composite.Row>
+							<Composite.Item>Item A1</Composite.Item>
+							<Composite.Item>Item A2</Composite.Item>
+							<Composite.Item>Item A3</Composite.Item>
+						</Composite.Row>
+						<Composite.Row>
+							<Composite.Item>Item B1</Composite.Item>
+							<Composite.Item>Item B2</Composite.Item>
+							<Composite.Item>Item B3</Composite.Item>
+						</Composite.Row>
+						<Composite.Row>
+							<Composite.Item>Item C1</Composite.Item>
+							<Composite.Item>Item C2</Composite.Item>
+							<Composite.Item>Item C3</Composite.Item>
+						</Composite.Row>
+					</Composite>
+				);
+
+				const itemA1 = screen.getByRole( 'button', {
+					name: 'Item A1',
+				} );
+				const itemA2 = screen.getByRole( 'button', {
+					name: 'Item A2',
+				} );
+				const itemA3 = screen.getByRole( 'button', {
+					name: 'Item A3',
+				} );
+				const itemB1 = screen.getByRole( 'button', {
+					name: 'Item B1',
+				} );
+				const itemC1 = screen.getByRole( 'button', {
+					name: 'Item C1',
+				} );
+				const itemC3 = screen.getByRole( 'button', {
+					name: 'Item C3',
+				} );
+				await press.Tab();
+				expect( itemA1 ).toHaveFocus();
+				await press( nextArrowKey );
+				expect( itemA2 ).toHaveFocus();
+				await press( nextArrowKey );
+				expect( itemA3 ).toHaveFocus();
+				await press( nextArrowKey );
+				expect( itemB1 ).toHaveFocus();
+				await press.ArrowDown();
+				expect( itemC1 ).toHaveFocus();
+				await press.ArrowDown();
+				expect( itemA2 ).toHaveFocus();
+				await press( previousArrowKey );
+				expect( itemA1 ).toHaveFocus();
+				await press( previousArrowKey );
+				expect( itemA1 ).toHaveFocus();
+				await press.ArrowUp();
+				expect( itemA1 ).toHaveFocus();
+				await press.End( itemA1, { ctrlKey: true } );
+				expect( itemC3 ).toHaveFocus();
+				await press( nextArrowKey );
+				expect( itemC3 ).toHaveFocus();
+				await press.ArrowDown();
+				expect( itemC3 ).toHaveFocus();
+			} );
+
+			test( 'Focus wraps around start/end with loop and wrap enabled', async () => {
+				await renderAndValidate(
+					<Composite rtl={ rtl } focusLoop focusWrap>
+						<Composite.Row>
+							<Composite.Item>Item A1</Composite.Item>
+							<Composite.Item>Item A2</Composite.Item>
+							<Composite.Item>Item A3</Composite.Item>
+						</Composite.Row>
+						<Composite.Row>
+							<Composite.Item>Item B1</Composite.Item>
+							<Composite.Item>Item B2</Composite.Item>
+							<Composite.Item>Item B3</Composite.Item>
+						</Composite.Row>
+						<Composite.Row>
+							<Composite.Item>Item C1</Composite.Item>
+							<Composite.Item>Item C2</Composite.Item>
+							<Composite.Item>Item C3</Composite.Item>
+						</Composite.Row>
+					</Composite>
+				);
+
+				const itemA1 = screen.getByRole( 'button', {
+					name: 'Item A1',
+				} );
+				const itemC3 = screen.getByRole( 'button', {
+					name: 'Item C3',
 				} );
 
-				test( 'Focus moves between rows/columns with wrap enabled', async () => {
-					const user = userEvent.setup();
-					const { itemA1, itemA2, itemA3, itemB1, itemC1, itemC3 } =
-						useTwoDimensionalTest( { rtl, wrap: true } );
+				await press.Tab();
+				expect( itemA1 ).toHaveFocus();
+				await press( previousArrowKey );
+				expect( itemC3 ).toHaveFocus();
+				await press.ArrowDown();
+				expect( itemA1 ).toHaveFocus();
+				await press.ArrowUp();
+				expect( itemC3 ).toHaveFocus();
+				await press( nextArrowKey );
+				expect( itemA1 ).toHaveFocus();
+			} );
 
-					await user.tab();
-					expect( itemA1 ).toHaveFocus();
-					await user.keyboard( `[${ next }]` );
-					expect( itemA2 ).toHaveFocus();
-					await user.keyboard( `[${ next }]` );
-					expect( itemA3 ).toHaveFocus();
-					await user.keyboard( `[${ next }]` );
-					expect( itemB1 ).toHaveFocus();
-					await user.keyboard( '[ArrowDown]' );
-					expect( itemC1 ).toHaveFocus();
-					await user.keyboard( '[ArrowDown]' );
-					expect( itemA2 ).toHaveFocus();
-					await user.keyboard( `[${ previous }]` );
-					expect( itemA1 ).toHaveFocus();
-					await user.keyboard( `[${ previous }]` );
-					expect( itemA1 ).toHaveFocus();
-					await user.keyboard( '[ArrowUp]' );
-					expect( itemA1 ).toHaveFocus();
-					await user.keyboard( '{Control>}[End]{/Control}' );
-					expect( itemC3 ).toHaveFocus();
-					await user.keyboard( `[${ next }]` );
-					expect( itemC3 ).toHaveFocus();
-					await user.keyboard( '[ArrowDown]' );
-					expect( itemC3 ).toHaveFocus();
+			test( 'Focus shifts if vertical neighbor unavailable when shift enabled', async () => {
+				await renderAndValidate(
+					<Composite rtl={ rtl } focusShift>
+						<Composite.Row>
+							<Composite.Item>Item A1</Composite.Item>
+						</Composite.Row>
+						<Composite.Row>
+							<Composite.Item>Item B1</Composite.Item>
+							<Composite.Item>Item B2</Composite.Item>
+						</Composite.Row>
+						<Composite.Row>
+							<Composite.Item>Item C1</Composite.Item>
+							<Composite.Item disabled>Item C2</Composite.Item>
+						</Composite.Row>
+					</Composite>
+				);
+
+				const itemA1 = screen.getByRole( 'button', {
+					name: 'Item A1',
+				} );
+				const itemB1 = screen.getByRole( 'button', {
+					name: 'Item B1',
+				} );
+				const itemB2 = screen.getByRole( 'button', {
+					name: 'Item B2',
+				} );
+				const itemC1 = screen.getByRole( 'button', {
+					name: 'Item C1',
 				} );
 
-				test( 'Focus wraps around start/end with loop and wrap enabled', async () => {
-					const user = userEvent.setup();
-					const { itemA1, itemC3 } = useTwoDimensionalTest( {
-						rtl,
-						loop: true,
-						wrap: true,
-					} );
+				await press.Tab();
+				expect( itemA1 ).toHaveFocus();
+				await press.ArrowDown();
+				expect( itemB1 ).toHaveFocus();
+				await press( nextArrowKey );
+				expect( itemB2 ).toHaveFocus();
+				await press.ArrowUp();
+				// A2 doesn't exist
+				expect( itemA1 ).toHaveFocus();
+				await press.ArrowDown();
+				expect( itemB1 ).toHaveFocus();
+				await press( nextArrowKey );
+				expect( itemB2 ).toHaveFocus();
+				await press.ArrowDown();
+				// C2 is disabled
+				expect( itemC1 ).toHaveFocus();
+			} );
 
-					await user.tab();
-					expect( itemA1 ).toHaveFocus();
-					await user.keyboard( `[${ previous }]` );
-					expect( itemC3 ).toHaveFocus();
-					await user.keyboard( '[ArrowDown]' );
-					expect( itemA1 ).toHaveFocus();
-					await user.keyboard( '[ArrowUp]' );
-					expect( itemC3 ).toHaveFocus();
-					await user.keyboard( `[${ next }]` );
-					expect( itemA1 ).toHaveFocus();
+			test( 'Focus does not shift if vertical neighbor unavailable when shift not enabled', async () => {
+				await renderAndValidate(
+					<Composite rtl={ rtl }>
+						<Composite.Row>
+							<Composite.Item>Item A1</Composite.Item>
+						</Composite.Row>
+						<Composite.Row>
+							<Composite.Item>Item B1</Composite.Item>
+							<Composite.Item>Item B2</Composite.Item>
+						</Composite.Row>
+						<Composite.Row>
+							<Composite.Item>Item C1</Composite.Item>
+							<Composite.Item disabled>Item C2</Composite.Item>
+						</Composite.Row>
+					</Composite>
+				);
+
+				const itemA1 = screen.getByRole( 'button', {
+					name: 'Item A1',
+				} );
+				const itemB1 = screen.getByRole( 'button', {
+					name: 'Item B1',
+				} );
+				const itemB2 = screen.getByRole( 'button', {
+					name: 'Item B2',
 				} );
 
-				test( 'Focus shifts if vertical neighbour unavailable when shift enabled', async () => {
-					const user = userEvent.setup();
-					const { itemA1, itemB1, itemB2, itemC1 } =
-						useShiftTest( true );
-
-					await user.tab();
-					expect( itemA1 ).toHaveFocus();
-					await user.keyboard( '[ArrowDown]' );
-					expect( itemB1 ).toHaveFocus();
-					await user.keyboard( `[${ next }]` );
-					expect( itemB2 ).toHaveFocus();
-					await user.keyboard( '[ArrowUp]' );
-					// A2 doesn't exist
-					expect( itemA1 ).toHaveFocus();
-					await user.keyboard( '[ArrowDown]' );
-					expect( itemB1 ).toHaveFocus();
-					await user.keyboard( `[${ next }]` );
-					expect( itemB2 ).toHaveFocus();
-					await user.keyboard( '[ArrowDown]' );
-					// C2 is disabled
-					expect( itemC1 ).toHaveFocus();
-				} );
-
-				test( 'Focus does not shift if vertical neighbour unavailable when shift not enabled', async () => {
-					const user = userEvent.setup();
-					const { itemA1, itemB1, itemB2 } = useShiftTest( false );
-
-					await user.tab();
-					expect( itemA1 ).toHaveFocus();
-					await user.keyboard( '[ArrowDown]' );
-					expect( itemB1 ).toHaveFocus();
-					await user.keyboard( `[${ next }]` );
-					expect( itemB2 ).toHaveFocus();
-					await user.keyboard( '[ArrowUp]' );
-					// A2 doesn't exist
-					expect( itemB2 ).toHaveFocus();
-					await user.keyboard( '[ArrowDown]' );
-					// C2 is disabled
-					expect( itemB2 ).toHaveFocus();
-				} );
+				await press.Tab();
+				expect( itemA1 ).toHaveFocus();
+				await press.ArrowDown();
+				expect( itemB1 ).toHaveFocus();
+				await press( nextArrowKey );
+				expect( itemB2 ).toHaveFocus();
+				await press.ArrowUp();
+				// A2 doesn't exist
+				expect( itemB2 ).toHaveFocus();
+				await press.ArrowDown();
+				// C2 is disabled
+				expect( itemB2 ).toHaveFocus();
 			} );
 		} );
-	}
-);
+	} );
+} );

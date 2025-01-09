@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import classnames from 'classnames';
+import clsx from 'clsx';
 
 /**
  * WordPress dependencies
@@ -19,21 +19,22 @@ import {
 	Button,
 	privateApis as componentsPrivateApis,
 } from '@wordpress/components';
-import { useCallback } from '@wordpress/element';
-import { __, sprintf } from '@wordpress/i18n';
+import { useCallback, useRef } from '@wordpress/element';
+import { __ } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
  */
 import ColorGradientControl from '../colors-gradients/control';
 import { useColorsPerOrigin, useGradientsPerOrigin } from './hooks';
-import { getValueFromVariable, TOOLSPANEL_DROPDOWNMENU_PROPS } from './utils';
+import { getValueFromVariable, useToolsPanelDropdownMenuProps } from './utils';
 import { setImmutably } from '../../utils/object';
 import { unlock } from '../../lock-unlock';
+import { reset as resetIcon } from '@wordpress/icons';
 
 export function useHasColorPanel( settings ) {
 	const hasTextPanel = useHasTextPanel( settings );
-	const hasBackgroundPanel = useHasBackgroundPanel( settings );
+	const hasBackgroundPanel = useHasBackgroundColorPanel( settings );
 	const hasLinkPanel = useHasLinkPanel( settings );
 	const hasHeadingPanel = useHasHeadingPanel( settings );
 	const hasButtonPanel = useHasButtonPanel( settings );
@@ -97,7 +98,7 @@ export function useHasButtonPanel( settings ) {
 	);
 }
 
-export function useHasBackgroundPanel( settings ) {
+export function useHasBackgroundColorPanel( settings ) {
 	const colors = useColorsPerOrigin( settings );
 	const gradients = useGradientsPerOrigin( settings );
 	return (
@@ -116,6 +117,7 @@ function ColorToolsPanel( {
 	panelId,
 	children,
 } ) {
+	const dropdownMenuProps = useToolsPanelDropdownMenuProps();
 	const resetAll = () => {
 		const updatedValue = resetAllFilter( value );
 		onChange( updatedValue );
@@ -123,14 +125,15 @@ function ColorToolsPanel( {
 
 	return (
 		<ToolsPanel
-			label={ __( 'Color' ) }
+			label={ __( 'Elements' ) }
 			resetAll={ resetAll }
 			panelId={ panelId }
 			hasInnerWrapper
+			headingLevel={ 3 }
 			className="color-block-support-panel"
 			__experimentalFirstVisibleItemClass="first"
 			__experimentalLastVisibleItemClass="last"
-			dropdownMenuProps={ TOOLSPANEL_DROPDOWNMENU_PROPS }
+			dropdownMenuProps={ dropdownMenuProps }
 		>
 			<div className="color-block-support-panel__inner-wrapper">
 				{ children }
@@ -154,6 +157,8 @@ const popoverProps = {
 	shift: true,
 };
 
+const { Tabs } = unlock( componentsPrivateApis );
+
 const LabeledColorIndicators = ( { indicators, label } ) => (
 	<HStack justify="flex-start">
 		<ZStack isLayered={ false } offset={ -8 }>
@@ -163,10 +168,7 @@ const LabeledColorIndicators = ( { indicators, label } ) => (
 				</Flex>
 			) ) }
 		</ZStack>
-		<FlexItem
-			className="block-editor-panel-color-gradient-settings__color-name"
-			title={ label }
-		>
+		<FlexItem className="block-editor-panel-color-gradient-settings__color-name">
 			{ label }
 		</FlexItem>
 	</HStack>
@@ -206,11 +208,8 @@ function ColorPanelDropdown( {
 	panelId,
 } ) {
 	const currentTab = tabs.find( ( tab ) => tab.userValue !== undefined );
-	// Unlocking `Tabs` too early causes the `unlock` method to receive an empty
-	// object, due to circular dependencies.
-	// See https://github.com/WordPress/gutenberg/issues/52692
-	const { Tabs } = unlock( componentsPrivateApis );
-
+	const { key: firstTabKey, ...firstTab } = tabs[ 0 ] ?? {};
+	const colorGradientDropdownButtonRef = useRef( undefined );
 	return (
 		<ToolsPanelItem
 			className="block-editor-tools-panel-color-gradient-settings__item"
@@ -226,25 +225,40 @@ function ColorPanelDropdown( {
 				renderToggle={ ( { onToggle, isOpen } ) => {
 					const toggleProps = {
 						onClick: onToggle,
-						className: classnames(
+						className: clsx(
 							'block-editor-panel-color-gradient-settings__dropdown',
 							{ 'is-open': isOpen }
 						),
 						'aria-expanded': isOpen,
-						'aria-label': sprintf(
-							/* translators: %s is the type of color property, e.g., "background" */
-							__( 'Color %s styles' ),
-							label
-						),
+						ref: colorGradientDropdownButtonRef,
 					};
 
 					return (
-						<Button { ...toggleProps }>
-							<LabeledColorIndicators
-								indicators={ indicators }
-								label={ label }
-							/>
-						</Button>
+						<>
+							<Button { ...toggleProps } __next40pxDefaultSize>
+								<LabeledColorIndicators
+									indicators={ indicators }
+									label={ label }
+								/>
+							</Button>
+							{ hasValue() && (
+								<Button
+									__next40pxDefaultSize
+									label={ __( 'Reset' ) }
+									className="block-editor-panel-color-gradient-settings__reset"
+									size="small"
+									icon={ resetIcon }
+									onClick={ () => {
+										resetValue();
+										if ( isOpen ) {
+											onToggle();
+										}
+										// Return focus to parent button
+										colorGradientDropdownButtonRef.current?.focus();
+									} }
+								/>
+							) }
+						</>
 					);
 				} }
 				renderContent={ () => (
@@ -252,14 +266,15 @@ function ColorPanelDropdown( {
 						<div className="block-editor-panel-color-gradient-settings__dropdown-content">
 							{ tabs.length === 1 && (
 								<ColorPanelTab
-									{ ...tabs[ 0 ] }
+									key={ firstTabKey }
+									{ ...firstTab }
 									colorGradientControlSettings={
 										colorGradientControlSettings
 									}
 								/>
 							) }
 							{ tabs.length > 1 && (
-								<Tabs initialTabId={ currentTab?.key }>
+								<Tabs defaultTabId={ currentTab?.key }>
 									<Tabs.TabList>
 										{ tabs.map( ( tab ) => (
 											<Tabs.Tab
@@ -272,14 +287,17 @@ function ColorPanelDropdown( {
 									</Tabs.TabList>
 
 									{ tabs.map( ( tab ) => {
+										const { key: tabKey, ...restTabProps } =
+											tab;
 										return (
 											<Tabs.TabPanel
-												key={ tab.key }
-												tabId={ tab.key }
+												key={ tabKey }
+												tabId={ tabKey }
 												focusable={ false }
 											>
 												<ColorPanelTab
-													{ ...tab }
+													key={ tabKey }
+													{ ...restTabProps }
 													colorGradientControlSettings={
 														colorGradientControlSettings
 													}
@@ -339,7 +357,7 @@ export default function ColorPanel( {
 	};
 
 	// BackgroundColor
-	const showBackgroundPanel = useHasBackgroundPanel( settings );
+	const showBackgroundPanel = useHasBackgroundColorPanel( settings );
 	const backgroundColor = decodeValue( inheritedValue?.color?.background );
 	const userBackgroundColor = decodeValue( value?.color?.background );
 	const gradient = decodeValue( inheritedValue?.color?.gradient );
@@ -544,7 +562,7 @@ export default function ColorPanel( {
 			tabs: [
 				hasSolidColors && {
 					key: 'background',
-					label: __( 'Solid' ),
+					label: __( 'Color' ),
 					inheritedValue: backgroundColor,
 					setValue: setBackgroundColor,
 					userValue: userBackgroundColor,
@@ -586,7 +604,9 @@ export default function ColorPanel( {
 	].filter( Boolean );
 
 	elements.forEach( ( { name, label, showPanel } ) => {
-		if ( ! showPanel ) return;
+		if ( ! showPanel ) {
+			return;
+		}
 
 		const elementBackgroundColor = decodeValue(
 			inheritedValue?.elements?.[ name ]?.color?.background
@@ -709,19 +729,22 @@ export default function ColorPanel( {
 			onChange={ onChange }
 			panelId={ panelId }
 		>
-			{ items.map( ( item ) => (
-				<ColorPanelDropdown
-					key={ item.key }
-					{ ...item }
-					colorGradientControlSettings={ {
-						colors,
-						disableCustomColors: ! areCustomSolidsEnabled,
-						gradients,
-						disableCustomGradients: ! areCustomGradientsEnabled,
-					} }
-					panelId={ panelId }
-				/>
-			) ) }
+			{ items.map( ( item ) => {
+				const { key, ...restItem } = item;
+				return (
+					<ColorPanelDropdown
+						key={ key }
+						{ ...restItem }
+						colorGradientControlSettings={ {
+							colors,
+							disableCustomColors: ! areCustomSolidsEnabled,
+							gradients,
+							disableCustomGradients: ! areCustomGradientsEnabled,
+						} }
+						panelId={ panelId }
+					/>
+				);
+			} ) }
 			{ children }
 		</Wrapper>
 	);

@@ -88,7 +88,7 @@ const LABEL_TYPE_MAPPING = {
 };
 
 /**
- * Mapping of label names to arbitary features in the release notes.
+ * Mapping of label names to arbitrary features in the release notes.
  *
  * Mapping a given label to a feature will guarantee it will be categorised
  * under that feature name in the changelog within each section.
@@ -108,6 +108,7 @@ const LABEL_FEATURE_MAPPING = {
 	'[Feature] Patterns': 'Patterns',
 	'[Feature] Blocks': 'Block Library',
 	'[Feature] Inserter': 'Block Editor',
+	'[Feature] Interactivity API': 'Interactivity API',
 	'[Feature] Drag and Drop': 'Block Editor',
 	'[Feature] Block Multi Selection': 'Block Editor',
 	'[Feature] Link Editing': 'Block Editor',
@@ -273,7 +274,7 @@ function mapLabelsToFeatures( labels ) {
  *
  * @param {string[]} labels Label names.
  *
- * @return {boolean} whether or not the issue's is labbeled as block specific
+ * @return {boolean} whether or not the issue's is labeled as block specific
  */
 function getIsBlockSpecificIssue( labels ) {
 	return !! labels.find( ( label ) => label.startsWith( '[Block] ' ) );
@@ -342,7 +343,7 @@ function getIssueFeature( issue ) {
 
 	// 1. Prefer explicit mapping of label to feature.
 	if ( featureCandidates.length ) {
-		// Get occurances of the feature labels.
+		// Get occurrences of the feature labels.
 		const featureCounts = featureCandidates.reduce(
 			/**
 			 * @param {Record<string,number>} acc     Accumulator
@@ -605,11 +606,11 @@ function getEntry( issue ) {
 
 /**
  * Builds a formatted string of the Issue/PR title with a link
- * to the Github URL for that item.
+ * to the GitHub URL for that item.
  *
  * @param {string} title  the title of the Issue/PR.
  * @param {number} number the ID/number of the Issue/PR.
- * @param {string} url    the URL of the Github Issue/PR.
+ * @param {string} url    the URL of the GitHub Issue/PR.
  * @return {string} the formatted item
  */
 function getFormattedItemDescription( title, number, url ) {
@@ -855,7 +856,7 @@ function sortFeatureGroups( featureGroups ) {
 }
 
 /**
- * Returns a list of PRs created by first time contributors based on the Github
+ * Returns a list of PRs created by first time contributors based on the GitHub
  * label associated with the PR. Also filters out any "bots".
  *
  * @param {IssuesListForRepoResponseItem[]} pullRequests List of pull requests.
@@ -940,7 +941,7 @@ function skipCreatedByBots( pullRequests ) {
 }
 
 /**
- * Produces the formatted markdown for the contributor props seciton.
+ * Produces the formatted markdown for the contributor props section.
  *
  * @param {IssuesListForRepoResponseItem[]} pullRequests List of pull requests.
  *
@@ -960,9 +961,9 @@ function getContributorProps( pullRequests ) {
 	}
 
 	return (
-		'## First time contributors' +
+		'## First-time contributors' +
 		'\n\n' +
-		'The following PRs were merged by first time contributors:' +
+		'The following PRs were merged by first-time contributors:' +
 		'\n\n' +
 		contributorsList
 	);

@@ -10,9 +10,9 @@ const TIMEZONES = [ 'Pacific/Honolulu', 'UTC', 'Australia/Sydney' ];
 test.describe( 'Scheduling', () => {
 	TIMEZONES.forEach( ( timezone ) => {
 		test.describe( `Timezone ${ timezone }`, () => {
-			let orignalTimezone;
+			let originalTimezone;
 			test.beforeAll( async ( { requestUtils } ) => {
-				orignalTimezone = ( await requestUtils.getSiteSettings() )
+				originalTimezone = ( await requestUtils.getSiteSettings() )
 					.timezone;
 
 				await requestUtils.updateSiteSettings( { timezone } );
@@ -20,7 +20,7 @@ test.describe( 'Scheduling', () => {
 
 			test.afterAll( async ( { requestUtils } ) => {
 				await requestUtils.updateSiteSettings( {
-					timezone: orignalTimezone,
+					timezone: originalTimezone,
 				} );
 			} );
 
@@ -56,7 +56,7 @@ test.describe( 'Scheduling', () => {
 				await page.keyboard.press( 'Escape' );
 
 				await expect(
-					topBar.getByRole( 'button', { name: 'Schedule…' } )
+					topBar.getByRole( 'button', { name: 'Schedule' } )
 				).toBeVisible();
 			} );
 		} );

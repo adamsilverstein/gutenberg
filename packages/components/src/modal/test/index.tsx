@@ -178,7 +178,9 @@ describe( 'Modal', () => {
 					{ isShown && (
 						<Modal
 							onKeyDown={ ( { key } ) => {
-								if ( key === 'o' ) setIsShown( false );
+								if ( key === 'o' ) {
+									setIsShown( false );
+								}
 							} }
 							onRequestClose={ noop }
 						>
@@ -267,7 +269,8 @@ describe( 'Modal', () => {
 	} );
 
 	describe( 'Focus handling', () => {
-		let originalGetClientRects: () => DOMRectList;
+		const originalGetClientRects =
+			window.HTMLElement.prototype.getClientRects;
 
 		const FocusMountDemo = ( {
 			focusOnMount,
@@ -335,7 +338,7 @@ describe( 'Modal', () => {
 		it( 'should focus the Modal dialog when `true` passed as value for `focusOnMount` prop', async () => {
 			const user = userEvent.setup();
 
-			render( <FocusMountDemo focusOnMount={ true } /> );
+			render( <FocusMountDemo focusOnMount /> );
 
 			const opener = screen.getByRole( 'button', {
 				name: 'Toggle Modal',
@@ -395,19 +398,25 @@ describe( 'Modal', () => {
 			const [ isAShown, setIsAShown ] = useState( false );
 			const [ isA1Shown, setIsA1Shown ] = useState( false );
 			const [ isBShown, setIsBShown ] = useState( false );
-			const [ isClassOverriden, setIsClassOverriden ] = useState( false );
+			const [ isClassOverridden, setIsClassOverridden ] =
+				useState( false );
 			useEffect( () => {
 				const toggles: ( e: KeyboardEvent ) => void = ( {
 					key,
 					metaKey,
 				} ) => {
 					if ( key === 'a' ) {
-						if ( metaKey ) return setIsA1Shown( ( v ) => ! v );
+						if ( metaKey ) {
+							return setIsA1Shown( ( v ) => ! v );
+						}
 						return setIsAShown( ( v ) => ! v );
 					}
-					if ( key === 'b' ) return setIsBShown( ( v ) => ! v );
-					if ( key === 'c' )
-						return setIsClassOverriden( ( v ) => ! v );
+					if ( key === 'b' ) {
+						return setIsBShown( ( v ) => ! v );
+					}
+					if ( key === 'c' ) {
+						return setIsClassOverridden( ( v ) => ! v );
+					}
 				};
 				document.addEventListener( 'keydown', toggles );
 				return () =>
@@ -418,7 +427,7 @@ describe( 'Modal', () => {
 					{ isAShown && (
 						<Modal
 							bodyOpenClassName={
-								isClassOverriden ? overrideClass : 'is-A-open'
+								isClassOverridden ? overrideClass : 'is-A-open'
 							}
 							onRequestClose={ () => setIsAShown( false ) }
 						>
@@ -438,7 +447,7 @@ describe( 'Modal', () => {
 					{ isBShown && (
 						<Modal
 							bodyOpenClassName={
-								isClassOverriden ? overrideClass : 'is-B-open'
+								isClassOverridden ? overrideClass : 'is-B-open'
 							}
 							onRequestClose={ () => setIsBShown( false ) }
 						>

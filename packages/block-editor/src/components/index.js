@@ -67,10 +67,13 @@ export {
 	JustifyToolbar,
 	JustifyContentControl,
 } from './justify-content-control';
-export { default as __experimentalLinkControl } from './link-control';
-export { default as __experimentalLinkControlSearchInput } from './link-control/search-input';
-export { default as __experimentalLinkControlSearchResults } from './link-control/search-results';
-export { default as __experimentalLinkControlSearchItem } from './link-control/search-item';
+export {
+	default as LinkControl,
+	DeprecatedExperimentalLinkControl as __experimentalLinkControl,
+} from './link-control';
+export { __experimentalLinkControlSearchInput } from './link-control/search-input';
+export { __experimentalLinkControlSearchResults } from './link-control/search-results';
+export { __experimentalLinkControlSearchItem } from './link-control/search-item';
 export { default as LineHeightControl } from './line-height-control';
 export { default as __experimentalListView } from './list-view';
 export { default as MediaReplaceFlow } from './media-replace-flow';
@@ -152,12 +155,15 @@ export { default as WritingFlow } from './writing-flow';
 export { default as useBlockDisplayInformation } from './use-block-display-information';
 export { default as __unstableIframe } from './iframe';
 export {
-	RecursionProvider as __experimentalRecursionProvider,
-	useHasRecursion as __experimentalUseHasRecursion,
+	RecursionProvider,
+	DeprecatedExperimentalRecursionProvider as __experimentalRecursionProvider,
+	useHasRecursion,
+	DeprecatedExperimentalUseHasRecursion as __experimentalUseHasRecursion,
 } from './recursion-provider';
 export { default as __experimentalBlockPatternsList } from './block-patterns-list';
 export { default as __experimentalPublishDateTimePicker } from './publish-date-time-picker';
 export { default as __experimentalInspectorPopoverHeader } from './inspector-popover-header';
+export { default as BlockPopover } from './block-popover';
 export { useBlockEditingMode } from './block-editing-mode';
 
 /*
@@ -167,8 +173,3 @@ export { useBlockEditingMode } from './block-editing-mode';
 export { default as BlockEditorProvider } from './provider';
 export { useSettings, useSetting } from './use-settings';
 export { useBlockCommands } from './use-block-commands';
-
-/*
- * The following rename hint component can be removed in 6.4.
- */
-export { default as ReusableBlocksRenameHint } from './inserter/reusable-block-rename-hint';

@@ -32,10 +32,22 @@ function counterStore( initialCount = 0, step = 1 ) {
 	};
 }
 
+/* eslint-disable @wordpress/wp-global-usage */
 describe( 'useSelect', () => {
+	const initialScriptDebug = globalThis.SCRIPT_DEBUG;
 	let registry;
+
+	beforeAll( () => {
+		// Do not run hook in development mode; it will call `mapSelect` an extra time.
+		globalThis.SCRIPT_DEBUG = false;
+	} );
+
 	beforeEach( () => {
 		registry = createRegistry();
+	} );
+
+	afterAll( () => {
+		globalThis.SCRIPT_DEBUG = initialScriptDebug;
 	} );
 
 	it( 'passes the relevant data to the component', () => {
@@ -86,7 +98,7 @@ describe( 'useSelect', () => {
 
 		const { rerender } = render(
 			<RegistryProvider value={ registry }>
-				<TestComponent keyName="foo" change={ true } />
+				<TestComponent keyName="foo" change />
 			</RegistryProvider>
 		);
 
@@ -676,7 +688,7 @@ describe( 'useSelect', () => {
 				return (
 					<>
 						<div role="status">{ state }</div>
-						<button onClick={ toggle }>Toggle</button>
+						<button onClick={ toggle }>Open</button>
 					</>
 				);
 			} );
@@ -693,7 +705,7 @@ describe( 'useSelect', () => {
 				'count2:0'
 			);
 
-			act( () => screen.getByText( 'Toggle' ).click() );
+			act( () => screen.getByText( 'Open' ).click() );
 
 			expect( selectCount1 ).toHaveBeenCalledTimes( 1 );
 			expect( selectCount2 ).toHaveBeenCalledTimes( 1 );
@@ -957,7 +969,7 @@ describe( 'useSelect', () => {
 			} );
 
 			render(
-				<AsyncModeProvider value={ true }>
+				<AsyncModeProvider value>
 					<RegistryProvider value={ registry }>
 						<TestComponent />
 					</RegistryProvider>
@@ -1004,7 +1016,7 @@ describe( 'useSelect', () => {
 				</AsyncModeProvider>
 			);
 
-			const { rerender } = render( <App async={ true } /> );
+			const { rerender } = render( <App async /> );
 
 			// Ensure expected state was rendered.
 			expect( screen.getByRole( 'status' ) ).toHaveTextContent( '0' );
@@ -1044,7 +1056,7 @@ describe( 'useSelect', () => {
 			} );
 
 			const App = ( { variant } ) => (
-				<AsyncModeProvider value={ true }>
+				<AsyncModeProvider value>
 					<RegistryProvider value={ registry }>
 						<TestComponent variant={ variant } />
 					</RegistryProvider>
@@ -1089,7 +1101,7 @@ describe( 'useSelect', () => {
 			} );
 
 			const App = () => (
-				<AsyncModeProvider value={ true }>
+				<AsyncModeProvider value>
 					<RegistryProvider value={ registry }>
 						<TestComponent />
 					</RegistryProvider>
@@ -1134,7 +1146,7 @@ describe( 'useSelect', () => {
 			} );
 
 			const App = ( { reg } ) => (
-				<AsyncModeProvider value={ true }>
+				<AsyncModeProvider value>
 					<RegistryProvider value={ reg }>
 						<TestComponent />
 					</RegistryProvider>
@@ -1257,3 +1269,4 @@ describe( 'useSelect', () => {
 		} );
 	} );
 } );
+/* eslint-enable @wordpress/wp-global-usage */

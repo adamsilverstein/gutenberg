@@ -2,7 +2,19 @@
  * WordPress dependencies
  */
 import { __ } from '@wordpress/i18n';
-import { trash } from '@wordpress/icons';
+
+import {
+	trash,
+	pages,
+	drafts,
+	published,
+	scheduled,
+	pending,
+	notAllowed,
+} from '@wordpress/icons';
+import { useSelect } from '@wordpress/data';
+import { store as coreStore } from '@wordpress/core-data';
+import { useMemo } from '@wordpress/element';
 
 /**
  * Internal dependencies
@@ -11,68 +23,130 @@ import {
 	LAYOUT_LIST,
 	LAYOUT_TABLE,
 	LAYOUT_GRID,
-	OPERATOR_IN,
+	OPERATOR_IS_ANY,
 } from '../../utils/constants';
 
-export const DEFAULT_CONFIG_PER_VIEW_TYPE = {
-	[ LAYOUT_TABLE ]: {
-		primaryField: 'title',
-	},
-	[ LAYOUT_GRID ]: {
-		mediaField: 'featured-image',
-		primaryField: 'title',
-	},
-	[ LAYOUT_LIST ]: {
-		primaryField: 'title',
-		mediaField: 'featured-image',
-	},
+export const defaultLayouts = {
+	[ LAYOUT_TABLE ]: {},
+	[ LAYOUT_GRID ]: {},
+	[ LAYOUT_LIST ]: {},
 };
 
-const DEFAULT_PAGE_BASE = {
+const DEFAULT_POST_BASE = {
 	type: LAYOUT_LIST,
 	search: '',
 	filters: [],
 	page: 1,
 	perPage: 20,
 	sort: {
-		field: 'date',
-		direction: 'desc',
+		field: 'title',
+		direction: 'asc',
 	},
-	// All fields are visible by default, so it's
-	// better to keep track of the hidden ones.
-	hiddenFields: [ 'date', 'featured-image' ],
-	layout: {
-		...DEFAULT_CONFIG_PER_VIEW_TYPE[ LAYOUT_LIST ],
-	},
+	showLevels: true,
+	titleField: 'title',
+	mediaField: 'featured_media',
+	fields: [ 'author', 'status' ],
+	...defaultLayouts[ LAYOUT_LIST ],
 };
 
-export const DEFAULT_VIEWS = {
-	page: [
-		{
-			title: __( 'All' ),
-			slug: 'all',
-			view: DEFAULT_PAGE_BASE,
+export function useDefaultViews( { postType } ) {
+	const labels = useSelect(
+		( select ) => {
+			const { getPostType } = select( coreStore );
+			return getPostType( postType )?.labels;
 		},
-		{
-			title: __( 'Drafts' ),
-			slug: 'drafts',
-			view: {
-				...DEFAULT_PAGE_BASE,
+		[ postType ]
+	);
+	return useMemo( () => {
+		return [
+			{
+				title: labels?.all_items || __( 'All items' ),
+				slug: 'all',
+				icon: pages,
+				view: DEFAULT_POST_BASE,
+			},
+			{
+				title: __( 'Published' ),
+				slug: 'published',
+				icon: published,
+				view: DEFAULT_POST_BASE,
 				filters: [
-					{ field: 'status', operator: OPERATOR_IN, value: 'draft' },
+					{
+						field: 'status',
+						operator: OPERATOR_IS_ANY,
+						value: 'publish',
+					},
 				],
 			},
-		},
-		{
-			title: __( 'Trash' ),
-			slug: 'trash',
-			icon: trash,
-			view: {
-				...DEFAULT_PAGE_BASE,
+			{
+				title: __( 'Scheduled' ),
+				slug: 'future',
+				icon: scheduled,
+				view: DEFAULT_POST_BASE,
 				filters: [
-					{ field: 'status', operator: OPERATOR_IN, value: 'trash' },
+					{
+						field: 'status',
+						operator: OPERATOR_IS_ANY,
+						value: 'future',
+					},
 				],
 			},
-		},
-	],
-};
+			{
+				title: __( 'Drafts' ),
+				slug: 'drafts',
+				icon: drafts,
+				view: DEFAULT_POST_BASE,
+				filters: [
+					{
+						field: 'status',
+						operator: OPERATOR_IS_ANY,
+						value: 'draft',
+					},
+				],
+			},
+			{
+				title: __( 'Pending' ),
+				slug: 'pending',
+				icon: pending,
+				view: DEFAULT_POST_BASE,
+				filters: [
+					{
+						field: 'status',
+						operator: OPERATOR_IS_ANY,
+						value: 'pending',
+					},
+				],
+			},
+			{
+				title: __( 'Private' ),
+				slug: 'private',
+				icon: notAllowed,
+				view: DEFAULT_POST_BASE,
+				filters: [
+					{
+						field: 'status',
+						operator: OPERATOR_IS_ANY,
+						value: 'private',
+					},
+				],
+			},
+			{
+				title: __( 'Trash' ),
+				slug: 'trash',
+				icon: trash,
+				view: {
+					...DEFAULT_POST_BASE,
+					type: LAYOUT_TABLE,
+					layout: defaultLayouts[ LAYOUT_TABLE ].layout,
+				},
+				filters: [
+					{
+						field: 'status',
+						operator: OPERATOR_IS_ANY,
+						value: 'trash',
+					},
+				],
+			},
+		];
+	}, [ labels ] );
+}

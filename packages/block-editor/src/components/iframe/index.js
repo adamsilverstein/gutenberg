@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import classnames from 'classnames';
+import clsx from 'clsx';
 
 /**
  * WordPress dependencies
@@ -14,12 +14,7 @@ import {
 	useEffect,
 } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
-import {
-	useResizeObserver,
-	useMergeRefs,
-	useRefEffect,
-	useDisabled,
-} from '@wordpress/compose';
+import { useMergeRefs, useRefEffect, useDisabled } from '@wordpress/compose';
 import { __experimentalStyleProvider as StyleProvider } from '@wordpress/components';
 import { useSelect } from '@wordpress/data';
 
@@ -29,6 +24,7 @@ import { useSelect } from '@wordpress/data';
 import { useBlockSelectionClearer } from '../block-selection-clearer';
 import { useWritingFlow } from '../writing-flow';
 import { getCompatibilityStyles } from './get-compatibility-styles';
+import { useScaleCanvas } from './use-scale-canvas';
 import { store as blockEditorStore } from '../../store';
 
 function bubbleEvent( event, Constructor, frame ) {
@@ -106,25 +102,26 @@ function Iframe( {
 	tabIndex = 0,
 	scale = 1,
 	frameSize = 0,
-	expand = false,
 	readonly,
 	forwardedRef: ref,
+	title = __( 'Editor canvas' ),
 	...props
 } ) {
 	const { resolvedAssets, isPreviewMode } = useSelect( ( select ) => {
-		const settings = select( blockEditorStore ).getSettings();
+		const { getSettings } = select( blockEditorStore );
+		const settings = getSettings();
 		return {
 			resolvedAssets: settings.__unstableResolvedAssets,
-			isPreviewMode: settings.__unstableIsPreviewMode,
+			isPreviewMode: settings.isPreviewMode,
 		};
 	}, [] );
 	const { styles = '', scripts = '' } = resolvedAssets;
+	/** @type {[Document, import('react').Dispatch<Document>]} */
 	const [ iframeDocument, setIframeDocument ] = useState();
 	const [ bodyClasses, setBodyClasses ] = useState( [] );
 	const clearerRef = useBlockSelectionClearer();
 	const [ before, writingFlowRef, after ] = useWritingFlow();
-	const [ contentResizeListener, { height: contentHeight } ] =
-		useResizeObserver();
+
 	const setRef = useRefEffect( ( node ) => {
 		node._load = () => {
 			setIframeDocument( node.contentDocument );
@@ -138,6 +135,8 @@ function Iframe( {
 			const { contentDocument, ownerDocument } = node;
 			const { documentElement } = contentDocument;
 			iFrameDocument = contentDocument;
+
+			documentElement.classList.add( 'block-editor-iframe__html' );
 
 			clearerRef( documentElement );
 
@@ -183,6 +182,22 @@ function Iframe( {
 				preventFileDropDefault,
 				false
 			);
+			// Prevent clicks on links from navigating away. Note that links
+			// inside `contenteditable` are already disabled by the browser, so
+			// this is for links in blocks outside of `contenteditable`.
+			iFrameDocument.addEventListener( 'click', ( event ) => {
+				if ( event.target.tagName === 'A' ) {
+					event.preventDefault();
+
+					// Appending a hash to the current URL will not reload the
+					// page. This is useful for e.g. footnotes.
+					const href = event.target.getAttribute( 'href' );
+					if ( href?.startsWith( '#' ) ) {
+						iFrameDocument.defaultView.location.hash =
+							href.slice( 1 );
+					}
+				}
+			} );
 		}
 
 		node.addEventListener( 'load', onLoad );
@@ -201,6 +216,17 @@ function Iframe( {
 		};
 	}, [] );
 
+	const {
+		contentResizeListener,
+		containerResizeListener,
+		isZoomedOut,
+		scaleContainerWidth,
+	} = useScaleCanvas( {
+		scale,
+		frameSize: parseInt( frameSize ),
+		iframeDocument,
+	} );
+
 	const disabledRef = useDisabled( { isDisabled: ! readonly } );
 	const bodyRef = useMergeRefs( [
 		useBubbleEvents( iframeDocument ),
@@ -217,8 +243,21 @@ function Iframe( {
 <html>
 	<head>
 		<meta charset="utf-8">
+		<base href="${ window.location.origin }">
 		<script>window.frameElement._load()</script>
-		<style>html{height:auto!important;min-height:100%;}body{margin:0}</style>
+		<style>
+			html{
+				height: auto !important;
+				min-height: 100%;
+			}
+			/* Lowest specificity to not override global styles */
+			:where(body) {
+				margin: 0;
+				/* Default background color in case zoom out mode background
+				colors the html element */
+				background-color: white;
+			}
+		</style>
 		${ styles }
 		${ scripts }
 	</head>
@@ -236,34 +275,20 @@ function Iframe( {
 
 	useEffect( () => cleanup, [ cleanup ] );
 
-	// We need to counter the margin created by scaling the iframe. If the scale
-	// is e.g. 0.45, then the top + bottom margin is 0.55 (1 - scale). Just the
-	// top or bottom margin is 0.55 / 2 ((1 - scale) / 2).
-	const marginFromScaling = ( contentHeight * ( 1 - scale ) ) / 2;
+	// Make sure to not render the before and after focusable div elements in view
+	// mode. They're only needed to capture focus in edit mode.
+	const shouldRenderFocusCaptureElements = tabIndex >= 0 && ! isPreviewMode;
 
-	return (
+	const iframe = (
 		<>
-			{ tabIndex >= 0 && before }
+			{ shouldRenderFocusCaptureElements && before }
 			{ /* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */ }
 			<iframe
 				{ ...props }
 				style={ {
-					border: 0,
 					...props.style,
-					height: expand ? contentHeight : props.style?.height,
-					marginTop:
-						scale !== 1
-							? -marginFromScaling + frameSize
-							: props.style?.marginTop,
-					marginBottom:
-						scale !== 1
-							? -marginFromScaling + frameSize
-							: props.style?.marginBottom,
-					transform:
-						scale !== 1
-							? `scale( ${ scale } )`
-							: props.style?.transform,
-					transition: 'all .3s',
+					height: props.style?.height,
+					border: 0,
 				} }
 				ref={ useMergeRefs( [ ref, setRef ] ) }
 				tabIndex={ tabIndex }
@@ -271,8 +296,11 @@ function Iframe( {
 				// mode. Also preload the styles to avoid a flash of unstyled
 				// content.
 				src={ src }
-				title={ __( 'Editor canvas' ) }
+				title={ title }
 				onKeyDown={ ( event ) => {
+					if ( props.onKeyDown ) {
+						props.onKeyDown( event );
+					}
 					// If the event originates from inside the iframe, it means
 					// it bubbled through the portal, but only with React
 					// events. We need to to bubble native events as well,
@@ -283,7 +311,15 @@ function Iframe( {
 						event.currentTarget.ownerDocument !==
 						event.target.ownerDocument
 					) {
+						// We should only stop propagation of the React event,
+						// the native event should further bubble inside the
+						// iframe to the document and window.
+						// Alternatively, we could consider redispatching the
+						// native event in the iframe.
+						const { stopPropagation } = event.nativeEvent;
+						event.nativeEvent.stopPropagation = () => {};
 						event.stopPropagation();
+						event.nativeEvent.stopPropagation = stopPropagation;
 						bubbleEvent(
 							event,
 							window.KeyboardEvent,
@@ -294,12 +330,12 @@ function Iframe( {
 			>
 				{ iframeDocument &&
 					createPortal(
-						// We want to prevent React events from bubbling throught the iframe
+						// We want to prevent React events from bubbling through the iframe
 						// we bubble these manually.
 						/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */
 						<body
 							ref={ bodyRef }
-							className={ classnames(
+							className={ clsx(
 								'block-editor-iframe__body',
 								'editor-styles-wrapper',
 								...bodyClasses
@@ -313,8 +349,26 @@ function Iframe( {
 						iframeDocument.documentElement
 					) }
 			</iframe>
-			{ tabIndex >= 0 && after }
+			{ shouldRenderFocusCaptureElements && after }
 		</>
+	);
+
+	return (
+		<div className="block-editor-iframe__container">
+			{ containerResizeListener }
+			<div
+				className={ clsx(
+					'block-editor-iframe__scale-container',
+					isZoomedOut && 'is-zoomed-out'
+				) }
+				style={ {
+					'--wp-block-editor-iframe-zoom-out-scale-container-width':
+						isZoomedOut && `${ scaleContainerWidth }px`,
+				} }
+			>
+				{ iframe }
+			</div>
+		</div>
 	);
 }
 

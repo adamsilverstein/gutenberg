@@ -9,6 +9,11 @@ import { PanelBody } from '@wordpress/components';
 import PostLastRevision from './';
 import PostLastRevisionCheck from './check';
 
+/**
+ * Renders the panel for displaying the last revision of a post.
+ *
+ * @return {React.ReactNode} The rendered component.
+ */
 function PostLastRevisionPanel() {
 	return (
 		<PostLastRevisionCheck>

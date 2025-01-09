@@ -7,7 +7,10 @@ import { click, type, press } from '@ariakit/test';
 /**
  * Internal dependencies
  */
-import PaletteEdit, { getNameForPosition } from '..';
+import PaletteEdit, {
+	getNameAndSlugForPosition,
+	deduplicateElementSlugs,
+} from '..';
 import type { PaletteElement } from '../types';
 
 const noop = () => {};
@@ -16,22 +19,24 @@ async function clearInput( input: HTMLInputElement ) {
 	await click( input );
 
 	// Press backspace as many times as the input's current value
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	for ( const _ of Array( input.value.length ) ) {
 		await press.Backspace();
 	}
 }
 
-describe( 'getNameForPosition', () => {
+describe( 'getNameAndSlugForPosition', () => {
 	test( 'should return 1 by default', () => {
 		const slugPrefix = 'test-';
 		const elements: PaletteElement[] = [];
 
-		expect( getNameForPosition( elements, slugPrefix ) ).toEqual(
-			'Color 1'
-		);
+		expect( getNameAndSlugForPosition( elements, slugPrefix ) ).toEqual( {
+			name: 'Color 1',
+			slug: 'test-color-1',
+		} );
 	} );
 
-	test( 'should return a new color name with an incremented slug id', () => {
+	test( 'should return a new color name and slug with an incremented slug id', () => {
 		const slugPrefix = 'test-';
 		const elements = [
 			{
@@ -41,12 +46,13 @@ describe( 'getNameForPosition', () => {
 			},
 		];
 
-		expect( getNameForPosition( elements, slugPrefix ) ).toEqual(
-			'Color 2'
-		);
+		expect( getNameAndSlugForPosition( elements, slugPrefix ) ).toEqual( {
+			name: 'Color 2',
+			slug: 'test-color-2',
+		} );
 	} );
 
-	test( 'should ignore user-defined color names', () => {
+	test( 'should ignore user-defined color name and slug', () => {
 		const slugPrefix = 'test-';
 		const elements = [
 			{
@@ -56,12 +62,13 @@ describe( 'getNameForPosition', () => {
 			},
 		];
 
-		expect( getNameForPosition( elements, slugPrefix ) ).toEqual(
-			'Color 1'
-		);
+		expect( getNameAndSlugForPosition( elements, slugPrefix ) ).toEqual( {
+			name: 'Color 1',
+			slug: 'test-color-1',
+		} );
 	} );
 
-	test( 'should return a new color name with an incremented slug id one higher than the current highest', () => {
+	test( 'should return a new color name and slug with an incremented slug id one higher than the current highest', () => {
 		const slugPrefix = 'test-';
 		const elements = [
 			{
@@ -86,9 +93,56 @@ describe( 'getNameForPosition', () => {
 			},
 		];
 
-		expect( getNameForPosition( elements, slugPrefix ) ).toEqual(
-			'Color 151'
-		);
+		expect( getNameAndSlugForPosition( elements, slugPrefix ) ).toEqual( {
+			name: 'Color 151',
+			slug: 'test-color-151',
+		} );
+	} );
+} );
+
+describe( 'deduplicateElementSlugs', () => {
+	it( 'should not change the slugs if they are unique', () => {
+		const elements: PaletteElement[] = [
+			{
+				slug: 'test-color-1',
+				color: '#ffffff',
+				name: 'Test Color 1',
+			},
+			{
+				slug: 'test-color-2',
+				color: '#1a4548',
+				name: 'Test Color 2',
+			},
+		];
+
+		expect( deduplicateElementSlugs( elements ) ).toEqual( elements );
+	} );
+	it( 'should change the slugs if they are not unique', () => {
+		const elements: PaletteElement[] = [
+			{
+				slug: 'test-color-1',
+				color: '#ffffff',
+				name: 'Test Color 1',
+			},
+			{
+				slug: 'test-color-1',
+				color: '#1a4548',
+				name: 'Test Color 2',
+			},
+		];
+
+		expect( deduplicateElementSlugs( elements ) ).toEqual( [
+			{
+				slug: 'test-color-1',
+				color: '#ffffff',
+				name: 'Test Color 1',
+			},
+			{
+				slug: 'test-color-1-1',
+				color: '#1a4548',
+				name: 'Test Color 2',
+			},
+		] );
 	} );
 } );
 
@@ -150,7 +204,7 @@ describe( 'PaletteEdit', () => {
 		render(
 			<PaletteEdit
 				{ ...defaultProps }
-				emptyMessage={ 'Test empty message' }
+				emptyMessage="Test empty message"
 			/>
 		);
 
@@ -166,11 +220,13 @@ describe( 'PaletteEdit', () => {
 			} )
 		);
 
-		expect(
-			screen.getByRole( 'button', {
-				name: 'Remove all colors',
-			} )
-		).toBeVisible();
+		await waitFor( () => {
+			expect(
+				screen.getByRole( 'button', {
+					name: 'Remove all colors',
+				} )
+			).toBeVisible();
+		} );
 	} );
 
 	it( 'shows a reset option when the `canReset` prop is enabled', async () => {
@@ -183,11 +239,13 @@ describe( 'PaletteEdit', () => {
 				name: 'Color options',
 			} )
 		);
-		expect(
-			screen.getByRole( 'button', {
-				name: 'Reset colors',
-			} )
-		).toBeVisible();
+		await waitFor( () => {
+			expect(
+				screen.getByRole( 'button', {
+					name: 'Reset colors',
+				} )
+			).toBeVisible();
+		} );
 	} );
 
 	it( 'does not show a reset colors option when `canReset` is disabled', async () => {
@@ -295,10 +353,10 @@ describe( 'PaletteEdit', () => {
 				name: 'Show details',
 			} )
 		);
-		await click( screen.getByText( 'Primary' ) );
+		await click( screen.getByRole( 'button', { name: 'Edit: Primary' } ) );
 		await click(
 			screen.getByRole( 'button', {
-				name: 'Remove color',
+				name: 'Remove color: Primary',
 			} )
 		);
 
@@ -328,10 +386,8 @@ describe( 'PaletteEdit', () => {
 				name: 'Show details',
 			} )
 		);
-		await click( screen.getByText( 'Primary' ) );
-		const nameInput = screen.getByRole( 'textbox', {
-			name: 'Color name',
-		} );
+		await click( screen.getByRole( 'button', { name: 'Edit: Primary' } ) );
+		const nameInput = screen.getByDisplayValue( 'Primary' );
 
 		await clearInput( nameInput as HTMLInputElement );
 

@@ -2,8 +2,8 @@
  * WordPress dependencies
  */
 import { __ } from '@wordpress/i18n';
-import { compose } from '@wordpress/compose';
-import { withSelect, useDispatch } from '@wordpress/data';
+import { useDispatch, useSelect } from '@wordpress/data';
+import { useRef } from '@wordpress/element';
 import { create, getTextContent } from '@wordpress/rich-text';
 import { store as blockEditorStore } from '@wordpress/block-editor';
 import { store as coreStore } from '@wordpress/core-data';
@@ -96,17 +96,39 @@ const computeOutlineHeadings = ( blocks = [] ) => {
 };
 
 const isEmptyHeading = ( heading ) =>
-	! heading.attributes.content || heading.attributes.content.length === 0;
+	! heading.attributes.content ||
+	heading.attributes.content.trim().length === 0;
 
-export const DocumentOutline = ( {
-	blocks = [],
-	title,
+/**
+ * Renders a document outline component.
+ *
+ * @param {Object}   props                         Props.
+ * @param {Function} props.onSelect                Function to be called when an outline item is selected
+ * @param {boolean}  props.hasOutlineItemsDisabled Indicates whether the outline items are disabled.
+ *
+ * @return {React.ReactNode} The rendered component.
+ */
+export default function DocumentOutline( {
 	onSelect,
-	isTitleSupported,
 	hasOutlineItemsDisabled,
-} ) => {
-	const headings = computeOutlineHeadings( blocks );
+} ) {
 	const { selectBlock } = useDispatch( blockEditorStore );
+	const { blocks, title, isTitleSupported } = useSelect( ( select ) => {
+		const { getBlocks } = select( blockEditorStore );
+		const { getEditedPostAttribute } = select( editorStore );
+		const { getPostType } = select( coreStore );
+		const postType = getPostType( getEditedPostAttribute( 'type' ) );
+
+		return {
+			title: getEditedPostAttribute( 'title' ),
+			blocks: getBlocks(),
+			isTitleSupported: postType?.supports?.title ?? false,
+		};
+	} );
+
+	const prevHeadingLevelRef = useRef( 1 );
+
+	const headings = computeOutlineHeadings( blocks );
 	if ( headings.length < 1 ) {
 		return (
 			<div className="editor-document-outline has-no-headings">
@@ -119,8 +141,6 @@ export const DocumentOutline = ( {
 			</div>
 		);
 	}
-
-	let prevHeadingLevel = 1;
 
 	// Not great but it's the simplest way to locate the title right now.
 	const titleNode = document.querySelector( '.editor-post-title__input' );
@@ -148,10 +168,11 @@ export const DocumentOutline = ( {
 						{ title }
 					</DocumentOutlineItem>
 				) }
-				{ headings.map( ( item, index ) => {
+				{ headings.map( ( item ) => {
 					// Headings remain the same, go up by one, or down by any amount.
 					// Otherwise there are missing levels.
-					const isIncorrectLevel = item.level > prevHeadingLevel + 1;
+					const isIncorrectLevel =
+						item.level > prevHeadingLevelRef.current + 1;
 
 					const isValid =
 						! item.isEmpty &&
@@ -159,11 +180,11 @@ export const DocumentOutline = ( {
 						!! item.level &&
 						( item.level !== 1 ||
 							( ! hasMultipleH1 && ! hasTitle ) );
-					prevHeadingLevel = item.level;
+					prevHeadingLevelRef.current = item.level;
 
 					return (
 						<DocumentOutlineItem
-							key={ index }
+							key={ item.clientId }
 							level={ `H${ item.level }` }
 							isValid={ isValid }
 							isDisabled={ hasOutlineItemsDisabled }
@@ -194,19 +215,4 @@ export const DocumentOutline = ( {
 			</ul>
 		</div>
 	);
-};
-
-export default compose(
-	withSelect( ( select ) => {
-		const { getBlocks } = select( blockEditorStore );
-		const { getEditedPostAttribute } = select( editorStore );
-		const { getPostType } = select( coreStore );
-		const postType = getPostType( getEditedPostAttribute( 'type' ) );
-
-		return {
-			title: getEditedPostAttribute( 'title' ),
-			blocks: getBlocks(),
-			isTitleSupported: postType?.supports?.title ?? false,
-		};
-	} )
-)( DocumentOutline );
+}

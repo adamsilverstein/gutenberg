@@ -154,7 +154,6 @@ const renderWrappedItemInPanel = () => {
 const renderPanel = () => {
 	return render(
 		<ToolsPanel { ...defaultProps }>
-			{ false && <div>Hidden</div> }
 			<ToolsPanelItem { ...controlProps }>
 				<div>Example control</div>
 			</ToolsPanelItem>
@@ -222,10 +221,7 @@ describe( 'ToolsPanel', () => {
 					<ToolsPanelItem { ...controlProps }>
 						<div>Example control</div>
 					</ToolsPanelItem>
-					<ToolsPanelItem
-						{ ...altControlProps }
-						isShownByDefault={ true }
-					>
+					<ToolsPanelItem { ...altControlProps } isShownByDefault>
 						<div>Alt control</div>
 					</ToolsPanelItem>
 				</ToolsPanel>
@@ -239,22 +235,6 @@ describe( 'ToolsPanel', () => {
 		it( 'should not render panel menu when there are no panel items', () => {
 			render(
 				<ToolsPanel { ...defaultProps }>
-					{ false && (
-						<ToolsPanelItem
-							label="Not rendered 1"
-							hasValue={ () => false }
-						>
-							Should not show
-						</ToolsPanelItem>
-					) }
-					{ false && (
-						<ToolsPanelItem
-							label="Not rendered 2"
-							hasValue={ () => false }
-						>
-							Not shown either
-						</ToolsPanelItem>
-					) }
 					<span>Visible but insignificant</span>
 				</ToolsPanel>
 			);
@@ -413,10 +393,7 @@ describe( 'ToolsPanel', () => {
 		it( 'should continue to render shown by default item after it is toggled off via menu item', async () => {
 			render(
 				<ToolsPanel { ...defaultProps }>
-					<ToolsPanelItem
-						{ ...controlProps }
-						isShownByDefault={ true }
-					>
+					<ToolsPanelItem { ...controlProps } isShownByDefault>
 						<div>Default control</div>
 					</ToolsPanelItem>
 				</ToolsPanel>
@@ -440,10 +417,7 @@ describe( 'ToolsPanel', () => {
 		it( 'should render appropriate menu groups', async () => {
 			render(
 				<ToolsPanel { ...defaultProps }>
-					<ToolsPanelItem
-						{ ...controlProps }
-						isShownByDefault={ true }
-					>
+					<ToolsPanelItem { ...controlProps } isShownByDefault>
 						<div>Default control</div>
 					</ToolsPanelItem>
 					<ToolsPanelItem { ...altControlProps }>
@@ -461,10 +435,7 @@ describe( 'ToolsPanel', () => {
 
 		it( 'should not render contents of items when in placeholder state', () => {
 			render(
-				<ToolsPanel
-					{ ...defaultProps }
-					shouldRenderPlaceholderItems={ true }
-				>
+				<ToolsPanel { ...defaultProps } shouldRenderPlaceholderItems>
 					<ToolsPanelItem { ...altControlProps }>
 						<div>Optional control</div>
 					</ToolsPanelItem>
@@ -493,10 +464,7 @@ describe( 'ToolsPanel', () => {
 
 			const TestPanel = () => (
 				<ToolsPanel { ...defaultProps }>
-					<ToolsPanelItem
-						{ ...altControlProps }
-						isShownByDefault={ true }
-					>
+					<ToolsPanelItem { ...altControlProps } isShownByDefault>
 						<div>Default control</div>
 					</ToolsPanelItem>
 					<ToolsPanelItem
@@ -568,16 +536,13 @@ describe( 'ToolsPanel', () => {
 
 			const TestPanel = () => (
 				<ToolsPanel { ...defaultProps }>
-					<ToolsPanelItem
-						{ ...altControlProps }
-						isShownByDefault={ true }
-					>
+					<ToolsPanelItem { ...altControlProps } isShownByDefault>
 						<div>Default control</div>
 					</ToolsPanelItem>
 					{ !! altControlValue && (
 						<ToolsPanelItem
 							{ ...conditionalControlProps }
-							isShownByDefault={ true }
+							isShownByDefault
 						>
 							<div>Conditional control</div>
 						</ToolsPanelItem>
@@ -1340,7 +1305,7 @@ describe( 'ToolsPanel', () => {
 							{ ...altControlProps }
 							label="Item 3"
 							data-testid="item-3"
-							isShownByDefault={ true }
+							isShownByDefault
 						>
 							<div>Item 3</div>
 						</ToolsPanelItem>
@@ -1352,8 +1317,8 @@ describe( 'ToolsPanel', () => {
 					</ToolsPanelItems>
 					<ToolsPanel
 						{ ...defaultProps }
-						hasInnerWrapper={ true }
-						shouldRenderPlaceholderItems={ true }
+						hasInnerWrapper
+						shouldRenderPlaceholderItems
 						__experimentalFirstVisibleItemClass="first"
 						__experimentalLastVisibleItemClass="last"
 					>

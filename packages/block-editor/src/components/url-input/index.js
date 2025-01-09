@@ -1,19 +1,18 @@
 /**
  * External dependencies
  */
-import classnames from 'classnames';
-import scrollIntoView from 'dom-scroll-into-view';
+import clsx from 'clsx';
 
 /**
  * WordPress dependencies
  */
-import deprecated from '@wordpress/deprecated';
 import { __, sprintf, _n } from '@wordpress/i18n';
 import { Component, createRef } from '@wordpress/element';
 import { UP, DOWN, ENTER, TAB } from '@wordpress/keycodes';
 import {
 	BaseControl,
 	Button,
+	__experimentalInputControl as InputControl,
 	Spinner,
 	withSpokenMessages,
 	Popover,
@@ -83,21 +82,13 @@ class URLInput extends Component {
 		if (
 			showSuggestions &&
 			selectedSuggestion !== null &&
-			this.suggestionNodes[ selectedSuggestion ] &&
-			! this.scrollingIntoView
+			this.suggestionNodes[ selectedSuggestion ]
 		) {
-			this.scrollingIntoView = true;
-			scrollIntoView(
-				this.suggestionNodes[ selectedSuggestion ],
-				this.autocompleteRef.current,
-				{
-					onlyScrollIfNeeded: true,
-				}
-			);
-
-			this.props.setTimeout( () => {
-				this.scrollingIntoView = false;
-			}, 100 );
+			this.suggestionNodes[ selectedSuggestion ].scrollIntoView( {
+				behavior: 'instant',
+				block: 'nearest',
+				inline: 'nearest',
+			} );
 		}
 
 		// Update suggestions when the value changes.
@@ -205,7 +196,7 @@ class URLInput extends Component {
 				if ( !! suggestions.length ) {
 					this.props.debouncedSpeak(
 						sprintf(
-							/* translators: %s: number of results. */
+							/* translators: %d: number of results. */
 							_n(
 								'%d result found, use up and down arrow keys to navigate.',
 								'%d results found, use up and down arrow keys to navigate.',
@@ -244,8 +235,8 @@ class URLInput extends Component {
 		this.suggestionsRequest = request;
 	}
 
-	onChange( event ) {
-		this.props.onChange( event.target.value );
+	onChange( newValue ) {
+		this.props.onChange( newValue );
 	}
 
 	onFocus() {
@@ -425,8 +416,6 @@ class URLInput extends Component {
 
 	renderControl() {
 		const {
-			/** Start opting into the new margin-free styles that will become the default in a future version. */
-			__nextHasNoMarginBottom = false,
 			label = null,
 			className,
 			isFullWidth,
@@ -450,7 +439,7 @@ class URLInput extends Component {
 		const controlProps = {
 			id: inputId, // Passes attribute to label for the for attribute
 			label,
-			className: classnames( 'block-editor-url-input', className, {
+			className: clsx( 'block-editor-url-input', className, {
 				'is-full-width': isFullWidth,
 			} ),
 			hideLabelFromVision,
@@ -460,7 +449,6 @@ class URLInput extends Component {
 			id: inputId,
 			value,
 			required: true,
-			className: 'block-editor-url-input__input',
 			type: 'text',
 			onChange: this.onChange,
 			onFocus: this.onFocus,
@@ -476,26 +464,16 @@ class URLInput extends Component {
 					? `${ suggestionOptionIdPrefix }-${ selectedSuggestion }`
 					: undefined,
 			ref: this.inputRef,
+			suffix: this.props.suffix,
 		};
 
 		if ( renderControl ) {
 			return renderControl( controlProps, inputProps, loading );
 		}
 
-		if ( ! __nextHasNoMarginBottom ) {
-			deprecated( 'Bottom margin styles for wp.blockEditor.URLInput', {
-				since: '6.2',
-				version: '6.5',
-				hint: 'Set the `__nextHasNoMarginBottom` prop to true to start opting into the new styles, which will become the default in a future version',
-			} );
-		}
-
 		return (
-			<BaseControl
-				__nextHasNoMarginBottom={ __nextHasNoMarginBottom }
-				{ ...controlProps }
-			>
-				<input { ...inputProps } />
+			<BaseControl __nextHasNoMarginBottom { ...controlProps }>
+				<InputControl { ...inputProps } __next40pxDefaultSize />
 				{ loading && <Spinner /> }
 			</BaseControl>
 		);
@@ -555,16 +533,16 @@ class URLInput extends Component {
 			<Popover placement="bottom" focusOnMount={ false }>
 				<div
 					{ ...suggestionsListProps }
-					className={ classnames(
-						'block-editor-url-input__suggestions',
-						`${ className }__suggestions`
-					) }
+					className={ clsx( 'block-editor-url-input__suggestions', {
+						[ `${ className }__suggestions` ]: className,
+					} ) }
 				>
 					{ suggestions.map( ( suggestion, index ) => (
 						<Button
+							__next40pxDefaultSize
 							{ ...buildSuggestionItemProps( suggestion, index ) }
 							key={ suggestion.id }
-							className={ classnames(
+							className={ clsx(
 								'block-editor-url-input__suggestion',
 								{
 									'is-selected': index === selectedSuggestion,

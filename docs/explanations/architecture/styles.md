@@ -78,7 +78,7 @@ For example:
 
 The paragraph declares support for font size in its `block.json`. This means the block will show a UI control for users to tweak its font size, unless it's disabled by the theme (learn more about how themes can disable UI controls in [the `theme.json` reference](https://developer.wordpress.org/block-editor/reference-guides/theme-json-reference/)). The system will also take care of setting up the UI control data (the font size of the block if it has one already assigned, the list of available font sizes to show), and will serialize the block data into HTML markup upon user changes (attach classes and inline styles appropriately).
 
-By using the block supports mechanism via `block.json`, the block author is able to create the same experience as before just by writing a couple of lines. Check the tutorials for adding block supports to [static](/docs/how-to-guides/block-tutorial/block-supports-in-static-blocks.md) and [dynamic](/docs/how-to-guides/block-tutorial/block-supports-in-dynamic-blocks.md) blocks.
+By using the block supports mechanism via `block.json`, the block author is able to create the same experience as before just by writing a couple of lines. Check the [block supports api](/docs/reference-guides/block-api/block-supports.md) for adding block supports to static or dynamic blocks.
 
 Besides the benefit of having to do less work to achieve the same results, there's a few other advantages:
 
@@ -510,7 +510,7 @@ When a block that opts in to layout support is rendered, two things are processe
 
 There are currently four layout types in use:
 
--   Default/Flow: Items are stacked vertically. The parent container block is set to `display: flow` and the spacing between children is handled via vertical margins.
+-   Default/Flow: Items are stacked vertically. The parent container block's display value isn't specified, so that it may use the default value for that HTML element. For most elements that will usually be `block`. The spacing between children is handled via vertical margins.
 -   Constrained: Items are stacked vertically, using the same spacing logic as the Flow layout. Features constrained widths for child content, outputting widths for standard content size and wide size. Defaults to using global `contentSize` and `wideSize` values set in `settings.layout` in the `theme.json`.
 -   Flex: Items are displayed using a Flexbox layout. Defaults to a horizontal orientation. Spacing between children is handled via the `gap` CSS property.
 -   Grid: Items are displayed using a Grid layout. Defaults to an `auto-fill` approach to column generation but can also be set to a fixed number of columns. Spacing between children is handled via the `gap` CSS property.

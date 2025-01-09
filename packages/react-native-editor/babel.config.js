@@ -6,11 +6,11 @@ const path = require( 'path' );
 module.exports = function ( api ) {
 	api.cache( true );
 	return {
-		presets: [ 'module:metro-react-native-babel-preset' ],
+		presets: [ 'module:@react-native/babel-preset' ],
 		plugins: [
 			path.resolve(
 				__dirname,
-				'../../node_modules/@babel/plugin-proposal-async-generator-functions'
+				'../../node_modules/@babel/plugin-transform-async-generator-functions'
 			),
 			'@babel/plugin-transform-runtime',
 			'@babel/plugin-transform-named-capturing-groups-regex',

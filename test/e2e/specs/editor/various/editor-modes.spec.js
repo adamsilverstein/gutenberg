@@ -115,7 +115,7 @@ test.describe( 'Editing modes (visual/HTML)', () => {
 		await expect(
 			page
 				.getByRole( 'toolbar', { name: 'Document tools' } )
-				.getByRole( 'button', { name: 'Toggle block inserter' } )
+				.getByRole( 'button', { name: 'Block Inserter', exact: true } )
 		).toBeDisabled();
 
 		// Go back to the visual editor.
@@ -152,6 +152,31 @@ test.describe( 'Editing modes (visual/HTML)', () => {
 			{
 				name: 'core/paragraph',
 				attributes: { content: 'Hi world!' },
+			},
+		] );
+	} );
+
+	test( 'should reparse changes from code editor', async ( {
+		editor,
+		page,
+		pageUtils,
+	} ) => {
+		// Open the code editor.
+		await pageUtils.pressKeys( 'secondary+M' );
+
+		// Change the content.
+		await page.getByRole( 'textbox', { name: 'Type text or HTML' } )
+			.fill( `<!-- wp:paragraph -->
+<p>abc</p>
+<!-- /wp:paragraph -->` );
+
+		// Go back to the visual editor.
+		await pageUtils.pressKeys( 'secondary+M' );
+
+		await expect.poll( editor.getBlocks ).toMatchObject( [
+			{
+				name: 'core/paragraph',
+				attributes: { content: 'abc' },
 			},
 		] );
 	} );

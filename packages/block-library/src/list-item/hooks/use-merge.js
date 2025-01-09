@@ -35,8 +35,12 @@ export default function useMerge( clientId, onMerge ) {
 	function getParentListItemId( id ) {
 		const listId = getBlockRootClientId( id );
 		const parentListItemId = getBlockRootClientId( listId );
-		if ( ! parentListItemId ) return;
-		if ( getBlockName( parentListItemId ) !== 'core/list-item' ) return;
+		if ( ! parentListItemId ) {
+			return;
+		}
+		if ( getBlockName( parentListItemId ) !== 'core/list-item' ) {
+			return;
+		}
 		return parentListItemId;
 	}
 
@@ -45,13 +49,17 @@ export default function useMerge( clientId, onMerge ) {
 	 * return the next list item of the parent list item if it exists.
 	 *
 	 * @param {string} id A list item client ID.
-	 * @return {string?} The client ID of the next list item.
+	 * @return {?string} The client ID of the next list item.
 	 */
 	function _getNextId( id ) {
 		const next = getNextBlockClientId( id );
-		if ( next ) return next;
+		if ( next ) {
+			return next;
+		}
 		const parentListItemId = getParentListItemId( id );
-		if ( ! parentListItemId ) return;
+		if ( ! parentListItemId ) {
+			return;
+		}
 		return _getNextId( parentListItemId );
 	}
 
@@ -60,7 +68,7 @@ export default function useMerge( clientId, onMerge ) {
 	 * line, regardless of indentation level.
 	 *
 	 * @param {string} id The client ID of the current list item.
-	 * @return {string?} The client ID of the next list item.
+	 * @return {?string} The client ID of the next list item.
 	 */
 	function getNextId( id ) {
 		const order = getBlockOrder( id );
@@ -84,11 +92,25 @@ export default function useMerge( clientId, onMerge ) {
 				// list.
 				const [ nestedListClientId ] = getBlockOrder( clientIdB );
 				if ( nestedListClientId ) {
-					moveBlocksToPosition(
-						getBlockOrder( nestedListClientId ),
-						nestedListClientId,
-						getBlockRootClientId( clientIdA )
-					);
+					// If we are merging with the previous list item, and the
+					// previous list item does not have nested list, move the
+					// nested list to the previous list item.
+					if (
+						getPreviousBlockClientId( clientIdB ) === clientIdA &&
+						! getBlockOrder( clientIdA ).length
+					) {
+						moveBlocksToPosition(
+							[ nestedListClientId ],
+							clientIdB,
+							clientIdA
+						);
+					} else {
+						moveBlocksToPosition(
+							getBlockOrder( nestedListClientId ),
+							nestedListClientId,
+							getBlockRootClientId( clientIdA )
+						);
+					}
 				}
 				mergeBlocks( clientIdA, clientIdB );
 			} );

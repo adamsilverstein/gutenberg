@@ -15,7 +15,7 @@ import { getCSSRules, compileCSS } from '@wordpress/style-engine';
  * Internal dependencies
  */
 import { BACKGROUND_SUPPORT_KEY, BackgroundImagePanel } from './background';
-import { BORDER_SUPPORT_KEY, BorderPanel } from './border';
+import { BORDER_SUPPORT_KEY, BorderPanel, SHADOW_SUPPORT_KEY } from './border';
 import { COLOR_SUPPORT_KEY, ColorEdit } from './color';
 import {
 	TypographyPanel,
@@ -42,6 +42,7 @@ const styleSupportKeys = [
 	DIMENSIONS_SUPPORT_KEY,
 	BACKGROUND_SUPPORT_KEY,
 	SPACING_SUPPORT_KEY,
+	SHADOW_SUPPORT_KEY,
 ];
 
 const hasStyleSupport = ( nameOrType ) =>
@@ -110,6 +111,9 @@ const skipSerializationPathsEdit = {
 	[ `${ SPACING_SUPPORT_KEY }.__experimentalSkipSerialization` ]: [
 		SPACING_SUPPORT_KEY,
 	],
+	[ `${ SHADOW_SUPPORT_KEY }.__experimentalSkipSerialization` ]: [
+		SHADOW_SUPPORT_KEY,
+	],
 };
 
 /**
@@ -126,10 +130,14 @@ const skipSerializationPathsEdit = {
  */
 const skipSerializationPathsSave = {
 	...skipSerializationPathsEdit,
+	[ `${ DIMENSIONS_SUPPORT_KEY }.aspectRatio` ]: [
+		`${ DIMENSIONS_SUPPORT_KEY }.aspectRatio`,
+	], // Skip serialization of aspect ratio in save mode.
 	[ `${ BACKGROUND_SUPPORT_KEY }` ]: [ BACKGROUND_SUPPORT_KEY ], // Skip serialization of background support in save mode.
 };
 
 const skipSerializationPathsSaveChecks = {
+	[ `${ DIMENSIONS_SUPPORT_KEY }.aspectRatio` ]: true,
 	[ `${ BACKGROUND_SUPPORT_KEY }` ]: true,
 };
 
@@ -324,7 +332,15 @@ function BlockStyleControls( {
 		clientId,
 		name,
 		setAttributes,
-		settings,
+		settings: {
+			...settings,
+			typography: {
+				...settings.typography,
+				// The text alignment UI for individual blocks is rendered in
+				// the block toolbar, so disable it here.
+				textAlign: false,
+			},
+		},
 	};
 	if ( blockEditingMode !== 'default' ) {
 		return null;
@@ -360,15 +376,16 @@ const elementTypes = [
 	},
 ];
 
-function useBlockProps( { name, style } ) {
-	const blockElementsContainerIdentifier = `wp-elements-${ useInstanceId(
-		useBlockProps
-	) }`;
+// Used for generating the instance ID
+const STYLE_BLOCK_PROPS_REFERENCE = {};
 
-	// The .editor-styles-wrapper selector is required on elements styles. As it is
-	// added to all other editor styles, not providing it causes reset and global
-	// styles to override element styles because of higher specificity.
-	const baseElementSelector = `.editor-styles-wrapper .${ blockElementsContainerIdentifier }`;
+function useBlockProps( { name, style } ) {
+	const blockElementsContainerIdentifier = useInstanceId(
+		STYLE_BLOCK_PROPS_REFERENCE,
+		'wp-elements'
+	);
+
+	const baseElementSelector = `.${ blockElementsContainerIdentifier }`;
 	const blockElementStyles = style?.elements;
 
 	const styles = useMemo( () => {

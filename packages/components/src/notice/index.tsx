@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import classnames from 'classnames';
+import clsx from 'clsx';
 
 /**
  * WordPress dependencies
@@ -93,14 +93,9 @@ function Notice( {
 }: NoticeProps ) {
 	useSpokenMessage( spokenMessage, politeness );
 
-	const classes = classnames(
-		className,
-		'components-notice',
-		'is-' + status,
-		{
-			'is-dismissible': isDismissible,
-		}
-	);
+	const classes = clsx( className, 'components-notice', 'is-' + status, {
+		'is-dismissible': isDismissible,
+	} );
 
 	if ( __unstableHTML && typeof children === 'string' ) {
 		children = <RawHTML>{ children }</RawHTML>;
@@ -147,11 +142,12 @@ function Notice( {
 
 							return (
 								<Button
+									__next40pxDefaultSize
 									key={ index }
 									href={ url }
 									variant={ computedVariant }
 									onClick={ url ? undefined : onClick }
-									className={ classnames(
+									className={ clsx(
 										'components-notice__action',
 										buttonCustomClasses
 									) }
@@ -165,6 +161,7 @@ function Notice( {
 			</div>
 			{ isDismissible && (
 				<Button
+					size="small"
 					className="components-notice__dismiss"
 					icon={ close }
 					label={ __( 'Close' ) }

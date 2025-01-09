@@ -25,7 +25,7 @@ To complete this tutorial, you will need:
 If you don't have one or more of these items, the [Block Development Environment](https://developer.wordpress.org/block-editor/getting-started/devenv/) documentation will help you get started. Come back here once you are all set up.
 
 <div class="callout callout-info">
-	This tutorial uses <a href="https://developer.wordpress.org/block-editor/getting-started/devenv/get-started-with-wp-env/"><code>wp-env</code></a> to create a local WordPress development environment. However, feel free to use alternate local development tools if you already have one that you prefer.
+	This tutorial uses <a href="https://developer.wordpress.org/block-editor/getting-started/devenv/get-started-with-wp-env/"><code>wp-env</code></a> to create a local WordPress development environment. However, feel free to use any development environment that meets the abovementioned prerequisites.
 </div>
 
 ## Scaffolding the block
@@ -33,7 +33,7 @@ If you don't have one or more of these items, the [Block Development Environment
 The first step in creating the Copyright Date Block is to scaffold the initial block structure using the [`@wordpress/create-block`](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-create-block/) package.
 
 <div class="callout callout-info">
-	Review the <a href="https://developer.wordpress.org/block-editor/getting-started/devenv/get-started-with-wp-env/">Get started with create-block</a> documentation for an introduction to using this package.
+	Review the <a href="https://developer.wordpress.org/block-editor/getting-started/devenv/get-started-with-create-block/">Get started with create-block</a> documentation for an introduction to using this package.
 </div>
 
 You can use `create-block` from just about any directory (folder) on your computer and then use `wp-env` to create a local WordPress development environment with your new block plugin installed and activated.
@@ -156,7 +156,7 @@ Save the file and select the block in the Editor. You will now see both Color an
 
 #### Removing unnecessary code
 
-For simplicity, the styling for the Copyright Date Block will be controlled entirely by the color and typography block supports. This block also does not have any front-end Javascript. Therefore, you don't need to specify stylesheets or a `viewScript` in the `block.json` file.
+For simplicity, the styling for the Copyright Date Block will be controlled entirely by the color and typography block supports. This block also does not have any front-end JavaScript. Therefore, you don't need to specify stylesheets or a `viewScript` in the `block.json` file.
 
 1. Remove the line for `editorStyle`
 2. Remove the line for `style`
@@ -250,7 +250,7 @@ At this point, the block's icon and description are correct, and block supports 
 
 ### Updating edit.js
 
-The [`edit.js`](https://developer.wordpress.org/block-editor/getting-started/fundamentals/file-structure-of-a-block/#edit-js) file controls how the block functions and appears in the Editor. Right now, the user sees the message " Copyright Date Block – hello from the editor!". Let's change that.
+The [`edit.js`](https://developer.wordpress.org/block-editor/getting-started/fundamentals/file-structure-of-a-block/#edit-js) file controls how the block functions and appears in the Editor. Right now, the user sees the message "Copyright Date Block – hello from the editor!". Let's change that.
 
 Open the file and see that the `Edit()` function returns a paragraph tag with the default message.
 
@@ -373,8 +373,8 @@ Save the file, and you can now move on to the Editor.
 
 Open the `edit.js` file. You will need to accomplish two tasks.
 
-Add a user interface that allows the user to enter a starting year, toggle the functionality on or off, and store these settings as attributes
-Update the block to display the correct content depending on the defined attributes
+- Add a user interface that allows the user to enter a starting year, toggle the functionality on or off, and store these settings as attributes.
+- Update the block to display the correct content depending on the defined attributes.
 
 #### Adding the user interface
 
@@ -480,6 +480,8 @@ export default function Edit( { attributes, setAttributes } ) {
 			<InspectorControls>
 				<PanelBody title={ __( 'Settings', 'copyright-date-block' ) }>
 					<TextControl
+					    __nextHasNoMarginBottom
+						__next40pxDefaultSize
 						label={ __(
 							'Starting year',
 							'copyright-date-block'
@@ -540,6 +542,8 @@ export default function Edit( { attributes, setAttributes } ) {
 					/>
 					{ showStartingYear && (
 						<TextControl
+							__nextHasNoMarginBottom
+							__next40pxDefaultSize
 							label={ __(
 								'Starting year',
 								'copyright-date-block'
@@ -647,10 +651,10 @@ While the Editor looks great, the starting year functionality has yet to be adde
 
 Start by adding a variable called `$display_date` and replicate what you did in the `Edit()` function above.
 
-This variable should display the value of the `startingYear` attribute and the `$current_year` variable separated by an em dash, or just the `$current_year` is the `showStartingYear` attribute is `false`.
+This variable should display the value of the `startingYear` attribute and the `$current_year` variable separated by an em dash, or just the `$current_year` if the `showStartingYear` attribute is `false`.
 
 <div class="callout callout-tip">
-	<p>Three variables are exposed in the <code>render.php</code>, which you can use to customize the block's output:</p>
+	<p>Three variables are exposed in <code>render.php</code>, which you can use to customize the block's output:</p>
 	<ul>
 		<li><code>$attributes</code> (array): The block attributes.</li>
 		<li><code>$content</code> (string): The block default content.</li>
@@ -715,7 +719,7 @@ Compare this to a statically rendered block like the Paragraph block.
 
 The HTML of the paragraph is stored in post content and saved in the database.
 
-You can learn more about dynamic and static rendering in the [Fundamentals documentation](https://developer.wordpress.org/block-editor/getting-started/fundamentals/). While most blocks are either dynamically or statically rendered, you can build a block that utilizes both methods.
+You can learn more about dynamic and static rendering in the [Fundamentals documentation](https://developer.wordpress.org/block-editor/getting-started/fundamentals/static-dynamic-rendering/). While most blocks are either dynamically or statically rendered, you can build a block that utilizes both methods.
 
 ### Why add static rendering?
 
@@ -781,7 +785,7 @@ This block validation error occurs because the `save()` function returns block c
 
 You will see more of these errors as you update the `save()` function in subsequent steps. Just click "Attempt Block Recovery" and update the page.
 
-After preforming block recovery, open the Code editor and you will see the markup now looks like this.
+After performing block recovery, open the Code editor and you will see the markup now looks like this.
 
 ```html
 <!-- wp:create-block/copyright-date-block {"showStartingYear":true,"startingYear":"2017"} -->

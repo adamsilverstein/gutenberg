@@ -1,55 +1,120 @@
 /**
  * WordPress dependencies
  */
-import { useSelect, useDispatch } from '@wordpress/data';
-import {
-	useBlockEditingMode,
-	store as blockEditorStore,
-} from '@wordpress/block-editor';
+import { useSelect, useRegistry } from '@wordpress/data';
+import { store as blockEditorStore } from '@wordpress/block-editor';
 import { useEffect } from '@wordpress/element';
 
 /**
  * Internal dependencies
  */
-import { PAGE_CONTENT_BLOCK_TYPES } from './constants';
-
-function DisableBlock( { clientId } ) {
-	const isDescendentOfQueryLoop = useSelect(
-		( select ) => {
-			const { getBlockParentsByBlockName } = select( blockEditorStore );
-			return (
-				getBlockParentsByBlockName( clientId, 'core/query' ).length !==
-				0
-			);
-		},
-		[ clientId ]
-	);
-	const mode = isDescendentOfQueryLoop ? undefined : 'contentOnly';
-	const { setBlockEditingMode, unsetBlockEditingMode } =
-		useDispatch( blockEditorStore );
-	useEffect( () => {
-		if ( mode ) {
-			setBlockEditingMode( clientId, mode );
-			return () => {
-				unsetBlockEditingMode( clientId );
-			};
-		}
-	}, [ clientId, mode, setBlockEditingMode, unsetBlockEditingMode ] );
-}
+import usePostContentBlocks from './use-post-content-blocks';
 
 /**
  * Component that when rendered, makes it so that the site editor allows only
  * page content to be edited.
  */
 export default function DisableNonPageContentBlocks() {
-	useBlockEditingMode( 'disabled' );
-	const clientIds = useSelect( ( select ) => {
-		const { __experimentalGetGlobalBlocksByName } =
+	const contentOnlyIds = usePostContentBlocks();
+	const { templateParts, isNavigationMode } = useSelect( ( select ) => {
+		const { getBlocksByName, isNavigationMode: _isNavigationMode } =
 			select( blockEditorStore );
-		return __experimentalGetGlobalBlocksByName( PAGE_CONTENT_BLOCK_TYPES );
+		return {
+			templateParts: getBlocksByName( 'core/template-part' ),
+			isNavigationMode: _isNavigationMode(),
+		};
 	}, [] );
+	const disabledIds = useSelect(
+		( select ) => {
+			const { getBlockOrder } = select( blockEditorStore );
+			return templateParts.flatMap( ( clientId ) =>
+				getBlockOrder( clientId )
+			);
+		},
+		[ templateParts ]
+	);
 
-	return clientIds.map( ( clientId ) => {
-		return <DisableBlock key={ clientId } clientId={ clientId } />;
-	} );
+	const registry = useRegistry();
+
+	// The code here is split into multiple `useEffects` calls.
+	// This is done to avoid setting/unsetting block editing modes multiple times unnecessarily.
+	//
+	// For example, the block editing mode of the root block (clientId: '') only
+	// needs to be set once, not when `contentOnlyIds` or `disabledIds` change.
+	//
+	// It's also unlikely that these different types of blocks are being inserted
+	// or removed at the same time, so using different effects reflects that.
+	useEffect( () => {
+		const { setBlockEditingMode, unsetBlockEditingMode } =
+			registry.dispatch( blockEditorStore );
+
+		setBlockEditingMode( '', 'disabled' );
+
+		return () => {
+			unsetBlockEditingMode( '' );
+		};
+	}, [ registry ] );
+
+	useEffect( () => {
+		const { setBlockEditingMode, unsetBlockEditingMode } =
+			registry.dispatch( blockEditorStore );
+
+		registry.batch( () => {
+			for ( const clientId of contentOnlyIds ) {
+				setBlockEditingMode( clientId, 'contentOnly' );
+			}
+		} );
+
+		return () => {
+			registry.batch( () => {
+				for ( const clientId of contentOnlyIds ) {
+					unsetBlockEditingMode( clientId );
+				}
+			} );
+		};
+	}, [ contentOnlyIds, registry ] );
+
+	useEffect( () => {
+		const { setBlockEditingMode, unsetBlockEditingMode } =
+			registry.dispatch( blockEditorStore );
+
+		registry.batch( () => {
+			if ( ! isNavigationMode ) {
+				for ( const clientId of templateParts ) {
+					setBlockEditingMode( clientId, 'contentOnly' );
+				}
+			}
+		} );
+
+		return () => {
+			registry.batch( () => {
+				if ( ! isNavigationMode ) {
+					for ( const clientId of templateParts ) {
+						unsetBlockEditingMode( clientId );
+					}
+				}
+			} );
+		};
+	}, [ templateParts, isNavigationMode, registry ] );
+
+	useEffect( () => {
+		const { setBlockEditingMode, unsetBlockEditingMode } =
+			registry.dispatch( blockEditorStore );
+
+		registry.batch( () => {
+			for ( const clientId of disabledIds ) {
+				setBlockEditingMode( clientId, 'disabled' );
+			}
+		} );
+
+		return () => {
+			registry.batch( () => {
+				for ( const clientId of disabledIds ) {
+					unsetBlockEditingMode( clientId );
+				}
+			} );
+		};
+	}, [ disabledIds, registry ] );
+
+	return null;
 }

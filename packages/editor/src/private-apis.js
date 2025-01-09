@@ -1,36 +1,54 @@
 /**
+ * WordPress dependencies
+ */
+import * as interfaceApis from '@wordpress/interface';
+
+/**
  * Internal dependencies
  */
-import EditorCanvas from './components/editor-canvas';
-import { ExperimentalEditorProvider } from './components/provider';
 import { lock } from './lock-unlock';
-import EnablePluginDocumentSettingPanelOption from './components/preferences-modal/enable-plugin-document-setting-panel';
 import { EntitiesSavedStatesExtensible } from './components/entities-saved-states';
-import useBlockEditorSettings from './components/provider/use-block-editor-settings';
-import DocumentTools from './components/document-tools';
-import InserterSidebar from './components/inserter-sidebar';
-import ListViewSidebar from './components/list-view-sidebar';
+import EditorContentSlotFill from './components/editor-interface/content-slot-fill';
+import BackButton from './components/header/back-button';
+import Editor from './components/editor';
 import PluginPostExcerpt from './components/post-excerpt/plugin';
-import PostPanelRow from './components/post-panel-row';
-import PostViewLink from './components/post-view-link';
-import PreviewDropdown from './components/preview-dropdown';
+import PostCardPanel from './components/post-card-panel';
 import PreferencesModal from './components/preferences-modal';
+import { usePostActions } from './components/post-actions/actions';
+import usePostFields from './components/post-fields';
+import ToolsMoreMenuGroup from './components/more-menu/tools-more-menu-group';
+import ViewMoreMenuGroup from './components/more-menu/view-more-menu-group';
+import ResizableEditor from './components/resizable-editor';
+import {
+	mergeBaseAndUserConfigs,
+	GlobalStylesProvider,
+} from './components/global-styles-provider';
+import { CreateTemplatePartModal } from '@wordpress/fields';
+import { registerCoreBlockBindingsSources } from './bindings/api';
+import { getTemplateInfo } from './utils/get-template-info';
+
+const { store: interfaceStore, ...remainingInterfaceApis } = interfaceApis;
 
 export const privateApis = {};
 lock( privateApis, {
-	DocumentTools,
-	EditorCanvas,
-	ExperimentalEditorProvider,
-	EnablePluginDocumentSettingPanelOption,
+	CreateTemplatePartModal,
+	BackButton,
 	EntitiesSavedStatesExtensible,
-	InserterSidebar,
-	ListViewSidebar,
+	Editor,
+	EditorContentSlotFill,
+	GlobalStylesProvider,
+	mergeBaseAndUserConfigs,
 	PluginPostExcerpt,
-	PostPanelRow,
-	PostViewLink,
-	PreviewDropdown,
+	PostCardPanel,
 	PreferencesModal,
-
+	usePostActions,
+	usePostFields,
+	ToolsMoreMenuGroup,
+	ViewMoreMenuGroup,
+	ResizableEditor,
+	registerCoreBlockBindingsSources,
+	getTemplateInfo,
 	// This is a temporary private API while we're updating the site editor to use EditorProvider.
-	useBlockEditorSettings,
+	interfaceStore,
+	...remainingInterfaceApis,
 } );

@@ -9,8 +9,17 @@ import {
 	InspectorControls,
 } from '@wordpress/block-editor';
 import { useSelect } from '@wordpress/data';
-import { PanelBody, ToggleControl } from '@wordpress/components';
+import {
+	ToggleControl,
+	__experimentalToolsPanel as ToolsPanel,
+	__experimentalToolsPanelItem as ToolsPanelItem,
+} from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
+
+/**
+ * Internal dependencies
+ */
+import { useToolsPanelDropdownMenuProps } from '../utils/hooks';
 
 const TEMPLATE = [
 	[
@@ -22,12 +31,14 @@ const TEMPLATE = [
 ];
 
 function DetailsEdit( { attributes, setAttributes, clientId } ) {
-	const { showContent, summary } = attributes;
+	const { showContent, summary, allowedBlocks } = attributes;
 	const blockProps = useBlockProps();
 	const innerBlocksProps = useInnerBlocksProps( blockProps, {
 		template: TEMPLATE,
 		__experimentalCaptureToolbars: true,
+		allowedBlocks,
 	} );
+	const dropdownMenuProps = useToolsPanelDropdownMenuProps();
 
 	// Check if either the block or the inner blocks are selected.
 	const hasSelection = useSelect(
@@ -46,17 +57,37 @@ function DetailsEdit( { attributes, setAttributes, clientId } ) {
 	return (
 		<>
 			<InspectorControls>
-				<PanelBody title={ __( 'Settings' ) }>
-					<ToggleControl
+				<ToolsPanel
+					label={ __( 'Settings' ) }
+					resetAll={ () => {
+						setAttributes( {
+							showContent: false,
+						} );
+					} }
+					dropdownMenuProps={ dropdownMenuProps }
+				>
+					<ToolsPanelItem
+						isShownByDefault
 						label={ __( 'Open by default' ) }
-						checked={ showContent }
-						onChange={ () =>
+						hasValue={ () => showContent }
+						onDeselect={ () => {
 							setAttributes( {
-								showContent: ! showContent,
-							} )
-						}
-					/>
-				</PanelBody>
+								showContent: false,
+							} );
+						} }
+					>
+						<ToggleControl
+							__nextHasNoMarginBottom
+							label={ __( 'Open by default' ) }
+							checked={ showContent }
+							onChange={ () =>
+								setAttributes( {
+									showContent: ! showContent,
+								} )
+							}
+						/>
+					</ToolsPanelItem>
+				</ToolsPanel>
 			</InspectorControls>
 			<details
 				{ ...innerBlocksProps }
@@ -64,6 +95,7 @@ function DetailsEdit( { attributes, setAttributes, clientId } ) {
 			>
 				<summary onClick={ ( event ) => event.preventDefault() }>
 					<RichText
+						identifier="summary"
 						aria-label={ __( 'Write summary' ) }
 						placeholder={ __( 'Write summary…' ) }
 						allowedFormats={ [] }

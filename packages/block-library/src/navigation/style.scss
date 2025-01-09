@@ -76,15 +76,10 @@ $navigation-icon-size: 24px;
 		}
 	}
 
-	&:where(:not([class*="has-text-decoration"])) {
-		a {
-			text-decoration: none;
-
-			&:focus,
-			&:active {
-				text-decoration: none;
-			}
-		}
+	& :where(a),
+	& :where(a:focus),
+	& :where(a:active) {
+		text-decoration: none;
 	}
 
 	// Submenu indicator.
@@ -171,7 +166,9 @@ $navigation-icon-size: 24px;
 
 		// Hide until hover or focus within.
 		opacity: 0;
-		transition: opacity 0.1s linear;
+		@media not (prefers-reduced-motion) {
+			transition: opacity 0.1s linear;
+		}
 		visibility: hidden;
 
 		// Don't take up space when the menu is collapsed.
@@ -300,6 +297,7 @@ button.wp-block-navigation-item__content {
 	color: currentColor;
 	font-size: inherit;
 	font-family: inherit;
+	letter-spacing: inherit;
 	line-height: inherit;
 	font-style: inherit;
 	font-weight: inherit;
@@ -506,15 +504,16 @@ button.wp-block-navigation-item__content {
 		background-color: inherit;
 
 		// Animation.
-		animation: overlay-menu__fade-in-animation 0.1s ease-out;
-		animation-fill-mode: forwards;
-		@include reduce-motion("animation");
+		@media not (prefers-reduced-motion) {
+			animation: overlay-menu__fade-in-animation 0.1s ease-out;
+			animation-fill-mode: forwards;
+		}
 
 		// Try to inherit any root paddings set, so the X can align to a top-right aligned menu.
 		padding-top: clamp(1rem, var(--wp--style--root--padding-top), 20rem);
 		padding-right: clamp(1rem, var(--wp--style--root--padding-right), 20rem);
 		padding-bottom: clamp(1rem, var(--wp--style--root--padding-bottom), 20rem);
-		padding-left: clamp(1rem, var(--wp--style--root--padding-left), 20em);
+		padding-left: clamp(1rem, var(--wp--style--root--padding-left), 20rem);
 
 		// Allow modal to scroll.
 		overflow: auto;
@@ -611,19 +610,18 @@ button.wp-block-navigation-item__content {
 		}
 	}
 
-	// When the menu is collapsed, the menu button is visible.
-	// We are using the > selector combined with the :not(is-collapsed) selector
-	// as a way to target the class being added to the parent nav element.
-	:not(.is-collapsed) > & {
-		&:not(.is-menu-open) {
-			display: block;
-			width: 100%;
-			position: relative;
-			z-index: auto;
-			background-color: inherit;
+	@include break-small() {
+		&:not(.hidden-by-default) {
+			&:not(.is-menu-open) {
+				display: block;
+				width: 100%;
+				position: relative;
+				z-index: auto;
+				background-color: inherit;
 
-			.wp-block-navigation__responsive-container-close {
-				display: none;
+				.wp-block-navigation__responsive-container-close {
+					display: none;
+				}
 			}
 		}
 
@@ -687,11 +685,10 @@ button.wp-block-navigation-item__content {
 		font-size: inherit;
 	}
 
-	// When the menu is collapsed, the menu button is visible.
-	// We are using the > selector combined with the :not(is-collapsed) selector
-	// as a way to target the class being added to the parent nav element.
-	:not(.is-collapsed) > & {
-		display: none;
+	&:not(.always-shown) {
+		@include break-small {
+			display: none;
+		}
 	}
 }
 

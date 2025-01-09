@@ -2,6 +2,60 @@
 
 ## Unreleased
 
+## 4.15.0 (2025-01-02)
+
+## 4.14.0 (2024-12-11)
+
+## 4.13.0 (2024-11-27)
+
+## 4.12.0 (2024-11-16)
+
+## 4.11.0 (2024-10-30)
+
+## 4.10.0 (2024-10-16)
+
+## 4.9.0 (2024-10-03)
+
+## 4.8.0 (2024-09-19)
+
+## 4.7.0 (2024-09-05)
+
+## 4.6.0 (2024-08-21)
+
+## 4.5.0 (2024-08-07)
+
+## 4.4.0 (2024-07-24)
+
+## 4.3.0 (2024-07-10)
+
+## 4.2.0 (2024-06-26)
+
+## 4.1.0 (2024-06-15)
+
+## 4.0.0 (2024-05-31)
+
+### Breaking Changes
+
+-   Increase the minimum required Node.js version to v18.12.0 matching long-term support releases ([#31270](https://github.com/WordPress/gutenberg/pull/61930)). Learn more about [Node.js releases](https://nodejs.org/en/about/previous-releases).
+
+## 3.56.0 (2024-05-16)
+
+## 3.55.0 (2024-05-02)
+
+## 3.54.0 (2024-04-19)
+
+## 3.53.0 (2024-04-03)
+
+## 3.52.0 (2024-03-21)
+
+## 3.51.0 (2024-03-06)
+
+## 3.50.0 (2024-02-21)
+
+## 3.49.0 (2024-02-09)
+
+## 3.48.0 (2024-01-24)
+
 ## 3.47.0 (2024-01-10)
 
 ## 3.46.0 (2023-12-13)
@@ -98,7 +152,7 @@
 
 ## 3.0.0 (2021-07-29)
 
-### Breaking Change
+### Breaking Changes
 
 -   Upgraded React components to work with v17.0 ([#29118](https://github.com/WordPress/gutenberg/pull/29118)). There are no new features in React v17.0 as explained in the [blog post](https://reactjs.org/blog/2020/10/20/react-v17.html).
 
