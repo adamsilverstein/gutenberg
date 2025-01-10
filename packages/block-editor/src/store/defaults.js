@@ -154,6 +154,9 @@ export const SETTINGS_DEFAULTS = {
 	// List of allowed mime types and file extensions.
 	allowedMimeTypes: null,
 
+	// List of types not supported by the server.
+	typesNotSupportedByServer: {},
+
 	// Allows to disable block locking interface.
 	canLockBlocks: true,
 

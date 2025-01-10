@@ -89,6 +89,23 @@ function gutenberg_get_block_editor_settings( $settings ) {
 		);
 	}
 
+	$settings['typesNotSupportedByServer'] = array();
+
+	// Check if WebP images can be edited.
+	if ( ! wp_image_editor_supports( array( 'mime_type' => 'image/webp' ) ) ) {
+		$settings['typesNotSupportedByServer']['webp'] = true;
+	}
+
+	// Check if AVIF images can be edited.
+	if ( ! wp_image_editor_supports( array( 'mime_type' => 'image/avif' ) ) ) {
+		$settings['typesNotSupportedByServer']['avif'] = true;
+	}
+
+	// Check if HEIC images can be edited.
+	if ( ! wp_image_editor_supports( array( 'mime_type' => 'image/heic' ) ) ) {
+		$settings['typesNotSupportedByServer']['heic'] = true;
+	}
+
 	$settings['styles'] = array_merge( $global_styles, get_block_editor_theme_styles() );
 
 	$settings['__experimentalFeatures'] = gutenberg_get_global_settings();
