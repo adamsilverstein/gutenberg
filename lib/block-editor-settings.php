@@ -93,17 +93,17 @@ function gutenberg_get_block_editor_settings( $settings ) {
 
 	// Check if WebP images can be edited.
 	if ( ! wp_image_editor_supports( array( 'mime_type' => 'image/webp' ) ) ) {
-		$settings['typesNotSupportedByServer']['webp'] = true;
+		$settings['typesNotSupportedByServer']['image/webp'] = true;
 	}
 
 	// Check if AVIF images can be edited.
 	if ( ! wp_image_editor_supports( array( 'mime_type' => 'image/avif' ) ) ) {
-		$settings['typesNotSupportedByServer']['avif'] = true;
+		$settings['typesNotSupportedByServer']['image/avif'] = true;
 	}
 
 	// Check if HEIC images can be edited.
 	if ( ! wp_image_editor_supports( array( 'mime_type' => 'image/heic' ) ) ) {
-		$settings['typesNotSupportedByServer']['heic'] = true;
+		$settings['typesNotSupportedByServer']['image/heic'] = true;
 	}
 
 	$settings['styles'] = array_merge( $global_styles, get_block_editor_theme_styles() );
