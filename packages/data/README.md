@@ -858,7 +858,27 @@ _Returns_
 
 ### waitForTransition
 
-Undocumented declaration.
+Given a callback function and an optional registry, returns a Promise that resolves when the result of the callback function changes to true, then to false.
+
+```js
+import { waitForTransition } from '@wordpress/data;
+
+// Wait for isSavingPost() to become true, then false.
+waitForTransition(  () => wp.data.select( 'core/editor' ).isSavingPost() ).then( () => {
+   // Do something when the post is done saving.
+   console.log( 'Post saved!' );
+} );
+```
+
+_Parameters_
+
+-   _callback_ `() => boolean`: A callback function that should return true when the state has changed.
+-   _registry_ `{ subscribe: ( listener: () => void ) => () => void; }`: Registry object. Optional. Defaults to the global registry.
+-   _registry.subscribe_ `{ subscribe: ( listener: () => void ) => () => void; }`: Function that subscribes to state changes.
+
+_Returns_
+
+-   `Promise< void >`: A Promise that resolves when the callback returns false after returning true.
 
 ### withDispatch
 

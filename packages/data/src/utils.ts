@@ -112,8 +112,6 @@ export function createRegistryControl< T extends ( ...args: any ) => any >(
 /**
  * Given a callback function and an optional registry, returns a Promise that resolves
  * when the result of the callback function changes to true, then to false.
- *
- * @example
  * ```js
  * import { waitForTransition } from '@wordpress/data;
  *
@@ -124,32 +122,36 @@ export function createRegistryControl< T extends ( ...args: any ) => any >(
  * } );
  * ```
  *
- * @param {Function} callback A callback function that should return true when the state has changed.
- * @param {Object}   registry Registry object. Optional. Defaults to the global registry.
- * @return {Promise} A Promise that resolves when the callback returns false after returning true.
+ * @param callback           A callback function that should return true when the state has changed.
+ * @param registry           Registry object. Optional. Defaults to the global registry.
+ * @param registry.subscribe Function that subscribes to state changes.
+ * @return A Promise that resolves when the callback returns false after returning true.
  */
-export function waitForTransition( callback, registry ) {
+export function waitForTransition(
+	callback: () => boolean,
+	registry: {
+		subscribe: ( listener: () => void ) => () => void;
+	}
+): Promise< void > {
 	let watching = false;
 
 	// Create a new Promise to return.
-	const promise = new Promise();
+	return new Promise< void >( ( resolve, reject ) => {
+		// Subscribe to all state changes.
+		const unsubscribe = registry.subscribe( () => {
+			// Start watching when the callback returns true.
+			if ( ! watching && callback() ) {
+				watching = true;
+			}
 
-	// Subscribe to all state changes.
-	const unsubscribe = registry.subscribe( () => {
-		// Start watching when the callback returns true.
-		if ( ! watching && callback() ) {
-			watching = true;
-		}
+			// Complete watching and resolve the Promise when the callback returns false.
+			if ( watching && ! callback() ) {
+				unsubscribe();
+				resolve();
+			}
+		} );
 
-		// Complete watching and resolve the Promise when the callback returns false.
-		if ( watching && ! callback() ) {
-			unsubscribe();
-			promise.resolve();
-		}
+		// If the Promise is rejected, unsubscribe to clean up.
+		Promise.prototype.catch.call( { catch: reject }, unsubscribe );
 	} );
-
-	// If the Promise is cancelled, unsubscribe to clean up.
-	promise.catch( unsubscribe );
-
-	return promise;
 }
