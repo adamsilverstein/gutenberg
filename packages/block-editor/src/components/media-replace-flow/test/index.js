@@ -105,12 +105,12 @@ describe( 'General media replace flow', () => {
 
 		await user.click(
 			screen.getByRole( 'button', {
-				name: 'Edit',
+				name: 'Edit link',
 			} )
 		);
 
 		const mediaURLInput = screen.getByRole( 'combobox', {
-			name: 'Link',
+			name: 'Search or type URL',
 			expanded: false,
 		} );
 

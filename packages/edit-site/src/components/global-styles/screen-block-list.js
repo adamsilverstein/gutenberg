@@ -26,7 +26,7 @@ import { speak } from '@wordpress/a11y';
 /**
  * Internal dependencies
  */
-import { useBlockVariations } from './variations-panel';
+import { useBlockVariations } from './variations/variations-panel';
 import ScreenHeader from './header';
 import { NavigationButtonAsItem } from './navigation-button';
 import { unlock } from '../../lock-unlock';
@@ -86,16 +86,9 @@ function BlockMenuItem( { block } ) {
 		return null;
 	}
 
-	const navigationButtonLabel = sprintf(
-		// translators: %s: is the name of a block e.g., 'Image' or 'Table'.
-		__( '%s block styles' ),
-		block.title
-	);
-
 	return (
 		<NavigationButtonAsItem
 			path={ '/blocks/' + encodeURIComponent( block.name ) }
-			aria-label={ navigationButtonLabel }
 		>
 			<HStack justify="flex-start">
 				<BlockIcon icon={ block.icon } />
@@ -174,7 +167,7 @@ function ScreenBlockList() {
 				className="edit-site-block-types-search"
 				onChange={ setFilterValue }
 				value={ filterValue }
-				label={ __( 'Search for blocks' ) }
+				label={ __( 'Search' ) }
 				placeholder={ __( 'Search' ) }
 			/>
 			<MemoizedBlockList filterValue={ deferredFilterValue } />

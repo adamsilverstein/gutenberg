@@ -2,7 +2,7 @@
  * WordPress dependencies
  */
 
-import { __ } from '@wordpress/i18n';
+import { __, _x } from '@wordpress/i18n';
 
 export const INSERTER_PATTERN_TYPES = {
 	user: 'user',
@@ -17,12 +17,17 @@ export const INSERTER_SYNC_TYPES = {
 
 export const allPatternsCategory = {
 	name: 'allPatterns',
-	label: __( 'All' ),
+	label: _x( 'All', 'patterns' ),
 };
 
 export const myPatternsCategory = {
 	name: 'myPatterns',
 	label: __( 'My patterns' ),
+};
+
+export const starterPatternsCategory = {
+	name: 'core/starter-content',
+	label: __( 'Starter content' ),
 };
 
 export function isPatternFiltered( pattern, sourceFilter, syncFilter ) {

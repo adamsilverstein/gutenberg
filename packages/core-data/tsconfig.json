@@ -1,9 +1,7 @@
 {
+	"$schema": "https://json.schemastore.org/tsconfig.json",
 	"extends": "../../tsconfig.base.json",
 	"compilerOptions": {
-		"rootDir": "src",
-		"declarationDir": "build-types",
-		"noUnusedParameters": false,
 		"checkJs": false,
 		"noImplicitAny": false
 	},
@@ -21,7 +19,7 @@
 		{ "path": "../rich-text" },
 		{ "path": "../sync" },
 		{ "path": "../undo-manager" },
-		{ "path": "../url" }
-	],
-	"include": [ "src/**/*" ]
+		{ "path": "../url" },
+		{ "path": "../warning" }
+	]
 }

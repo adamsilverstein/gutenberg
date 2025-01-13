@@ -1,16 +1,13 @@
 /**
  * WordPress dependencies
  */
-import { Button, VisuallyHidden } from '@wordpress/components';
-import { close } from '@wordpress/icons';
 import { __experimentalLibrary as Library } from '@wordpress/block-editor';
 import {
 	useViewportMatch,
 	__experimentalUseDialog as useDialog,
 } from '@wordpress/compose';
-import { useCallback, useEffect, useRef } from '@wordpress/element';
+import { useCallback, useRef } from '@wordpress/element';
 import { useDispatch } from '@wordpress/data';
-import { __ } from '@wordpress/i18n';
 
 /**
  * Internal dependencies
@@ -28,16 +25,12 @@ export default function InserterSidebar() {
 		return setIsInserterOpened( false );
 	}, [ setIsInserterOpened ] );
 
-	const TagName = ! isMobileViewport ? VisuallyHidden : 'div';
 	const [ inserterDialogRef, inserterDialogProps ] = useDialog( {
 		onClose: closeInserter,
-		focusOnMount: null,
+		focusOnMount: true,
 	} );
 
 	const libraryRef = useRef();
-	useEffect( () => {
-		libraryRef.current.focusSearch();
-	}, [] );
 
 	return (
 		<div
@@ -45,13 +38,6 @@ export default function InserterSidebar() {
 			{ ...inserterDialogProps }
 			className="edit-widgets-layout__inserter-panel"
 		>
-			<TagName className="edit-widgets-layout__inserter-panel-header">
-				<Button
-					icon={ close }
-					onClick={ closeInserter }
-					label={ __( 'Close block inserter' ) }
-				/>
-			</TagName>
 			<div className="edit-widgets-layout__inserter-panel-content">
 				<Library
 					showInserterHelpPanel
@@ -59,6 +45,7 @@ export default function InserterSidebar() {
 					rootClientId={ rootClientId }
 					__experimentalInsertionIndex={ insertionIndex }
 					ref={ libraryRef }
+					onClose={ closeInserter }
 				/>
 			</div>
 		</div>

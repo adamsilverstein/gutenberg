@@ -102,7 +102,7 @@
 		"parent": "fundamentals"
 	},
 	{
-		"title": "Working with Javascript for the Block Editor",
+		"title": "Working with JavaScript for the Block Editor",
 		"slug": "javascript-in-the-block-editor",
 		"markdown_source": "../docs/getting-started/fundamentals/javascript-in-the-block-editor.md",
 		"parent": "fundamentals"
@@ -136,12 +136,6 @@
 		"slug": "block-tutorial",
 		"markdown_source": "../docs/how-to-guides/block-tutorial/README.md",
 		"parent": "how-to-guides"
-	},
-	{
-		"title": "Create a basic block",
-		"slug": "writing-your-first-block-type",
-		"markdown_source": "../docs/how-to-guides/block-tutorial/writing-your-first-block-type.md",
-		"parent": "block-tutorial"
 	},
 	{
 		"title": "Use styles and stylesheets",
@@ -204,7 +198,7 @@
 		"parent": "data-basics"
 	},
 	{
-		"title": "Part 4: Building a Create page form",
+		"title": "Building a Create page form",
 		"slug": "4-building-a-create-page-form",
 		"markdown_source": "../docs/how-to-guides/data-basics/4-building-a-create-page-form.md",
 		"parent": "data-basics"
@@ -378,6 +372,12 @@
 		"parent": "block-api"
 	},
 	{
+		"title": "Bindings",
+		"slug": "block-bindings",
+		"markdown_source": "../docs/reference-guides/block-api/block-bindings.md",
+		"parent": "block-api"
+	},
+	{
 		"title": "Context",
 		"slug": "block-context",
 		"markdown_source": "../docs/reference-guides/block-api/block-context.md",
@@ -498,6 +498,66 @@
 		"parent": "filters"
 	},
 	{
+		"title": "Interactivity API Reference",
+		"slug": "interactivity-api",
+		"markdown_source": "../docs/reference-guides/interactivity-api/README.md",
+		"parent": "reference-guides"
+	},
+	{
+		"title": "Core Concepts",
+		"slug": "core-concepts",
+		"markdown_source": "../docs/reference-guides/interactivity-api/core-concepts/README.md",
+		"parent": "interactivity-api"
+	},
+	{
+		"title": "The Reactive and Declarative mindset",
+		"slug": "the-reactive-and-declarative-mindset",
+		"markdown_source": "../docs/reference-guides/interactivity-api/core-concepts/the-reactive-and-declarative-mindset.md",
+		"parent": "core-concepts"
+	},
+	{
+		"title": "Understanding global state, local context and derived state",
+		"slug": "undestanding-global-state-local-context-and-derived-state",
+		"markdown_source": "../docs/reference-guides/interactivity-api/core-concepts/undestanding-global-state-local-context-and-derived-state.md",
+		"parent": "core-concepts"
+	},
+	{
+		"title": "Server-side rendering: Processing directives on the server",
+		"slug": "server-side-rendering",
+		"markdown_source": "../docs/reference-guides/interactivity-api/core-concepts/server-side-rendering.md",
+		"parent": "core-concepts"
+	},
+	{
+		"title": "Using TypeScript",
+		"slug": "using-typescript",
+		"markdown_source": "../docs/reference-guides/interactivity-api/core-concepts/using-typescript.md",
+		"parent": "core-concepts"
+	},
+	{
+		"title": "Quick start guide",
+		"slug": "iapi-quick-start-guide",
+		"markdown_source": "../docs/reference-guides/interactivity-api/iapi-quick-start-guide.md",
+		"parent": "interactivity-api"
+	},
+	{
+		"title": "API Reference",
+		"slug": "api-reference",
+		"markdown_source": "../docs/reference-guides/interactivity-api/api-reference.md",
+		"parent": "interactivity-api"
+	},
+	{
+		"title": "About the Interactivity API",
+		"slug": "iapi-about",
+		"markdown_source": "../docs/reference-guides/interactivity-api/iapi-about.md",
+		"parent": "interactivity-api"
+	},
+	{
+		"title": "Frequently Asked Questions",
+		"slug": "iapi-faq",
+		"markdown_source": "../docs/reference-guides/interactivity-api/iapi-faq.md",
+		"parent": "interactivity-api"
+	},
+	{
 		"title": "SlotFills Reference",
 		"slug": "slotfills",
 		"markdown_source": "../docs/reference-guides/slotfills/README.md",
@@ -570,7 +630,7 @@
 		"parent": "reference-guides"
 	},
 	{
-		"title": "Theme.json Version 2",
+		"title": "Theme.json Version 3 Reference (latest)",
 		"slug": "theme-json-living",
 		"markdown_source": "../docs/reference-guides/theme-json-reference/theme-json-living.md",
 		"parent": "theme-json-reference"
@@ -582,7 +642,13 @@
 		"parent": "theme-json-reference"
 	},
 	{
-		"title": "Migrating to Newer Versions",
+		"title": "Theme.json Version 2 Reference",
+		"slug": "theme-json-v2",
+		"markdown_source": "../docs/reference-guides/theme-json-reference/theme-json-v2.md",
+		"parent": "theme-json-reference"
+	},
+	{
+		"title": "Migrating Theme.json to Newer Versions",
 		"slug": "theme-json-migrations",
 		"markdown_source": "../docs/reference-guides/theme-json-reference/theme-json-migrations.md",
 		"parent": "theme-json-reference"
@@ -738,15 +804,15 @@
 		"parent": "components"
 	},
 	{
-		"title": "ConfirmDialog",
-		"slug": "confirm-dialog",
-		"markdown_source": "../packages/components/src/confirm-dialog/README.md",
+		"title": "Composite",
+		"slug": "composite",
+		"markdown_source": "../packages/components/src/composite/README.md",
 		"parent": "components"
 	},
 	{
-		"title": "CustomSelectControlV2",
-		"slug": "custom-select-control-v2",
-		"markdown_source": "../packages/components/src/custom-select-control-v2/README.md",
+		"title": "ConfirmDialog",
+		"slug": "confirm-dialog",
+		"markdown_source": "../packages/components/src/confirm-dialog/README.md",
 		"parent": "components"
 	},
 	{
@@ -1038,33 +1104,9 @@
 		"parent": "components"
 	},
 	{
-		"title": "NavigatorBackButton",
-		"slug": "navigator-back-button",
-		"markdown_source": "../packages/components/src/navigator/navigator-back-button/README.md",
-		"parent": "components"
-	},
-	{
-		"title": "NavigatorButton",
-		"slug": "navigator-button",
-		"markdown_source": "../packages/components/src/navigator/navigator-button/README.md",
-		"parent": "components"
-	},
-	{
-		"title": "NavigatorProvider",
-		"slug": "navigator-provider",
-		"markdown_source": "../packages/components/src/navigator/navigator-provider/README.md",
-		"parent": "components"
-	},
-	{
-		"title": "NavigatorScreen",
-		"slug": "navigator-screen",
-		"markdown_source": "../packages/components/src/navigator/navigator-screen/README.md",
-		"parent": "components"
-	},
-	{
-		"title": "NavigatorToParentButton",
-		"slug": "navigator-to-parent-button",
-		"markdown_source": "../packages/components/src/navigator/navigator-to-parent-button/README.md",
+		"title": "Navigator",
+		"slug": "navigator",
+		"markdown_source": "../packages/components/src/navigator/README.md",
 		"parent": "components"
 	},
 	{
@@ -1095,6 +1137,12 @@
 		"title": "Popover",
 		"slug": "popover",
 		"markdown_source": "../packages/components/src/popover/README.md",
+		"parent": "components"
+	},
+	{
+		"title": "ProgressBar",
+		"slug": "progress-bar",
+		"markdown_source": "../packages/components/src/progress-bar/README.md",
 		"parent": "components"
 	},
 	{
@@ -1203,12 +1251,6 @@
 		"title": "TabPanel",
 		"slug": "tab-panel",
 		"markdown_source": "../packages/components/src/tab-panel/README.md",
-		"parent": "components"
-	},
-	{
-		"title": "Tabs",
-		"slug": "tabs",
-		"markdown_source": "../packages/components/src/tabs/README.md",
 		"parent": "components"
 	},
 	{
@@ -1644,6 +1686,12 @@
 		"parent": "packages"
 	},
 	{
+		"title": "@wordpress/fields",
+		"slug": "packages-fields",
+		"markdown_source": "../packages/fields/README.md",
+		"parent": "packages"
+	},
+	{
 		"title": "@wordpress/format-library",
 		"slug": "packages-format-library",
 		"markdown_source": "../packages/format-library/README.md",
@@ -1671,6 +1719,12 @@
 		"title": "@wordpress/icons",
 		"slug": "packages-icons",
 		"markdown_source": "../packages/icons/README.md",
+		"parent": "packages"
+	},
+	{
+		"title": "@wordpress/interactivity-router",
+		"slug": "packages-interactivity-router",
+		"markdown_source": "../packages/interactivity-router/README.md",
 		"parent": "packages"
 	},
 	{
@@ -1914,6 +1968,12 @@
 		"parent": "packages"
 	},
 	{
+		"title": "@wordpress/upload-media",
+		"slug": "packages-upload-media",
+		"markdown_source": "../packages/upload-media/README.md",
+		"parent": "packages"
+	},
+	{
 		"title": "@wordpress/url",
 		"slug": "packages-url",
 		"markdown_source": "../packages/url/README.md",
@@ -2082,7 +2142,7 @@
 		"parent": "architecture"
 	},
 	{
-		"title": "Entities and Undo/Redo.",
+		"title": "Entities and Undo/Redo",
 		"slug": "entities",
 		"markdown_source": "../docs/explanations/architecture/entities.md",
 		"parent": "architecture"

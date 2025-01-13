@@ -54,7 +54,7 @@ Node.prototype.contains = function ( node ) {
  * Copy of insertBefore function from jsdom-jscore, WRONG_DOCUMENT_ERR exception
  * disabled.
  *
- * @param {Object} newChild The node to be insterted.
+ * @param {Object} newChild The node to be inserted.
  * @param {Object} refChild The node before which newChild is inserted.
  * @return {Object} the newly inserted child node
  *
@@ -256,6 +256,37 @@ Object.defineProperties( Node.prototype, {
 
 			return sibling;
 		},
+	},
+	dataset: {
+		get() {
+			const node = this;
+
+			// Helper function to convert property name to data-* attribute name
+			function toDataAttributeName( property ) {
+				return (
+					'data-' +
+					property.replace(
+						/[A-Z]/g,
+						( match ) => '-' + match.toLowerCase()
+					)
+				);
+			}
+			return new Proxy(
+				{},
+				{
+					set( _target, property, value ) {
+						const attributeName = toDataAttributeName( property );
+						node.setAttribute( attributeName, value );
+						return true;
+					},
+					get( _target, property ) {
+						const attributeName = toDataAttributeName( property );
+						return node.getAttribute( attributeName );
+					},
+				}
+			);
+		},
+		set() {},
 	},
 } );
 

@@ -56,7 +56,7 @@ const FontSizePickerSelect = ( props: FontSizePickerSelectProps ) => {
 				key: fontSize.slug,
 				name: fontSize.name || fontSize.slug,
 				value: fontSize.size,
-				__experimentalHint: hint,
+				hint,
 			};
 		} ),
 		...( disableCustomFontSizes ? [] : [ CUSTOM_OPTION ] ),
@@ -69,7 +69,7 @@ const FontSizePickerSelect = ( props: FontSizePickerSelectProps ) => {
 	return (
 		<CustomSelectControl
 			__next40pxDefaultSize={ __next40pxDefaultSize }
-			__nextUnconstrainedWidth
+			__shouldNotWarnDeprecated36pxSize
 			className="components-font-size-picker__select"
 			label={ __( 'Font size' ) }
 			hideLabelFromVision
@@ -80,7 +80,7 @@ const FontSizePickerSelect = ( props: FontSizePickerSelectProps ) => {
 			) }
 			options={ options }
 			value={ selectedOption }
-			__experimentalShowSelectedHint
+			showSelectedHint
 			onChange={ ( {
 				selectedItem,
 			}: {

@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import classnames from 'classnames';
+import clsx from 'clsx';
 
 /**
  * Internal dependencies
@@ -9,19 +9,21 @@ import classnames from 'classnames';
 import { NEW_TAB_TARGET, NOFOLLOW_REL } from './constants';
 import { getUpdatedLinkAttributes } from './get-updated-link-attributes';
 import removeAnchorTag from '../utils/remove-anchor-tag';
+import { useToolsPanelDropdownMenuProps } from '../utils/hooks';
 
 /**
  * WordPress dependencies
  */
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 import { useEffect, useState, useRef, useMemo } from '@wordpress/element';
 import {
-	Button,
-	ButtonGroup,
-	PanelBody,
 	TextControl,
 	ToolbarButton,
 	Popover,
+	__experimentalToolsPanel as ToolsPanel,
+	__experimentalToolsPanelItem as ToolsPanelItem,
+	__experimentalToggleGroupControl as ToggleGroupControl,
+	__experimentalToggleGroupControlOption as ToggleGroupControlOption,
 } from '@wordpress/components';
 import {
 	AlignmentControl,
@@ -29,13 +31,16 @@ import {
 	InspectorControls,
 	RichText,
 	useBlockProps,
+	LinkControl,
 	__experimentalUseBorderProps as useBorderProps,
 	__experimentalUseColorProps as useColorProps,
 	__experimentalGetSpacingClassesAndStyles as useSpacingProps,
-	__experimentalLinkControl as LinkControl,
+	__experimentalGetShadowClassesAndStyles as useShadowProps,
 	__experimentalGetElementClassName,
 	store as blockEditorStore,
 	useBlockEditingMode,
+	getTypographyClassesAndStyles as useTypographyProps,
+	useSettings,
 } from '@wordpress/block-editor';
 import { displayShortcut, isKeyboardEvent, ENTER } from '@wordpress/keycodes';
 import { link, linkOff } from '@wordpress/icons';
@@ -43,6 +48,7 @@ import {
 	createBlock,
 	cloneBlock,
 	getDefaultBlockName,
+	getBlockBindingsSource,
 } from '@wordpress/blocks';
 import { useMergeRefs, useRefEffect } from '@wordpress/compose';
 import { useSelect, useDispatch } from '@wordpress/data';
@@ -112,35 +118,47 @@ function useEnter( props ) {
 }
 
 function WidthPanel( { selectedWidth, setAttributes } ) {
-	function handleChange( newWidth ) {
-		// Check if we are toggling the width off
-		const width = selectedWidth === newWidth ? undefined : newWidth;
-
-		// Update attributes.
-		setAttributes( { width } );
-	}
+	const dropdownMenuProps = useToolsPanelDropdownMenuProps();
 
 	return (
-		<PanelBody title={ __( 'Width settings' ) }>
-			<ButtonGroup aria-label={ __( 'Button width' ) }>
-				{ [ 25, 50, 75, 100 ].map( ( widthValue ) => {
-					return (
-						<Button
-							key={ widthValue }
-							size="small"
-							variant={
-								widthValue === selectedWidth
-									? 'primary'
-									: undefined
-							}
-							onClick={ () => handleChange( widthValue ) }
-						>
-							{ widthValue }%
-						</Button>
-					);
-				} ) }
-			</ButtonGroup>
-		</PanelBody>
+		<ToolsPanel
+			label={ __( 'Settings' ) }
+			resetAll={ () => setAttributes( { width: undefined } ) }
+			dropdownMenuProps={ dropdownMenuProps }
+		>
+			<ToolsPanelItem
+				label={ __( 'Width' ) }
+				isShownByDefault
+				hasValue={ () => !! selectedWidth }
+				onDeselect={ () => setAttributes( { width: undefined } ) }
+				__nextHasNoMarginBottom
+			>
+				<ToggleGroupControl
+					label={ __( 'Width' ) }
+					value={ selectedWidth }
+					onChange={ ( newWidth ) =>
+						setAttributes( { width: newWidth } )
+					}
+					isBlock
+					__next40pxDefaultSize
+					__nextHasNoMarginBottom
+				>
+					{ [ 25, 50, 75, 100 ].map( ( widthValue ) => {
+						return (
+							<ToggleGroupControlOption
+								key={ widthValue }
+								value={ widthValue }
+								label={ sprintf(
+									/* translators: Percentage value. */
+									__( '%d%%' ),
+									widthValue
+								) }
+							/>
+						);
+					} ) }
+				</ToggleGroupControl>
+			</ToolsPanelItem>
+		</ToolsPanel>
 	);
 }
 
@@ -153,6 +171,7 @@ function ButtonEdit( props ) {
 		onReplace,
 		mergeBlocks,
 		clientId,
+		context,
 	} = props;
 	const {
 		tagName,
@@ -164,6 +183,7 @@ function ButtonEdit( props ) {
 		text,
 		url,
 		width,
+		metadata,
 	} = attributes;
 
 	const TagName = tagName || 'a';
@@ -184,6 +204,7 @@ function ButtonEdit( props ) {
 	const borderProps = useBorderProps( attributes );
 	const colorProps = useColorProps( attributes );
 	const spacingProps = useSpacingProps( attributes );
+	const shadowProps = useShadowProps( attributes );
 	const ref = useRef();
 	const richTextRef = useRef();
 	const blockProps = useBlockProps( {
@@ -228,14 +249,49 @@ function ButtonEdit( props ) {
 	const useEnterRef = useEnter( { content: text, clientId } );
 	const mergedRef = useMergeRefs( [ useEnterRef, richTextRef ] );
 
+	const { lockUrlControls = false } = useSelect(
+		( select ) => {
+			if ( ! isSelected ) {
+				return {};
+			}
+
+			const blockBindingsSource = getBlockBindingsSource(
+				metadata?.bindings?.url?.source
+			);
+
+			return {
+				lockUrlControls:
+					!! metadata?.bindings?.url &&
+					! blockBindingsSource?.canUserEditValue?.( {
+						select,
+						context,
+						args: metadata?.bindings?.url?.args,
+					} ),
+			};
+		},
+		[ context, isSelected, metadata?.bindings?.url ]
+	);
+
+	const [ fluidTypographySettings, layout ] = useSettings(
+		'typography.fluid',
+		'layout'
+	);
+	const typographyProps = useTypographyProps( attributes, {
+		typography: {
+			fluid: fluidTypographySettings,
+		},
+		layout: {
+			wideSize: layout?.wideSize,
+		},
+	} );
+
 	return (
 		<>
 			<div
 				{ ...blockProps }
-				className={ classnames( blockProps.className, {
+				className={ clsx( blockProps.className, {
 					[ `has-custom-width wp-block-button__width-${ width }` ]:
 						width,
-					[ `has-custom-font-size` ]: blockProps.style.fontSize,
 				} ) }
 			>
 				<RichText
@@ -249,16 +305,19 @@ function ButtonEdit( props ) {
 						} )
 					}
 					withoutInteractiveFormatting
-					className={ classnames(
+					className={ clsx(
 						className,
 						'wp-block-button__link',
 						colorProps.className,
 						borderProps.className,
+						typographyProps.className,
 						{
 							[ `has-text-align-${ textAlign }` ]: textAlign,
 							// For backwards compatibility add style that isn't
 							// provided via block support.
 							'no-border-radius': style?.border?.radius === 0,
+							[ `has-custom-font-size` ]:
+								blockProps.style.fontSize,
 						},
 						__experimentalGetElementClassName( 'button' )
 					) }
@@ -266,13 +325,10 @@ function ButtonEdit( props ) {
 						...borderProps.style,
 						...colorProps.style,
 						...spacingProps.style,
+						...shadowProps.style,
+						...typographyProps.style,
+						writingMode: undefined,
 					} }
-					onSplit={ ( value ) =>
-						createBlock( 'core/button', {
-							...attributes,
-							text: value,
-						} )
-					}
 					onReplace={ onReplace }
 					onMerge={ mergeBlocks }
 					identifier="text"
@@ -287,7 +343,7 @@ function ButtonEdit( props ) {
 						} }
 					/>
 				) }
-				{ ! isURLSet && isLinkTag && (
+				{ ! isURLSet && isLinkTag && ! lockUrlControls && (
 					<ToolbarButton
 						name="link"
 						icon={ link }
@@ -296,54 +352,57 @@ function ButtonEdit( props ) {
 						onClick={ startEditing }
 					/>
 				) }
-				{ isURLSet && isLinkTag && (
+				{ isURLSet && isLinkTag && ! lockUrlControls && (
 					<ToolbarButton
 						name="link"
 						icon={ linkOff }
 						title={ __( 'Unlink' ) }
 						shortcut={ displayShortcut.primaryShift( 'k' ) }
 						onClick={ unlink }
-						isActive={ true }
+						isActive
 					/>
 				) }
 			</BlockControls>
-			{ isLinkTag && isSelected && ( isEditingURL || isURLSet ) && (
-				<Popover
-					placement="bottom"
-					onClose={ () => {
-						setIsEditingURL( false );
-						richTextRef.current?.focus();
-					} }
-					anchor={ popoverAnchor }
-					focusOnMount={ isEditingURL ? 'firstElement' : false }
-					__unstableSlotName={ '__unstable-block-tools-after' }
-					shift
-				>
-					<LinkControl
-						value={ linkValue }
-						onChange={ ( {
-							url: newURL,
-							opensInNewTab: newOpensInNewTab,
-							nofollow: newNofollow,
-						} ) =>
-							setAttributes(
-								getUpdatedLinkAttributes( {
-									rel,
-									url: newURL,
-									opensInNewTab: newOpensInNewTab,
-									nofollow: newNofollow,
-								} )
-							)
-						}
-						onRemove={ () => {
-							unlink();
+			{ isLinkTag &&
+				isSelected &&
+				( isEditingURL || isURLSet ) &&
+				! lockUrlControls && (
+					<Popover
+						placement="bottom"
+						onClose={ () => {
+							setIsEditingURL( false );
 							richTextRef.current?.focus();
 						} }
-						forceIsEditingLink={ isEditingURL }
-						settings={ LINK_SETTINGS }
-					/>
-				</Popover>
-			) }
+						anchor={ popoverAnchor }
+						focusOnMount={ isEditingURL ? 'firstElement' : false }
+						__unstableSlotName="__unstable-block-tools-after"
+						shift
+					>
+						<LinkControl
+							value={ linkValue }
+							onChange={ ( {
+								url: newURL,
+								opensInNewTab: newOpensInNewTab,
+								nofollow: newNofollow,
+							} ) =>
+								setAttributes(
+									getUpdatedLinkAttributes( {
+										rel,
+										url: newURL,
+										opensInNewTab: newOpensInNewTab,
+										nofollow: newNofollow,
+									} )
+								)
+							}
+							onRemove={ () => {
+								unlink();
+								richTextRef.current?.focus();
+							} }
+							forceIsEditingLink={ isEditingURL }
+							settings={ LINK_SETTINGS }
+						/>
+					</Popover>
+				) }
 			<InspectorControls>
 				<WidthPanel
 					selectedWidth={ width }
@@ -353,6 +412,7 @@ function ButtonEdit( props ) {
 			<InspectorControls group="advanced">
 				{ isLinkTag && (
 					<TextControl
+						__next40pxDefaultSize
 						__nextHasNoMarginBottom
 						label={ __( 'Link rel' ) }
 						value={ rel || '' }

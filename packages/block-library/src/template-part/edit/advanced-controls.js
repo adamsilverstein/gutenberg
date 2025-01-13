@@ -1,7 +1,7 @@
 /**
  * WordPress dependencies
  */
-import { useEntityProp } from '@wordpress/core-data';
+import { useEntityProp, store as coreStore } from '@wordpress/core-data';
 import { SelectControl, TextControl } from '@wordpress/components';
 import { sprintf, __ } from '@wordpress/i18n';
 import { useSelect } from '@wordpress/data';
@@ -54,25 +54,26 @@ export function TemplatePartAdvancedControls( {
 		templatePartId
 	);
 
-	const definedAreas = useSelect( ( select ) => {
-		// FIXME: @wordpress/block-library should not depend on @wordpress/editor.
-		// Blocks can be loaded into a *non-post* block editor.
-		/* eslint-disable-next-line @wordpress/data-no-store-string-literals */
-		return select(
-			'core/editor'
-		).__experimentalGetDefaultTemplatePartAreas();
-	}, [] );
+	const defaultTemplatePartAreas = useSelect(
+		( select ) =>
+			select( coreStore ).getEntityRecord( 'root', '__unstableBase' )
+				?.default_template_part_areas || [],
+		[]
+	);
 
-	const areaOptions = definedAreas.map( ( { label, area: _area } ) => ( {
-		label,
-		value: _area,
-	} ) );
+	const areaOptions = defaultTemplatePartAreas.map(
+		( { label, area: _area } ) => ( {
+			label,
+			value: _area,
+		} )
+	);
 
 	return (
 		<>
 			{ isEntityAvailable && (
 				<>
 					<TextControl
+						__next40pxDefaultSize
 						__nextHasNoMarginBottom
 						label={ __( 'Title' ) }
 						value={ title }
@@ -81,8 +82,8 @@ export function TemplatePartAdvancedControls( {
 						} }
 						onFocus={ ( event ) => event.target.select() }
 					/>
-
 					<SelectControl
+						__next40pxDefaultSize
 						__nextHasNoMarginBottom
 						label={ __( 'Area' ) }
 						labelPosition="top"

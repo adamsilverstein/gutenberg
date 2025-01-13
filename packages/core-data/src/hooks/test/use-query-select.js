@@ -17,8 +17,15 @@ import { render, screen, waitFor } from '@testing-library/react';
  */
 import useQuerySelect from '../use-query-select';
 
+/* eslint-disable @wordpress/wp-global-usage */
 describe( 'useQuerySelect', () => {
+	const initialScriptDebug = globalThis.SCRIPT_DEBUG;
 	let registry;
+
+	beforeAll( () => {
+		// Do not run hook in development mode; it will call `mapSelect` an extra time.
+		globalThis.SCRIPT_DEBUG = false;
+	} );
 
 	beforeEach( () => {
 		registry = createRegistry();
@@ -29,6 +36,10 @@ describe( 'useQuerySelect', () => {
 				testSelector: ( state, key ) => state[ key ],
 			},
 		} );
+	} );
+
+	afterAll( () => {
+		globalThis.SCRIPT_DEBUG = initialScriptDebug;
 	} );
 
 	const getTestComponent = ( mapSelectSpy, dependencyKey ) => ( props ) => {
@@ -116,6 +127,7 @@ describe( 'useQuerySelect', () => {
 			data: 'bar',
 			isResolving: false,
 			hasResolved: false,
+			hasStarted: false,
 			status: 'IDLE',
 		} );
 	} );
@@ -165,6 +177,7 @@ describe( 'useQuerySelect', () => {
 			data: 10,
 			isResolving: false,
 			hasResolved: false,
+			hasStarted: false,
 			status: 'IDLE',
 		} );
 
@@ -180,8 +193,10 @@ describe( 'useQuerySelect', () => {
 				data: 15,
 				isResolving: false,
 				hasResolved: true,
+				hasStarted: true,
 				status: 'SUCCESS',
 			} )
 		);
 	} );
 } );
+/* eslint-enable @wordpress/wp-global-usage */

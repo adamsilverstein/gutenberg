@@ -4,14 +4,24 @@
  *
  * @package gutenberg-test-interactive-blocks
  */
-
-gutenberg_enqueue_module( 'directive-each-view' );
 ?>
 
-<div data-wp-interactive='{ "namespace": "directive-each" }'>
+<div data-wp-interactive="directive-each">
 	<div data-testid="letters">
 		<template data-wp-each="state.letters">
 			<p data-wp-text="context.item" data-testid="item"></p>
+		</template>
+		<!-- SSRed elements; they should be removed on hydration -->
+		<p data-testid="item" data-wp-each-child>A</p>
+		<p data-testid="item" data-wp-each-child>B</p>
+		<p data-testid="item" data-wp-each-child>C</p>
+	</div>
+
+	<hr>
+
+	<div data-testid="letters-kebab-case">
+		<template data-wp-each--my-item="state.letters">
+			<p data-wp-text="context.myItem" data-testid="item"></p>
 		</template>
 		<!-- SSRed elements; they should be removed on hydration -->
 		<p data-testid="item" data-wp-each-child>A</p>
@@ -208,19 +218,96 @@ gutenberg_enqueue_module( 'directive-each-view' );
 <hr>
 
 <div
-	data-wp-interactive='{ "namespace": "directive-each" }'
-	data-wp-navigation-id="navigation-updated list"
-	data-wp-context='{ "list": [ "beta", "gamma", "delta" ] }'
+	data-wp-interactive="directive-each"
+	data-wp-router-region="navigation-updated list"
+	data-wp-context='{ "b": 2, "c": 3, "d": 4 }'
 	data-testid="navigation-updated list"
 >
 	<button
 		data-testid="navigate"
 		data-wp-on--click="actions.navigate"
 	>Navigate</button>
-	<template data-wp-each="context.list">
+	<template data-wp-each="state.list">
 		<p data-wp-text="context.item" data-testid="item"></p>
 	</template>
 	<p data-testid="item" data-wp-each-child>beta</p>
 	<p data-testid="item" data-wp-each-child>gamma</p>
 	<p data-testid="item" data-wp-each-child>delta</p>
+</div>
+
+<hr>
+
+<div
+	data-wp-interactive="directive-each"
+	data-wp-context='{ "list": [ "beta" ], "callbackRunCount": 0 }'
+	data-testid="elements with directives"
+>
+	<template data-wp-each="context.list">
+		<div
+			data-testid="item"
+			data-wp-text="context.item"
+			data-wp-priority-2-init="callbacks.updateCallbackRunCount"
+		></div>
+	</template>
+	<div
+		data-wp-each-child
+		data-testid="item"
+		data-wp-text="context.item"
+		data-wp-priority-2-init="callbacks.updateCallbackRunCount"
+	></div>
+	<data
+		data-testid="callbackRunCount"
+		data-wp-text="context.callbackRunCount"
+	></data>
+</div>
+
+<hr>
+
+<div
+	data-wp-interactive="directive-each"
+	data-testid="each-with-unset"
+>
+	<template data-wp-each="state.eachUnset"><p data-wp-text="context.item"></p></template>
+</div>
+<div
+	data-wp-interactive="directive-each"
+	data-testid="each-with-null"
+>
+	<template data-wp-each="state.eachNull"><p data-wp-text="context.item"></p></template>
+</div>
+<div
+	data-wp-interactive="directive-each"
+	data-testid="each-with-undefined"
+>
+	<template data-wp-each="state.eachUndefined"><p data-wp-text="context.item"></p></template>
+</div>
+<div
+	data-wp-interactive="directive-each"
+	data-testid="each-with-array"
+>
+	<template data-wp-each="state.eachArray"><p data-wp-text="context.item"></p></template>
+</div>
+<div
+	data-wp-interactive="directive-each"
+	data-testid="each-with-set"
+>
+	<template data-wp-each="state.eachSet"><p data-wp-text="context.item"></p></template>
+</div>
+<div
+	data-wp-interactive="directive-each"
+	data-testid="each-with-string"
+>
+	<template data-wp-each="state.eachString"><p data-wp-text="context.item"></p></template>
+</div>
+<div
+	data-wp-interactive="directive-each"
+	data-testid="each-with-generator"
+>
+	<template data-wp-each="state.eachGenerator"><p data-wp-text="context.item"></p></template>
+</div>
+<div
+	data-wp-interactive="directive-each"
+	data-testid="each-with-iterator"
+>
+	<template data-wp-each="state.eachIterator"><p data-wp-text="context.item"></p></template>
 </div>

@@ -51,7 +51,7 @@ jobs:
                     return $?
                   }
 
-                  # Only update trunk *if* the published release's version in Github is GREATER
+                  # Only update trunk *if* the published release's version in GitHub is GREATER
                   # than the version currently published in the WP plugins repo. If not, then it
                   # will upload it as a new tag.
                   shouldUpdateTrunk=false
@@ -96,7 +96,7 @@ jobs:
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+              uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
               with:
                   ref: ${{ matrix.branch }}
                   token: ${{ secrets.GUTENBERG_TOKEN }}
@@ -147,7 +147,7 @@ jobs:
                   fi
 
             - name: Upload Changelog artifact
-              uses: actions/upload-artifact@c7d193f32edcb7bfad88892161225aeda64e9392 # v4.0.0
+              uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
               with:
                   name: changelog ${{ matrix.label }}
                   path: ./changelog.txt
@@ -168,7 +168,9 @@ jobs:
 
         steps:
             - name: Check out Gutenberg trunk from WP.org plugin repo
-              run: svn checkout "$PLUGIN_REPO_URL/trunk" --username "$SVN_USERNAME" --password "$SVN_PASSWORD"
+              run: |
+                  svn checkout "$PLUGIN_REPO_URL/trunk" --username "$SVN_USERNAME" --password "$SVN_PASSWORD"
+                  svn checkout "$PLUGIN_REPO_URL/tags" --depth=immediates --username "$SVN_USERNAME" --password "$SVN_PASSWORD"
 
             - name: Delete everything
               working-directory: ./trunk
@@ -182,39 +184,28 @@ jobs:
                   unzip gutenberg.zip -d trunk
                   rm gutenberg.zip
 
-            - name: Replace the stable tag placeholder with the existing stable tag on the SVN repository
+            - name: Replace the stable tag placeholder with the new version
               env:
                   STABLE_TAG_PLACEHOLDER: 'Stable tag: V\.V\.V'
               run: |
                   sed -i "s/$STABLE_TAG_PLACEHOLDER/Stable tag: $VERSION/g" ./trunk/readme.txt
 
             - name: Download Changelog Artifact
-              uses: actions/download-artifact@f44cd7b40bfd40b6aa1cc1b9b5b7bf03d3c67110 # v4.1.0
+              uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
               with:
                   name: changelog trunk
                   path: trunk
 
-            - name: Commit the content changes
+            - name: Commit the release
               working-directory: ./trunk
               run: |
                   svn st | grep '^?' | awk '{print $2}' | xargs -r svn add
                   svn st | grep '^!' | awk '{print $2}' | xargs -r svn rm
-                  svn commit -m "Committing version $VERSION" \
+                  svn cp . "../tags/$VERSION"
+                  svn commit . "../tags/$VERSION" \
+                   -m "Releasing version $VERSION" \
                    --no-auth-cache --non-interactive  --username "$SVN_USERNAME" --password "$SVN_PASSWORD" \
-                   --config-option=servers:global:http-timeout=300
-
-            - name: Create the SVN tag
-              working-directory: ./trunk
-              run: |
-                  svn copy "$PLUGIN_REPO_URL/trunk" "$PLUGIN_REPO_URL/tags/$VERSION" -m "Tagging version $VERSION" \
-                   --no-auth-cache --non-interactive  --username "$SVN_USERNAME" --password "$SVN_PASSWORD"
-
-            - name: Update the plugin's stable version
-              working-directory: ./trunk
-              run: |
-                  sed -i "s/Stable tag: ${STABLE_VERSION_REGEX}/Stable tag: ${VERSION}/g" ./readme.txt
-                  svn commit -m "Releasing version $VERSION" \
-                   --no-auth-cache --non-interactive  --username "$SVN_USERNAME" --password "$SVN_PASSWORD"
+                   --config-option=servers:global:http-timeout=600
 
     upload-tag:
         name: Publish as tag
@@ -247,7 +238,7 @@ jobs:
                   sed -i "s/$STABLE_TAG_PLACEHOLDER/Stable tag: $VERSION/g" "$VERSION/readme.txt"
 
             - name: Download Changelog Artifact
-              uses: actions/download-artifact@f44cd7b40bfd40b6aa1cc1b9b5b7bf03d3c67110 # v4.1.0
+              uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
               with:
                   name: changelog trunk
                   path: ${{ github.event.release.name }}

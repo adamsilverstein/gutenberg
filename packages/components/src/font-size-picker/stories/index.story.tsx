@@ -17,7 +17,7 @@ const meta: Meta< typeof FontSizePicker > = {
 	title: 'Components/FontSizePicker',
 	component: FontSizePicker,
 	argTypes: {
-		value: { control: { type: null } },
+		value: { control: false },
 	},
 	parameters: {
 		actions: { argTypesRegex: '^on.*' },
@@ -66,7 +66,7 @@ const TwoFontSizePickersWithState: StoryFn< typeof FontSizePicker > = ( {
 export const Default: StoryFn< typeof FontSizePicker > =
 	FontSizePickerWithState.bind( {} );
 Default.args = {
-	__nextHasNoMarginBottom: true,
+	__next40pxDefaultSize: true,
 	disableCustomFontSizes: false,
 	fontSizes: [
 		{
@@ -85,7 +85,6 @@ Default.args = {
 			size: 26,
 		},
 	],
-	units: [ 'px', 'em', 'rem' ],
 	value: 16,
 	withSlider: false,
 };

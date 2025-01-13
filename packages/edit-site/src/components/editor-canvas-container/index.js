@@ -1,10 +1,9 @@
 /**
  * WordPress dependencies
  */
-import { Children, cloneElement, useState, useMemo } from '@wordpress/element';
+import { Children, cloneElement, useState } from '@wordpress/element';
 import {
 	Button,
-	privateApis as componentsPrivateApis,
 	__experimentalUseSlotFills as useSlotFills,
 } from '@wordpress/components';
 import { ESCAPE } from '@wordpress/keycodes';
@@ -13,21 +12,25 @@ import { useDispatch, useSelect } from '@wordpress/data';
 import { closeSmall } from '@wordpress/icons';
 import { useFocusOnMount, useFocusReturn } from '@wordpress/compose';
 import { store as preferencesStore } from '@wordpress/preferences';
-import { store as editorStore } from '@wordpress/editor';
+import {
+	store as editorStore,
+	privateApis as editorPrivateApis,
+} from '@wordpress/editor';
 
 /**
  * Internal dependencies
  */
 import { unlock } from '../../lock-unlock';
 import { store as editSiteStore } from '../../store';
-import ResizableEditor from '../block-editor/resizable-editor';
+
+const { EditorContentSlotFill, ResizableEditor } = unlock( editorPrivateApis );
 
 /**
  * Returns a translated string for the title of the editor canvas container.
  *
  * @param {string} view Editor canvas container view.
  *
- * @return {string} Translated string corresponding to value of view. Default is ''.
+ * @return {Object} Translated string for the view title and associated icon, both defaulting to ''.
  */
 function getEditorCanvasContainerTitle( view ) {
 	switch ( view ) {
@@ -35,20 +38,11 @@ function getEditorCanvasContainerTitle( view ) {
 			return __( 'Style Book' );
 		case 'global-styles-revisions':
 		case 'global-styles-revisions:style-book':
-			return __( 'Global styles revisions' );
+			return __( 'Style Revisions' );
 		default:
 			return '';
 	}
 }
-
-// Creates a private slot fill.
-const { createPrivateSlotFill } = unlock( componentsPrivateApis );
-const SLOT_FILL_NAME = 'EditSiteEditorCanvasContainerSlot';
-const {
-	privateKey,
-	Slot: EditorCanvasContainerSlot,
-	Fill: EditorCanvasContainerFill,
-} = createPrivateSlotFill( SLOT_FILL_NAME );
 
 function EditorCanvasContainer( {
 	children,
@@ -82,10 +76,6 @@ function EditorCanvasContainer( {
 
 	const focusOnMountRef = useFocusOnMount( 'firstElement' );
 	const sectionFocusReturnRef = useFocusReturn();
-	const title = useMemo(
-		() => getEditorCanvasContainerTitle( editorCanvasContainerView ),
-		[ editorCanvasContainerView ]
-	);
 
 	function onCloseContainer() {
 		setIsListViewOpened( showListViewByDefault );
@@ -119,38 +109,41 @@ function EditorCanvasContainer( {
 		return null;
 	}
 
+	const title = getEditorCanvasContainerTitle( editorCanvasContainerView );
 	const shouldShowCloseButton = onClose || closeButtonLabel;
 
 	return (
-		<EditorCanvasContainerFill>
-			<ResizableEditor enableResizing={ enableResizing }>
-				{ /* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */ }
-				<section
-					className="edit-site-editor-canvas-container"
-					ref={ shouldShowCloseButton ? focusOnMountRef : null }
-					onKeyDown={ closeOnEscape }
-					aria-label={ title }
-				>
-					{ shouldShowCloseButton && (
-						<Button
-							className="edit-site-editor-canvas-container__close-button"
-							icon={ closeSmall }
-							label={ closeButtonLabel || __( 'Close' ) }
-							onClick={ onCloseContainer }
-							showTooltip={ false }
-						/>
-					) }
-					{ childrenWithProps }
-				</section>
-			</ResizableEditor>
-		</EditorCanvasContainerFill>
+		<EditorContentSlotFill.Fill>
+			<div className="edit-site-editor-canvas-container">
+				<ResizableEditor enableResizing={ enableResizing }>
+					{ /* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */ }
+					<section
+						className="edit-site-editor-canvas-container__section"
+						ref={ shouldShowCloseButton ? focusOnMountRef : null }
+						onKeyDown={ closeOnEscape }
+						aria-label={ title }
+					>
+						{ shouldShowCloseButton && (
+							<Button
+								size="compact"
+								className="edit-site-editor-canvas-container__close-button"
+								icon={ closeSmall }
+								label={ closeButtonLabel || __( 'Close' ) }
+								onClick={ onCloseContainer }
+							/>
+						) }
+						{ childrenWithProps }
+					</section>
+				</ResizableEditor>
+			</div>
+		</EditorContentSlotFill.Fill>
 	);
 }
+
 function useHasEditorCanvasContainer() {
-	const fills = useSlotFills( privateKey );
+	const fills = useSlotFills( EditorContentSlotFill.name );
 	return !! fills?.length;
 }
 
-EditorCanvasContainer.Slot = EditorCanvasContainerSlot;
 export default EditorCanvasContainer;
 export { useHasEditorCanvasContainer, getEditorCanvasContainerTitle };

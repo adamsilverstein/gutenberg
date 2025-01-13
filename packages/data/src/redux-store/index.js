@@ -64,10 +64,14 @@ const mapValues = ( obj, callback ) =>
 		] )
 	);
 
-// Convert Map objects to plain objects
-const mapToObject = ( key, state ) => {
+// Convert  non serializable types to plain objects
+const devToolsReplacer = ( key, state ) => {
 	if ( state instanceof Map ) {
 		return Object.fromEntries( state );
+	}
+
+	if ( state instanceof window.HTMLElement ) {
+		return null;
 	}
 
 	return state;
@@ -246,7 +250,7 @@ export default function createReduxStore( key, options ) {
 				};
 
 				// Expose normalization method on the bound selector
-				// in order that it can be called when fullfilling
+				// in order that it can be called when fulfilling
 				// the resolver.
 				boundSelector.__unstableNormalizeArgs =
 					selector.__unstableNormalizeArgs;
@@ -421,7 +425,7 @@ function instantiateReduxStore( key, options, registry, thunkArgs ) {
 				name: key,
 				instanceId: key,
 				serialize: {
-					replacer: mapToObject,
+					replacer: devToolsReplacer,
 				},
 			} )
 		);

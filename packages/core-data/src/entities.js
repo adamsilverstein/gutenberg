@@ -10,14 +10,7 @@ import apiFetch from '@wordpress/api-fetch';
 import { __ } from '@wordpress/i18n';
 import { RichTextData } from '@wordpress/rich-text';
 
-/**
- * Internal dependencies
- */
-import { addEntities } from './actions';
-import { getSyncProvider } from './sync';
-
 export const DEFAULT_ENTITY_KEY = 'id';
-
 const POST_RAW_ATTRIBUTES = [ 'title', 'excerpt', 'content' ];
 
 export const rootEntitiesConfig = [
@@ -27,6 +20,8 @@ export const rootEntitiesConfig = [
 		name: '__unstableBase',
 		baseURL: '/',
 		baseURLParams: {
+			// Please also change the preload path when changing this.
+			// @see lib/compat/wordpress-6.8/preload.php
 			_fields: [
 				'description',
 				'gmt_offset',
@@ -36,9 +31,14 @@ export const rootEntitiesConfig = [
 				'site_icon_url',
 				'site_logo',
 				'timezone_string',
+				'default_template_part_areas',
+				'default_template_types',
 				'url',
 			].join( ',' ),
 		},
+		// The entity doesn't support selecting multiple records.
+		// The property is maintained for backward compatibility.
+		plural: '__unstableBases',
 		syncConfig: {
 			fetch: async () => {
 				return apiFetch( { path: '/' } );
@@ -59,39 +59,13 @@ export const rootEntitiesConfig = [
 		getSyncObjectId: () => 'index',
 	},
 	{
-		label: __( 'Site' ),
-		name: 'site',
-		kind: 'root',
-		baseURL: '/wp/v2/settings',
-		getTitle: ( record ) => {
-			return record?.title ?? __( 'Site Title' );
-		},
-		syncConfig: {
-			fetch: async () => {
-				return apiFetch( { path: '/wp/v2/settings' } );
-			},
-			applyChangesToDoc: ( doc, changes ) => {
-				const document = doc.getMap( 'document' );
-				Object.entries( changes ).forEach( ( [ key, value ] ) => {
-					if ( document.get( key ) !== value ) {
-						document.set( key, value );
-					}
-				} );
-			},
-			fromCRDTDoc: ( doc ) => {
-				return doc.getMap( 'document' ).toJSON();
-			},
-		},
-		syncObjectType: 'root/site',
-		getSyncObjectId: () => 'index',
-	},
-	{
 		label: __( 'Post Type' ),
 		name: 'postType',
 		kind: 'root',
 		key: 'slug',
 		baseURL: '/wp/v2/types',
 		baseURLParams: { context: 'edit' },
+		plural: 'postTypes',
 		syncConfig: {
 			fetch: async ( id ) => {
 				return apiFetch( {
@@ -220,6 +194,7 @@ export const rootEntitiesConfig = [
 		kind: 'root',
 		baseURL: '/wp/v2/themes',
 		baseURLParams: { context: 'edit' },
+		plural: 'themes',
 		key: 'stylesheet',
 	},
 	{
@@ -228,6 +203,7 @@ export const rootEntitiesConfig = [
 		kind: 'root',
 		baseURL: '/wp/v2/plugins',
 		baseURLParams: { context: 'edit' },
+		plural: 'plugins',
 		key: 'plugin',
 	},
 	{
@@ -244,6 +220,12 @@ export const rootEntitiesConfig = [
 export const additionalEntityConfigLoaders = [
 	{ kind: 'postType', loadEntities: loadPostTypeEntities },
 	{ kind: 'taxonomy', loadEntities: loadTaxonomyEntities },
+	{
+		kind: 'root',
+		name: 'site',
+		plural: 'sites',
+		loadEntities: loadSiteEntity,
+	},
 ];
 
 /**
@@ -401,87 +383,75 @@ async function loadTaxonomyEntities() {
 }
 
 /**
- * Returns the entity's getter method name given its kind and name.
+ * Returns the Site entity.
+ *
+ * @return {Promise} Entity promise
+ */
+async function loadSiteEntity() {
+	const entity = {
+		label: __( 'Site' ),
+		name: 'site',
+		kind: 'root',
+		baseURL: '/wp/v2/settings',
+		syncConfig: {
+			fetch: async () => {
+				return apiFetch( { path: '/wp/v2/settings' } );
+			},
+			applyChangesToDoc: ( doc, changes ) => {
+				const document = doc.getMap( 'document' );
+				Object.entries( changes ).forEach( ( [ key, value ] ) => {
+					if ( document.get( key ) !== value ) {
+						document.set( key, value );
+					}
+				} );
+			},
+			fromCRDTDoc: ( doc ) => {
+				return doc.getMap( 'document' ).toJSON();
+			},
+		},
+		syncObjectType: 'root/site',
+		getSyncObjectId: () => 'index',
+		meta: {},
+	};
+
+	const site = await apiFetch( {
+		path: entity.baseURL,
+		method: 'OPTIONS',
+	} );
+
+	const labels = {};
+	Object.entries( site?.schema?.properties ?? {} ).forEach(
+		( [ key, value ] ) => {
+			// Ignore properties `title` and `type` keys.
+			if ( typeof value === 'object' && value.title ) {
+				labels[ key ] = value.title;
+			}
+		}
+	);
+
+	return [ { ...entity, meta: { labels } } ];
+}
+
+/**
+ * Returns the entity's getter method name given its kind and name or plural name.
  *
  * @example
  * ```js
  * const nameSingular = getMethodName( 'root', 'theme', 'get' );
  * // nameSingular is getRootTheme
  *
- * const namePlural = getMethodName( 'root', 'theme', 'set' );
+ * const namePlural = getMethodName( 'root', 'themes', 'set' );
  * // namePlural is setRootThemes
  * ```
  *
- * @param {string}  kind      Entity kind.
- * @param {string}  name      Entity name.
- * @param {string}  prefix    Function prefix.
- * @param {boolean} usePlural Whether to use the plural form or not.
+ * @param {string} kind   Entity kind.
+ * @param {string} name   Entity name or plural name.
+ * @param {string} prefix Function prefix.
  *
  * @return {string} Method name
  */
-export const getMethodName = (
-	kind,
-	name,
-	prefix = 'get',
-	usePlural = false
-) => {
-	const entityConfig = rootEntitiesConfig.find(
-		( config ) => config.kind === kind && config.name === name
-	);
+export const getMethodName = ( kind, name, prefix = 'get' ) => {
 	const kindPrefix = kind === 'root' ? '' : pascalCase( kind );
-	const nameSuffix = pascalCase( name ) + ( usePlural ? 's' : '' );
-	const suffix =
-		usePlural && 'plural' in entityConfig && entityConfig?.plural
-			? pascalCase( entityConfig.plural )
-			: nameSuffix;
+	const suffix = pascalCase( name );
 	return `${ prefix }${ kindPrefix }${ suffix }`;
 };
-
-function registerSyncConfigs( configs ) {
-	configs.forEach( ( { syncObjectType, syncConfig } ) => {
-		getSyncProvider().register( syncObjectType, syncConfig );
-		const editSyncConfig = { ...syncConfig };
-		delete editSyncConfig.fetch;
-		getSyncProvider().register( syncObjectType + '--edit', editSyncConfig );
-	} );
-}
-
-/**
- * Loads the kind entities into the store.
- *
- * @param {string} kind Kind
- *
- * @return {(thunkArgs: object) => Promise<Array>} Entities
- */
-export const getOrLoadEntitiesConfig =
-	( kind ) =>
-	async ( { select, dispatch } ) => {
-		let configs = select.getEntitiesConfig( kind );
-		if ( configs && configs.length !== 0 ) {
-			if ( window.__experimentalEnableSync ) {
-				if ( process.env.IS_GUTENBERG_PLUGIN ) {
-					registerSyncConfigs( configs );
-				}
-			}
-
-			return configs;
-		}
-
-		const loader = additionalEntityConfigLoaders.find(
-			( l ) => l.kind === kind
-		);
-		if ( ! loader ) {
-			return [];
-		}
-
-		configs = await loader.loadEntities();
-		if ( window.__experimentalEnableSync ) {
-			if ( process.env.IS_GUTENBERG_PLUGIN ) {
-				registerSyncConfigs( configs );
-			}
-		}
-
-		dispatch( addEntities( configs ) );
-
-		return configs;
-	};

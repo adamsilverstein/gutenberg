@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import classnames from 'classnames';
+import clsx from 'clsx';
 
 /**
  * Internal dependencies
@@ -20,7 +20,7 @@ export function DropdownLinkAction( {
 }: DropdownLinkActionProps ) {
 	return (
 		<Dropdown
-			className={ classnames(
+			className={ clsx(
 				'components-circular-option-picker__dropdown-link-action',
 				className
 			) }
@@ -47,7 +47,8 @@ export function ButtonAction( {
 }: WordPressComponentProps< ButtonAsButtonProps, 'button', false > ) {
 	return (
 		<Button
-			className={ classnames(
+			__next40pxDefaultSize
+			className={ clsx(
 				'components-circular-option-picker__clear',
 				className
 			) }

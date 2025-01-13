@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import classnames from 'classnames';
+import clsx from 'clsx';
 
 /**
  * WordPress dependencies
@@ -26,13 +26,15 @@ import TokenInput from '../form-token-field/token-input';
 import SuggestionsList from '../form-token-field/suggestions-list';
 import BaseControl from '../base-control';
 import Button from '../button';
-import { FlexBlock, FlexItem } from '../flex';
+import { FlexBlock } from '../flex';
 import withFocusOutside from '../higher-order/with-focus-outside';
 import { useControlledValue } from '../utils/hooks';
 import { normalizeTextString } from '../utils/strings';
 import type { ComboboxControlOption, ComboboxControlProps } from './types';
 import type { TokenInputProps } from '../form-token-field/types';
 import { useDeprecated36pxDefaultSizeProp } from '../utils/use-deprecated-props';
+import { withIgnoreIMEEvents } from '../utils/with-ignore-ime-events';
+import { maybeWarnDeprecated36pxSize } from '../utils/deprecated-36px-size';
 
 const noop = () => {};
 
@@ -77,10 +79,12 @@ const getIndexOfMatchingSuggestion = (
  * 	{
  * 		value: 'normal',
  * 		label: 'Normal',
+ * 		disabled: true,
  * 	},
  * 	{
  * 		value: 'large',
  * 		label: 'Large',
+ * 		disabled: false,
  * 	},
  * ];
  *
@@ -89,6 +93,8 @@ const getIndexOfMatchingSuggestion = (
  * 	const [ filteredOptions, setFilteredOptions ] = useState( options );
  * 	return (
  * 		<ComboboxControl
+ * 			__next40pxDefaultSize
+ * 			__nextHasNoMarginBottom
  * 			label="Font Size"
  * 			value={ fontSize }
  * 			onChange={ setFontSize }
@@ -124,10 +130,9 @@ function ComboboxControl( props: ComboboxControlProps ) {
 			selected: __( 'Item selected.' ),
 		},
 		__experimentalRenderItem,
-	} = useDeprecated36pxDefaultSizeProp< ComboboxControlProps >(
-		props,
-		'wp.components.ComboboxControl'
-	);
+		expandOnFocus = true,
+		placeholder,
+	} = useDeprecated36pxDefaultSizeProp( props );
 
 	const [ value, setValue ] = useControlledValue( {
 		value: valueProp,
@@ -167,6 +172,10 @@ function ComboboxControl( props: ComboboxControlProps ) {
 	const onSuggestionSelected = (
 		newSelectedSuggestion: ComboboxControlOption
 	) => {
+		if ( newSelectedSuggestion.disabled ) {
+			return;
+		}
+
 		setValue( newSelectedSuggestion.value );
 		speak( messages.selected, 'assertive' );
 		setSelectedSuggestion( newSelectedSuggestion );
@@ -189,51 +198,42 @@ function ComboboxControl( props: ComboboxControlProps ) {
 		setIsExpanded( true );
 	};
 
-	const onKeyDown: React.KeyboardEventHandler< HTMLDivElement > = (
-		event
-	) => {
-		let preventDefault = false;
+	const onKeyDown: React.KeyboardEventHandler< HTMLDivElement > =
+		withIgnoreIMEEvents( ( event ) => {
+			let preventDefault = false;
 
-		if (
-			event.defaultPrevented ||
-			// Ignore keydowns from IMEs
-			event.nativeEvent.isComposing ||
-			// Workaround for Mac Safari where the final Enter/Backspace of an IME composition
-			// is `isComposing=false`, even though it's technically still part of the composition.
-			// These can only be detected by keyCode.
-			event.keyCode === 229
-		) {
-			return;
-		}
+			if ( event.defaultPrevented ) {
+				return;
+			}
 
-		switch ( event.code ) {
-			case 'Enter':
-				if ( selectedSuggestion ) {
-					onSuggestionSelected( selectedSuggestion );
+			switch ( event.code ) {
+				case 'Enter':
+					if ( selectedSuggestion ) {
+						onSuggestionSelected( selectedSuggestion );
+						preventDefault = true;
+					}
+					break;
+				case 'ArrowUp':
+					handleArrowNavigation( -1 );
 					preventDefault = true;
-				}
-				break;
-			case 'ArrowUp':
-				handleArrowNavigation( -1 );
-				preventDefault = true;
-				break;
-			case 'ArrowDown':
-				handleArrowNavigation( 1 );
-				preventDefault = true;
-				break;
-			case 'Escape':
-				setIsExpanded( false );
-				setSelectedSuggestion( null );
-				preventDefault = true;
-				break;
-			default:
-				break;
-		}
+					break;
+				case 'ArrowDown':
+					handleArrowNavigation( 1 );
+					preventDefault = true;
+					break;
+				case 'Escape':
+					setIsExpanded( false );
+					setSelectedSuggestion( null );
+					preventDefault = true;
+					break;
+				default:
+					break;
+			}
 
-		if ( preventDefault ) {
-			event.preventDefault();
-		}
-	};
+			if ( preventDefault ) {
+				event.preventDefault();
+			}
+		} );
 
 	const onBlur = () => {
 		setInputHasFocus( false );
@@ -241,9 +241,16 @@ function ComboboxControl( props: ComboboxControlProps ) {
 
 	const onFocus = () => {
 		setInputHasFocus( true );
-		setIsExpanded( true );
+		if ( expandOnFocus ) {
+			setIsExpanded( true );
+		}
+
 		onFilterValueChange( '' );
 		setInputValue( '' );
+	};
+
+	const onClick = () => {
+		setIsExpanded( true );
 	};
 
 	const onFocusOutside = () => {
@@ -262,6 +269,15 @@ function ComboboxControl( props: ComboboxControlProps ) {
 	const handleOnReset = () => {
 		setValue( null );
 		inputContainer.current?.focus();
+	};
+
+	// Stop propagation of the keydown event when pressing Enter on the Reset
+	// button to prevent calling the onKeydown callback on the container div
+	// element which actually sets the selected suggestion.
+	const handleResetStopPropagation: React.KeyboardEventHandler<
+		HTMLButtonElement
+	> = ( event ) => {
+		event.stopPropagation();
 	};
 
 	// Update current selections when the filter input changes.
@@ -299,6 +315,12 @@ function ComboboxControl( props: ComboboxControlProps ) {
 		}
 	}, [ matchingSuggestions, isExpanded ] );
 
+	maybeWarnDeprecated36pxSize( {
+		componentName: 'ComboboxControl',
+		__next40pxDefaultSize,
+		size: undefined,
+	} );
+
 	// Disable reason: There is no appropriate role which describes the
 	// input container intended accessible usability.
 	// TODO: Refactor click detection to use blur to stop propagation.
@@ -307,10 +329,8 @@ function ComboboxControl( props: ComboboxControlProps ) {
 		<DetectOutside onFocusOutside={ onFocusOutside }>
 			<BaseControl
 				__nextHasNoMarginBottom={ __nextHasNoMarginBottom }
-				className={ classnames(
-					className,
-					'components-combobox-control'
-				) }
+				__associatedWPComponentName="ComboboxControl"
+				className={ clsx( className, 'components-combobox-control' ) }
 				label={ label }
 				id={ `components-form-token-input-${ instanceId }` }
 				hideLabelFromVision={ hideLabelFromVision }
@@ -329,9 +349,11 @@ function ComboboxControl( props: ComboboxControlProps ) {
 								className="components-combobox-control__input"
 								instanceId={ instanceId }
 								ref={ inputContainer }
+								placeholder={ placeholder }
 								value={ isExpanded ? inputValue : currentLabel }
 								onFocus={ onFocus }
 								onBlur={ onBlur }
+								onClick={ onClick }
 								isExpanded={ isExpanded }
 								selectedSuggestionIndex={ getIndexOfMatchingSuggestion(
 									selectedSuggestion,
@@ -341,15 +363,16 @@ function ComboboxControl( props: ComboboxControlProps ) {
 							/>
 						</FlexBlock>
 						{ allowReset && (
-							<FlexItem>
-								<Button
-									className="components-combobox-control__reset"
-									icon={ closeSmall }
-									disabled={ ! value }
-									onClick={ handleOnReset }
-									label={ __( 'Reset' ) }
-								/>
-							</FlexItem>
+							<Button
+								size="small"
+								icon={ closeSmall }
+								// Disable reason: Focus returns to input field when reset is clicked.
+								// eslint-disable-next-line no-restricted-syntax
+								disabled={ ! value }
+								onClick={ handleOnReset }
+								onKeyDown={ handleResetStopPropagation }
+								label={ __( 'Reset' ) }
+							/>
 						) }
 					</InputWrapperFlex>
 					{ isExpanded && (

@@ -12,15 +12,15 @@ const { Fill, Slot } = createSlotFill( 'PluginPostExcerpt' );
 /**
  * Renders a post excerpt panel in the post sidebar.
  *
- * @param {Object}  props             Component properties.
- * @param {string}  [props.className] An optional class name added to the row.
- * @param {Element} props.children    Children to be rendered.
+ * @param {Object}          props             Component properties.
+ * @param {string}          [props.className] An optional class name added to the row.
+ * @param {React.ReactNode} props.children    Children to be rendered.
  *
  * @example
  * ```js
  * // Using ES5 syntax
  * var __ = wp.i18n.__;
- * var PluginPostExcerpt = wp.editPost.PluginPostExcerpt;
+ * var PluginPostExcerpt = wp.editPost.__experimentalPluginPostExcerpt;
  *
  * function MyPluginPostExcerpt() {
  * 	return React.createElement(
@@ -37,7 +37,7 @@ const { Fill, Slot } = createSlotFill( 'PluginPostExcerpt' );
  * ```jsx
  * // Using ESNext syntax
  * import { __ } from '@wordpress/i18n';
- * import { PluginPostExcerpt } from '@wordpress/edit-post';
+ * import { __experimentalPluginPostExcerpt as PluginPostExcerpt } from '@wordpress/edit-post';
  *
  * const MyPluginPostExcerpt = () => (
  * 	<PluginPostExcerpt className="my-plugin-post-excerpt">
@@ -46,7 +46,7 @@ const { Fill, Slot } = createSlotFill( 'PluginPostExcerpt' );
  * );
  * ```
  *
- * @return {Component} The component to be rendered.
+ * @return {React.ReactNode} The rendered component.
  */
 const PluginPostExcerpt = ( { children, className } ) => {
 	return (

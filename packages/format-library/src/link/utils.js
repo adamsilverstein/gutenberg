@@ -102,8 +102,12 @@ export function createLinkFormat( {
 		},
 	};
 
-	if ( type ) format.attributes.type = type;
-	if ( id ) format.attributes.id = id;
+	if ( type ) {
+		format.attributes.type = type;
+	}
+	if ( id ) {
+		format.attributes.id = id;
+	}
 
 	if ( opensInNewWindow ) {
 		format.attributes.target = '_blank';
@@ -198,7 +202,7 @@ export function getFormatBoundary(
 	// Safe guard: start index cannot be less than 0.
 	startIndex = startIndex < 0 ? 0 : startIndex;
 
-	// // Return the indicies of the "edges" as the boundaries.
+	// // Return the indices of the "edges" as the boundaries.
 	return {
 		start: startIndex,
 		end: endIndex,

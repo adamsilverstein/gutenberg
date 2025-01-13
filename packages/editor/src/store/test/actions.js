@@ -90,7 +90,9 @@ describe( 'Post actions', () => {
 					method === 'GET' &&
 					path.startsWith( '/wp/v2/types/post' )
 				) {
-					return {};
+					return {
+						json: () => Promise.resolve( {} ),
+					};
 				}
 
 				throw {
@@ -178,7 +180,9 @@ describe( 'Post actions', () => {
 						path.startsWith( '/wp/v2/types/post' ) ||
 						path.startsWith( `/wp/v2/posts/${ postId }` )
 					) {
-						return {};
+						return {
+							json: () => Promise.resolve( {} ),
+						};
 					}
 				}
 
@@ -262,7 +266,9 @@ describe( 'Post actions', () => {
 					method === 'GET' &&
 					path.startsWith( '/wp/v2/types/post' )
 				) {
-					return {};
+					return {
+						json: () => Promise.resolve( {} ),
+					};
 				}
 
 				throw {
@@ -486,6 +492,164 @@ describe( 'Editor actions', () => {
 					.select( editorStore )
 					.isEditorPanelOpened( 'control-panel' )
 			).toBe( false );
+		} );
+	} );
+
+	describe( 'switchEditorMode', () => {
+		let registry;
+
+		beforeEach( () => {
+			registry = createRegistryWithStores();
+		} );
+
+		it( 'to visual', () => {
+			// Switch to text first, since the default is visual.
+			registry.dispatch( editorStore ).switchEditorMode( 'text' );
+			expect( registry.select( editorStore ).getEditorMode() ).toEqual(
+				'text'
+			);
+			registry.dispatch( editorStore ).switchEditorMode( 'visual' );
+			expect( registry.select( editorStore ).getEditorMode() ).toEqual(
+				'visual'
+			);
+		} );
+
+		it( 'to text', () => {
+			// It defaults to visual.
+			expect( registry.select( editorStore ).getEditorMode() ).toEqual(
+				'visual'
+			);
+			// Add a selected client id and make sure it's there.
+			const clientId = 'clientId_1';
+			registry.dispatch( blockEditorStore ).selectionChange( clientId );
+			expect(
+				registry.select( blockEditorStore ).getSelectedBlockClientId()
+			).toEqual( clientId );
+
+			registry.dispatch( editorStore ).switchEditorMode( 'text' );
+			expect(
+				registry.select( blockEditorStore ).getSelectedBlockClientId()
+			).toBeNull();
+			expect( registry.select( editorStore ).getEditorMode() ).toEqual(
+				'text'
+			);
+		} );
+		it( 'should turn off distraction free mode when switching to code editor', () => {
+			registry
+				.dispatch( preferencesStore )
+				.set( 'core', 'distractionFree', true );
+			registry.dispatch( editorStore ).switchEditorMode( 'text' );
+			expect(
+				registry
+					.select( preferencesStore )
+					.get( 'core', 'distractionFree' )
+			).toBe( false );
+		} );
+	} );
+
+	describe( 'toggleDistractionFree', () => {
+		it( 'should properly update settings to prevent layout corruption when enabling distraction free mode', () => {
+			const registry = createRegistryWithStores();
+
+			// Enable everything that shouldn't be enabled in distraction free mode.
+			registry
+				.dispatch( preferencesStore )
+				.set( 'core', 'fixedToolbar', true );
+			registry.dispatch( editorStore ).setIsListViewOpened( true );
+			// Initial state is falsy.
+			registry.dispatch( editorStore ).toggleDistractionFree();
+			expect(
+				registry
+					.select( preferencesStore )
+					.get( 'core', 'fixedToolbar' )
+			).toBe( true );
+			expect( registry.select( editorStore ).isListViewOpened() ).toBe(
+				false
+			);
+			expect( registry.select( editorStore ).isInserterOpened() ).toBe(
+				false
+			);
+			expect(
+				registry
+					.select( preferencesStore )
+					.get( 'core', 'distractionFree' )
+			).toBe( true );
+		} );
+	} );
+
+	describe( 'setIsInserterOpened', () => {
+		it( 'should open and close the inserter', () => {
+			const registry = createRegistryWithStores();
+
+			registry.dispatch( editorStore ).setIsInserterOpened( true );
+
+			expect( registry.select( editorStore ).isInserterOpened() ).toBe(
+				true
+			);
+
+			registry.dispatch( editorStore ).setIsInserterOpened( false );
+
+			expect( registry.select( editorStore ).isInserterOpened() ).toBe(
+				false
+			);
+		} );
+
+		it( 'the list view should close when the inserter is opened', () => {
+			const registry = createRegistryWithStores();
+
+			registry.dispatch( editorStore ).setIsListViewOpened( true );
+			expect( registry.select( editorStore ).isListViewOpened() ).toBe(
+				true
+			);
+			expect( registry.select( editorStore ).isInserterOpened() ).toBe(
+				false
+			);
+
+			registry.dispatch( editorStore ).setIsInserterOpened( true );
+			expect( registry.select( editorStore ).isInserterOpened() ).toBe(
+				true
+			);
+			expect( registry.select( editorStore ).isListViewOpened() ).toBe(
+				false
+			);
+		} );
+	} );
+
+	describe( 'setIsListViewOpened', () => {
+		it( 'should open and close the list view', () => {
+			const registry = createRegistryWithStores();
+
+			registry.dispatch( editorStore ).setIsListViewOpened( true );
+
+			expect( registry.select( editorStore ).isListViewOpened() ).toBe(
+				true
+			);
+
+			registry.dispatch( editorStore ).setIsListViewOpened( false );
+
+			expect( registry.select( editorStore ).isListViewOpened() ).toBe(
+				false
+			);
+		} );
+
+		it( 'the inserter should close when the list view is opened', () => {
+			const registry = createRegistryWithStores();
+
+			registry.dispatch( editorStore ).setIsInserterOpened( true );
+			expect( registry.select( editorStore ).isInserterOpened() ).toBe(
+				true
+			);
+			expect( registry.select( editorStore ).isListViewOpened() ).toBe(
+				false
+			);
+
+			registry.dispatch( editorStore ).setIsListViewOpened( true );
+			expect( registry.select( editorStore ).isListViewOpened() ).toBe(
+				true
+			);
+			expect( registry.select( editorStore ).isInserterOpened() ).toBe(
+				false
+			);
 		} );
 	} );
 } );

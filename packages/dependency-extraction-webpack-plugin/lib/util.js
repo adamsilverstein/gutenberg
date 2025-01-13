@@ -1,10 +1,17 @@
 const WORDPRESS_NAMESPACE = '@wordpress/';
+
+// !!
+// This list must be kept in sync with the same list in tools/webpack/packages.js
+// !!
 const BUNDLED_PACKAGES = [
 	'@wordpress/dataviews',
+	'@wordpress/dataviews/wp',
 	'@wordpress/icons',
 	'@wordpress/interface',
 	'@wordpress/sync',
 	'@wordpress/undo-manager',
+	'@wordpress/upload-media',
+	'@wordpress/fields',
 ];
 
 /**
@@ -38,6 +45,10 @@ function defaultRequestToExternal( request ) {
 
 		case 'react-dom':
 			return 'ReactDOM';
+
+		case 'react/jsx-runtime':
+		case 'react/jsx-dev-runtime':
+			return 'ReactJSXRuntime';
 	}
 
 	if ( request.includes( 'react-refresh/runtime' ) ) {
@@ -59,9 +70,11 @@ function defaultRequestToExternal( request ) {
 /**
  * Default request to external module transformation
  *
- * Currently only @wordpress/interactivity
+ * Currently only @wordpress/interactivity and `@wordpress/interactivity-router`
+ * are supported.
  *
- * Do not use the boolean shorthand here, it's only handled for the `requestToExternalModule` option.
+ * Do not use the boolean shorthand here, it's only handled for the
+ * `requestToExternalModule` option.
  *
  * @param {string} request Module request (the module name in `import from`) to be transformed
  * @return {string|Error|undefined} The resulting external definition.
@@ -71,11 +84,18 @@ function defaultRequestToExternal( request ) {
  */
 function defaultRequestToExternalModule( request ) {
 	if ( request === '@wordpress/interactivity' ) {
-		// This is a special case. Interactivity does not support dynamic imports at this
-		// time. We add the external "module" type to indicate that webpack should
-		// externalize this as a module (instead of our default `import()` external type)
-		// which forces @wordpress/interactivity imports to be hoisted to static imports.
+		// This is a special case. Interactivity does not support dynamic imports at
+		// this time. We add the external "module" type to indicate that webpack
+		// should externalize this as a module (instead of our default `import()`
+		// external type) which forces @wordpress/interactivity imports to be
+		// hoisted to static imports.
 		return `module ${ request }`;
+	}
+
+	switch ( request ) {
+		case '@wordpress/interactivity-router':
+		case '@wordpress/a11y':
+			return `import ${ request }`;
 	}
 
 	const isWordPressScript = Boolean( defaultRequestToExternal( request ) );
@@ -101,10 +121,13 @@ function defaultRequestToExternalModule( request ) {
 function defaultRequestToHandle( request ) {
 	switch ( request ) {
 		case '@babel/runtime/regenerator':
-			return 'wp-polyfill';
+			return 'regenerator-runtime';
 
 		case 'lodash-es':
 			return 'lodash';
+
+		case 'react/jsx-runtime':
+			return 'react-jsx-runtime';
 	}
 
 	if ( request.includes( 'react-refresh/runtime' ) ) {

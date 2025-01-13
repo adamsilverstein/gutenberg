@@ -24,8 +24,6 @@
 	.components-toolbar-group,
 	.components-toolbar {
 		background: none;
-		// IE11 has thick paddings without this.
-		line-height: 0;
 
 		// These margins make the buttons themselves overlap the chrome of the toolbar.
 		// This helps make them square, and maximize the hit area.
@@ -39,20 +37,39 @@
 		border-right: $border-width solid $gray-300;
 	}
 
-	&.is-synced .block-editor-block-switcher .components-button .block-editor-block-icon {
-		color: var(--wp-block-synced-color);
+	&.is-connected {
+		.block-editor-block-switcher .components-button::before {
+			background: color-mix(in srgb, var(--wp-block-synced-color) 10%, transparent);
+			border-radius: $radius-small;
+		}
 	}
 
-	&.is-synced .components-toolbar-button.block-editor-block-switcher__no-switcher-icon {
-		&:disabled .block-editor-block-icon.has-colors {
+	&.is-synced,
+	&.is-connected {
+		.block-editor-block-switcher .components-button .block-editor-block-icon {
 			color: var(--wp-block-synced-color);
+		}
+
+		.components-toolbar-button.block-editor-block-switcher__no-switcher-icon {
+			&:disabled .block-editor-block-icon.has-colors {
+				color: var(--wp-block-synced-color);
+			}
 		}
 	}
 
 	> :last-child,
 	> :last-child .components-toolbar-group,
-	> :last-child .components-toolbar {
+	> :last-child .components-toolbar,
+	// If the last toolbar group is empty,
+	// we need to remove the double border from the penultimate one.
+	&:has(> :last-child:empty) > :nth-last-child(2),
+	&:has(> :last-child:empty) > :nth-last-child(2) .components-toolbar-group,
+	&:has(> :last-child:empty) > :nth-last-child(2) .components-toolbar {
 		border-right: none;
+	}
+
+	.components-toolbar-group:empty {
+		display: none;
 	}
 }
 
@@ -69,13 +86,20 @@
 	// Raise the specificity.
 	&.components-accessible-toolbar {
 		border: none;
-		border-bottom: $border-width solid $gray-200;
 		border-radius: 0;
+	}
+
+	&.is-unstyled {
+		box-shadow: 0 $border-width 0 0 rgba($color: #000, $alpha: 0.133); // 0.133 = $gray-200 but with alpha.
 	}
 
 	.block-editor-block-toolbar {
 		overflow: auto;
 		overflow-y: hidden;
+		@include custom-scrollbars-on-hover($gray-200, $gray-600);
+
+		// Prevents padding from being applied to the left and right sides of the element.
+		scrollbar-gutter: auto;
 
 		> :last-child,
 		> :last-child .components-toolbar-group,
@@ -84,11 +108,6 @@
 				display: none;
 			}
 		}
-	}
-
-	.block-editor-block-toolbar .components-toolbar-group,
-	.block-editor-block-toolbar .components-toolbar {
-		border-right-color: $gray-200;
 	}
 
 	& > .block-editor-block-toolbar {
@@ -105,11 +124,16 @@
 
 		// Parent selector dot divider
 		&::after {
-			content: "\00B7";
+			align-items: center;
+			background-color: $gray-900;
+			border-radius: 100%;
+			content: "";
+			display: inline-flex;
+			height: 2px;
 			position: absolute;
-			font-size: 16px;
 			right: 0;
-			bottom: $grid-unit-20;
+			top: $grid-unit-20 - $border-width;
+			width: 2px;
 		}
 	}
 }
@@ -126,7 +150,7 @@
 		}
 	}
 
-	// @todo: override toolbar group inherited paddings from components/block-tools/style.scss.
+	// @todo override toolbar group inherited paddings from components/block-tools/style.scss.
 	// This is best fixed by making the mover control area a proper single toolbar group.
 	.components-toolbar-group {
 		padding: 0;
@@ -144,15 +168,7 @@
 }
 
 .block-editor-block-toolbar__slot {
-	// Required for IE11.
-	display: inline-block;
-	// Fix for toolbar button misalignment on IE11
-	line-height: 0;
-
-	// IE11 doesn't read rules inside this query. They are applied only to modern browsers.
-	@supports (position: sticky) {
-		display: inline-flex;
-	}
+	display: inline-flex;
 }
 
 .show-icon-labels {
@@ -200,17 +216,18 @@
 		}
 	}
 
-	.block-editor-block-mover .block-editor-block-mover__move-button-container {
-		width: auto;
-
-		@include break-small() {
+	.block-editor-block-mover {
+		.block-editor-block-mover__move-button-container {
+			width: auto;
 			position: relative;
+		}
 
-			&::before {
+		&:not(.is-horizontal) .block-editor-block-mover__move-button-container::before {
+			@include break-small() {
 				content: "";
 				height: $border-width;
 				width: 100%;
-				background: $gray-900;
+				background: $gray-200;
 				position: absolute;
 				top: 50%;
 				left: 50%;
@@ -218,6 +235,10 @@
 				// X axis allows to make the separator always centered regardless of its width.
 				transform: translate(-50%, 0);
 				margin-top: -$border-width * 0.5;
+			}
+
+			@include break-medium {
+				background: $gray-900;
 			}
 		}
 	}
@@ -261,6 +282,22 @@
 	.block-editor-rich-text__inline-format-toolbar-group {
 		.components-button + .components-button {
 			margin-left: 6px;
+		}
+	}
+}
+
+.block-editor-block-toolbar-change-design-content-wrapper {
+	padding: $grid-unit-15;
+	width: 320px;
+	.block-editor-block-patterns-list {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		grid-gap: $grid-unit-15;
+		.block-editor-block-patterns-list__list-item {
+			margin-bottom: 0;
+		}
+		.block-editor-inserter__media-list__list-item {
+			min-height: 100px;
 		}
 	}
 }

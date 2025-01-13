@@ -24,6 +24,8 @@ _Returns_
 
 ### getCurrentTemplateTemplateParts
 
+> **Deprecated**
+
 Returns the template parts and their blocks for the current edited template.
 
 _Parameters_
@@ -50,6 +52,8 @@ _Returns_
 
 ### getEditedPostId
 
+> **Deprecated**
+
 Returns the ID of the currently edited template or template part.
 
 _Parameters_
@@ -58,9 +62,11 @@ _Parameters_
 
 _Returns_
 
--   `string?`: Post ID.
+-   `?string`: Post ID.
 
 ### getEditedPostType
+
+> **Deprecated**
 
 Returns the current edited post type (wp_template or wp_template_part).
 
@@ -70,7 +76,7 @@ _Parameters_
 
 _Returns_
 
--   `TemplateType?`: Template type.
+-   `?TemplateType`: Template type.
 
 ### getEditorMode
 
@@ -187,6 +193,8 @@ _Returns_
 
 ### isPage
 
+> **Deprecated**
+
 Whether or not the editor has a page loaded into it.
 
 _Related_
@@ -271,6 +279,8 @@ _Parameters_
 
 ### setEditedEntity
 
+> **Deprecated**
+
 Action that sets an edited entity.
 
 _Parameters_
@@ -284,6 +294,8 @@ _Returns_
 -   `Object`: Action object.
 
 ### setEditedPostContext
+
+> **Deprecated**
 
 Set's the current block editor context.
 
@@ -343,6 +355,8 @@ _Parameters_
 
 ### setNavigationMenu
 
+> **Deprecated**
+
 Action that sets a navigation menu.
 
 _Parameters_
@@ -371,7 +385,7 @@ Resolves the template for a page and displays both. If no path is given, attempt
 
 _Returns_
 
--   `number`: The resolved template ID for the page route.
+-   `Object`: Action object.
 
 ### setTemplate
 
@@ -382,6 +396,8 @@ _Returns_
 -   `Object`: Action object.
 
 ### setTemplatePart
+
+> **Deprecated**
 
 Action that sets a template part.
 
@@ -395,9 +411,17 @@ _Returns_
 
 ### switchEditorMode
 
-Undocumented declaration.
+> **Deprecated**
+
+Triggers an action used to switch editor mode.
+
+_Parameters_
+
+-   _mode_ `string`: The editor mode.
 
 ### toggleDistractionFree
+
+> **Deprecated**
 
 Action that toggles Distraction free mode. Distraction free mode expects there are no sidebars, as due to the z-index values set, you can't close sidebars.
 

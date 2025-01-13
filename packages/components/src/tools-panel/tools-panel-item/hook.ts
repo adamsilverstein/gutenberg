@@ -54,11 +54,9 @@ export function useToolsPanelItem(
 
 	// hasValue is a new function on every render, so do not add it as a
 	// dependency to the useCallback hook! If needed, we should use a ref.
-	// eslint-disable-next-line react-hooks/exhaustive-deps
 	const hasValueCallback = useCallback( hasValue, [ panelId ] );
 	// resetAllFilter is a new function on every render, so do not add it as a
 	// dependency to the useCallback hook! If needed, we should use a ref.
-	// eslint-disable-next-line react-hooks/exhaustive-deps
 	const resetAllFilterCallback = useCallback( resetAllFilter, [ panelId ] );
 	const previousPanelId = usePrevious( currentPanelId );
 
@@ -125,17 +123,21 @@ export function useToolsPanelItem(
 	const isRegistered = menuItems?.[ menuGroup ]?.[ label ] !== undefined;
 
 	const isValueSet = hasValue();
-	const wasValueSet = usePrevious( isValueSet );
-	const newValueSet = isValueSet && ! wasValueSet;
-
-	// Notify the panel when an item's value has been set.
+	// Notify the panel when an item's value has changed except for optional
+	// items without value because the item should not cause itself to hide.
 	useEffect( () => {
-		if ( ! newValueSet ) {
+		if ( ! isShownByDefault && ! isValueSet ) {
 			return;
 		}
 
-		flagItemCustomization( label, menuGroup );
-	}, [ newValueSet, menuGroup, label, flagItemCustomization ] );
+		flagItemCustomization( isValueSet, label, menuGroup );
+	}, [
+		isValueSet,
+		menuGroup,
+		label,
+		flagItemCustomization,
+		isShownByDefault,
+	] );
 
 	// Determine if the panel item's corresponding menu is being toggled and
 	// trigger appropriate callback if it is.
@@ -151,7 +153,7 @@ export function useToolsPanelItem(
 			onSelect?.();
 		}
 
-		if ( ! isMenuItemChecked && wasMenuItemChecked ) {
+		if ( ! isMenuItemChecked && isValueSet && wasMenuItemChecked ) {
 			onDeselect?.();
 		}
 	}, [

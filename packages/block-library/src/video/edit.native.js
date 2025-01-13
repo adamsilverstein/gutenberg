@@ -72,7 +72,7 @@ class VideoEdit extends Component {
 			this.finishMediaUploadWithFailure.bind( this );
 		this.updateMediaProgress = this.updateMediaProgress.bind( this );
 		this.onVideoPressed = this.onVideoPressed.bind( this );
-		this.onVideoContanerLayout = this.onVideoContanerLayout.bind( this );
+		this.onVideoContainerLayout = this.onVideoContainerLayout.bind( this );
 		this.onFocusCaption = this.onFocusCaption.bind( this );
 	}
 
@@ -179,7 +179,7 @@ class VideoEdit extends Component {
 		}
 	}
 
-	onVideoContanerLayout( event ) {
+	onVideoContainerLayout( event ) {
 		const { width } = event.nativeEvent.layout;
 		const height = width / VIDEO_ASPECT_RATIO;
 		if ( height !== this.state.videoContainerHeight ) {
@@ -212,13 +212,13 @@ class VideoEdit extends Component {
 	render() {
 		const { setAttributes, attributes, isSelected, wasBlockJustInserted } =
 			this.props;
-		const { id, src, guid } = attributes;
+		const { id, src } = attributes;
 		const { videoContainerHeight } = this.state;
 
 		const toolbarEditButton = (
 			<MediaUpload
 				allowedTypes={ [ MEDIA_TYPE_VIDEO ] }
-				isReplacingMedia={ true }
+				isReplacingMedia
 				onSelect={ this.onSelectMediaUploadOption }
 				onSelectURL={ this.onSelectURL }
 				render={ ( { open, getMediaOptions } ) => {
@@ -236,10 +236,7 @@ class VideoEdit extends Component {
 			></MediaUpload>
 		);
 
-		// NOTE: `guid` is not part of the block's attribute definition. This case
-		// handled here is a temporary fix until a we find a better approach.
-		const isSourcePresent = src || ( guid && id );
-		if ( ! isSourcePresent ) {
+		if ( ! src ) {
 			return (
 				<View style={ { flex: 1 } }>
 					<MediaPlaceholder
@@ -293,8 +290,10 @@ class VideoEdit extends Component {
 						} ) => {
 							const showVideo =
 								isURL( src ) &&
+								getProtocol( attributes.src ) !== 'file:' &&
 								! isUploadInProgress &&
 								! isUploadFailed;
+
 							const icon = this.getIcon(
 								isUploadFailed
 									? ICON_TYPE.RETRY
@@ -322,7 +321,7 @@ class VideoEdit extends Component {
 
 							return (
 								<View
-									onLayout={ this.onVideoContanerLayout }
+									onLayout={ this.onVideoContainerLayout }
 									style={ containerStyle }
 								>
 									{ showVideo && (
@@ -335,7 +334,7 @@ class VideoEdit extends Component {
 												}
 												style={ videoStyle }
 												source={ { uri: src } }
-												paused={ true }
+												paused
 											/>
 										</View>
 									) }
@@ -368,7 +367,7 @@ class VideoEdit extends Component {
 						} }
 					/>
 					<BlockCaption
-						accessible={ true }
+						accessible
 						accessibilityLabelCreator={ ( caption ) =>
 							RichText.isEmpty( caption )
 								? /* translators: accessibility text. Empty video caption. */

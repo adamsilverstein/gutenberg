@@ -73,7 +73,7 @@ The value of `attributes.content` will be displayed inside the `div` when insert
 
 ### isSelected
 
-The isSelected property is an boolean that communicates whether the block is currently selected.
+The isSelected property is a boolean that communicates whether the block is currently selected.
 
 
 ```jsx
@@ -183,12 +183,37 @@ save: ( { attributes } ) => {
 ```
 
 
-
 When saving your block, you want to save the attributes in the same format specified by the attribute source definition. If no attribute source is specified, the attribute will be saved to the block's comment delimiter. See the [Block Attributes documentation](/docs/reference-guides/block-api/block-attributes.md) for more details.
+
+### innerBlocks
+
+There is a second property in the props passed to the `save` function, `innerBlocks`. This property is typically used for internal operations, and there are very few scenarios where you would need to use it.
+
+`innerBlocks`, when initialized, is an array containing object representations of nested blocks. In those rare cases where you might use this property,
+it can help you adjust how a block is rendered. For example, you could render a block differently based on the number of nested blocks or if a specific block type is present..
+
+
+```jsx
+save: ( { attributes, innerBlocks } ) => {
+	const { className, ...rest } = useBlockProps.save();
+
+	// innerBlocks could also be an object - react element during initialization
+	const numberOfInnerBlocks = innerBlocks?.length;
+	if ( numberOfInnerBlocks > 1 ) {
+		className = className + ( className ? ' ' : '' ) + 'more-than-one';
+	};
+	const blockProps =  { ...rest, className };
+
+	return <div { ...blockProps }>{ attributes.content }</div>;
+};
+```
+
+
+Here, an additional class is added to the block if number of inner blocks is greater than one, allowing for different styling of the block.
 
 ## Examples
 
-Here are a couple examples of using attributes, edit, and save all together. For a full working example, see the [Introducing Attributes and Editable Fields](/docs/how-to-guides/block-tutorial/introducing-attributes-and-editable-fields.md) section of the Block Tutorial.
+Here are a couple examples of using attributes, edit, and save all together.
 
 ### Saving Attributes to Child Elements
 
@@ -210,6 +235,8 @@ edit: ( { attributes, setAttributes } ) => {
 	return (
 		<div { ...blockProps }>
 			<TextControl
+				__nextHasNoMarginBottom
+				__next40pxDefaultSize
 				label='My Text Field'
 				value={ attributes.content }
 				onChange={ updateFieldValue }
@@ -246,6 +273,8 @@ edit: ( { attributes, setAttributes } ) => {
 	return (
 		<div { ...blockProps }>
 			<TextControl
+				__nextHasNoMarginBottom
+				__next40pxDefaultSize
 				label='Number Posts to Show'
 				value={ attributes.postsToShow }
 				onChange={ ( val ) => {
@@ -269,14 +298,14 @@ If a block is detected to be invalid, the user will be prompted to choose how to
 
 ![Invalid block prompt](https://user-images.githubusercontent.com/7753001/88754471-4cf7e900-d191-11ea-9123-3cee20719d10.png)
 
-Clicking **Attempt Block Recovery** button will attempt recovery action as much as possible.
+Clicking the **Attempt Block Recovery** button will attempt a recovery action as much as possible.
 
 Clicking the "3-dot" menu on the side of the block displays three options:
 
 -   **Resolve**: Open Resolve Block dialog box with two buttons:
-    -   **Convert to HTML**: Protects the original markup from the saved post content and convert the block from its original type to the HTML block type, enabling the user to modify the HTML markup directly.
-    -   **Convert to Blocks**: Protects the original markup from the saved post content and convert the block from its original type to the validated block type.
--   **Convert to HTML**: Protects the original markup from the saved post content and convert the block from its original type to the HTML block type, enabling the user to modify the HTML markup directly.
+    -   **Convert to HTML**: Protects the original markup from the saved post content and converts the block from its original type to the HTML block type, enabling the user to modify the HTML markup directly.
+    -   **Convert to Blocks**: Protects the original markup from the saved post content and converts the block from its original type to the validated block type.
+-   **Convert to HTML**: Protects the original markup from the saved post content and converts the block from its original type to the HTML block type, enabling the user to modify the HTML markup directly.
 -   **Convert to Classic Block**: Protects the original markup from the saved post content as correct. Since the block will be converted from its original type to the Classic block type, it will no longer be possible to edit the content using controls available for the original block type.
 
 ### Validation FAQ

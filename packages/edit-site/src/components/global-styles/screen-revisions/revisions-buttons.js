@@ -1,18 +1,13 @@
 /**
- * External dependencies
- */
-import classnames from 'classnames';
-
-/**
  * WordPress dependencies
  */
 import { __, sprintf } from '@wordpress/i18n';
-import { Button } from '@wordpress/components';
+import { Button, Composite } from '@wordpress/components';
 import { dateI18n, getDate, humanTimeDiff, getSettings } from '@wordpress/date';
 import { store as coreStore } from '@wordpress/core-data';
 import { useSelect } from '@wordpress/data';
 import { privateApis as blockEditorPrivateApis } from '@wordpress/block-editor';
-
+import { ENTER, SPACE } from '@wordpress/keycodes';
 /**
  * Internal dependencies
  */
@@ -25,19 +20,20 @@ function ChangesSummary( { revision, previousRevision } ) {
 	const changes = getGlobalStylesChanges( revision, previousRevision, {
 		maxResults: 7,
 	} );
-	const changesLength = changes.length;
 
-	if ( ! changesLength ) {
+	if ( ! changes.length ) {
 		return null;
 	}
 
 	return (
-		<span
+		<ul
 			data-testid="global-styles-revision-changes"
 			className="edit-site-global-styles-screen-revisions__changes"
 		>
-			{ changes.join( ', ' ) }
-		</span>
+			{ changes.map( ( change ) => (
+				<li key={ change }>{ change }</li>
+			) ) }
+		</ul>
 	);
 }
 
@@ -70,7 +66,7 @@ function getRevisionLabel(
 
 	return areStylesEqual
 		? sprintf(
-				// translators: %1$s: author display name, %2$s: revision creation date.
+				// translators: 1: author display name. 2: revision creation date.
 				__(
 					'Changes saved by %1$s on %2$s. This revision matches current editor styles.'
 				),
@@ -78,7 +74,7 @@ function getRevisionLabel(
 				formattedModifiedDate
 		  )
 		: sprintf(
-				// translators: %1$s: author display name, %2$s: revision creation date.
+				// translators: 1: author display name. 2: revision creation date.
 				__( 'Changes saved by %1$s on %2$s' ),
 				authorDisplayName,
 				formattedModifiedDate
@@ -116,10 +112,11 @@ function RevisionsButtons( {
 	const { datetimeAbbreviated } = getSettings().formats;
 
 	return (
-		<ol
+		<Composite
+			orientation="vertical"
 			className="edit-site-global-styles-screen-revisions__revisions-list"
 			aria-label={ __( 'Global styles revisions list' ) }
-			role="group"
+			role="listbox"
 		>
 			{ userRevisions.map( ( revision, index ) => {
 				const { id, author, modified } = revision;
@@ -148,26 +145,26 @@ function RevisionsButtons( {
 				);
 
 				return (
-					<li
-						className={ classnames(
-							'edit-site-global-styles-screen-revisions__revision-item',
-							{
-								'is-selected': isSelected,
-								'is-active': areStylesEqual,
-								'is-reset': isReset,
-							}
-						) }
+					<Composite.Item
 						key={ id }
+						className="edit-site-global-styles-screen-revisions__revision-item"
 						aria-current={ isSelected }
-					>
-						<Button
-							className="edit-site-global-styles-screen-revisions__revision-button"
-							disabled={ isSelected }
-							onClick={ () => {
+						role="option"
+						onKeyDown={ ( event ) => {
+							const { keyCode } = event;
+							if ( keyCode === ENTER || keyCode === SPACE ) {
 								onChange( revision );
-							} }
-							aria-label={ revisionLabel }
-						>
+							}
+						} }
+						onClick={ ( event ) => {
+							event.preventDefault();
+							onChange( revision );
+						} }
+						aria-selected={ isSelected }
+						aria-label={ revisionLabel }
+						render={ <div /> }
+					>
+						<span className="edit-site-global-styles-screen-revisions__revision-item-wrapper">
 							{ isReset ? (
 								<span className="edit-site-global-styles-screen-revisions__description">
 									{ __( 'Default styles' ) }
@@ -208,7 +205,7 @@ function RevisionsButtons( {
 									) }
 								</span>
 							) }
-						</Button>
+						</span>
 						{ isSelected &&
 							( areStylesEqual ? (
 								<p className="edit-site-global-styles-screen-revisions__applied-text">
@@ -218,20 +215,23 @@ function RevisionsButtons( {
 								</p>
 							) : (
 								<Button
-									disabled={ areStylesEqual }
+									size="compact"
 									variant="primary"
 									className="edit-site-global-styles-screen-revisions__apply-button"
 									onClick={ onApplyRevision }
+									aria-label={ __(
+										'Apply the selected revision to your site.'
+									) }
 								>
 									{ isReset
 										? __( 'Reset to defaults' )
 										: __( 'Apply' ) }
 								</Button>
 							) ) }
-					</li>
+					</Composite.Item>
 				);
 			} ) }
-		</ol>
+		</Composite>
 	);
 }
 

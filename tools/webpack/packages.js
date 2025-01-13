@@ -4,6 +4,7 @@
 const CopyWebpackPlugin = require( 'copy-webpack-plugin' );
 const MomentTimezoneDataPlugin = require( 'moment-timezone-data-webpack-plugin' );
 const { join } = require( 'path' );
+const { readdirSync } = require( 'node:fs' );
 
 /**
  * WordPress dependencies
@@ -16,7 +17,12 @@ const DependencyExtractionWebpackPlugin = require( '@wordpress/dependency-extrac
 /**
  * Internal dependencies
  */
-const { dependencies } = require( '../../package' );
+const packageDirs = readdirSync(
+	new URL( '../packages', `file://${ __dirname }` ),
+	{
+		withFileTypes: true,
+	}
+).flatMap( ( dirent ) => ( dirent.isDirectory() ? [ dirent.name ] : [] ) );
 const { baseConfig, plugins, stylesTransform } = require( './shared' );
 
 const WORDPRESS_NAMESPACE = '@wordpress/';
@@ -24,12 +30,19 @@ const WORDPRESS_NAMESPACE = '@wordpress/';
 // Experimental or other packages that should be private are bundled when used.
 // That way, we can iterate on these package without making them part of the public API.
 // See: https://github.com/WordPress/gutenberg/pull/19809
+//
+// !!
+// This list must be kept in sync with the matching list in packages/dependency-extraction-webpack-plugin/lib/util.js
+// !!
 const BUNDLED_PACKAGES = [
+	'@wordpress/dataviews',
+	'@wordpress/dataviews/wp',
 	'@wordpress/icons',
 	'@wordpress/interface',
-	'@wordpress/undo-manager',
 	'@wordpress/sync',
-	'@wordpress/dataviews',
+	'@wordpress/undo-manager',
+	'@wordpress/upload-media',
+	'@wordpress/fields',
 ];
 
 // PHP files in packages that have to be copied during build.
@@ -77,15 +90,23 @@ const bundledPackagesPhpConfig = [
 	},
 } ) );
 
-const gutenbergPackages = Object.keys( dependencies )
-	.filter(
-		( packageName ) =>
-			! BUNDLED_PACKAGES.includes( packageName ) &&
-			packageName.startsWith( WORDPRESS_NAMESPACE ) &&
-			! packageName.startsWith( WORDPRESS_NAMESPACE + 'react-native' ) &&
-			! packageName.startsWith( WORDPRESS_NAMESPACE + 'interactivity' )
-	)
-	.map( ( packageName ) => packageName.replace( WORDPRESS_NAMESPACE, '' ) );
+/** @type {Array<string>} */
+const gutenbergScripts = [];
+for ( const packageDir of packageDirs ) {
+	const packageJson = require(
+		`${ WORDPRESS_NAMESPACE }${ packageDir }/package.json`
+	);
+
+	if ( ! packageJson.wpScript ) {
+		continue;
+	}
+
+	if ( BUNDLED_PACKAGES.includes( packageJson.name ) ) {
+		continue;
+	}
+
+	gutenbergScripts.push( packageDir );
+}
 
 const exportDefaultPackages = [
 	'api-fetch',
@@ -98,39 +119,18 @@ const exportDefaultPackages = [
 	'warning',
 ];
 
-const vendors = {
-	react: [
-		'react/umd/react.development.js',
-		'react/umd/react.production.min.js',
-	],
-	'react-dom': [
-		'react-dom/umd/react-dom.development.js',
-		'react-dom/umd/react-dom.production.min.js',
-	],
-	'inert-polyfill': [
-		'wicg-inert/dist/inert.js',
-		'wicg-inert/dist/inert.min.js',
-	],
+const copiedVendors = {
+	'react.js': 'react/umd/react.development.js',
+	'react.min.js': 'react/umd/react.production.min.js',
+	'react-dom.js': 'react-dom/umd/react-dom.development.js',
+	'react-dom.min.js': 'react-dom/umd/react-dom.production.min.js',
 };
-const vendorsCopyConfig = Object.entries( vendors ).flatMap(
-	( [ key, [ devFilename, prodFilename ] ] ) => {
-		return [
-			{
-				from: `node_modules/${ devFilename }`,
-				to: `build/vendors/${ key }.js`,
-			},
-			{
-				from: `node_modules/${ prodFilename }`,
-				to: `build/vendors/${ key }.min.js`,
-			},
-		];
-	}
-);
+
 module.exports = {
 	...baseConfig,
 	name: 'packages',
 	entry: Object.fromEntries(
-		gutenbergPackages.map( ( packageName ) => [
+		gutenbergScripts.map( ( packageName ) => [
 			packageName,
 			{
 				import: `./packages/${ packageName }`,
@@ -157,14 +157,28 @@ module.exports = {
 			return `webpack://${ info.namespace }/${ info.resourcePath }`;
 		},
 	},
+	module: {
+		rules: [
+			...baseConfig.module.rules,
+			{
+				test: /\.wasm$/,
+				type: 'asset/resource',
+				generator: {
+					// FIXME: Do not hardcode path.
+					filename: './build/vips/[name].wasm',
+					publicPath: '',
+				},
+			},
+		],
+	},
 	performance: {
 		hints: false, // disable warnings about package sizes
 	},
 	plugins: [
 		...plugins,
-		new DependencyExtractionWebpackPlugin( { injectPolyfill: true } ),
+		new DependencyExtractionWebpackPlugin( { injectPolyfill: false } ),
 		new CopyWebpackPlugin( {
-			patterns: gutenbergPackages
+			patterns: gutenbergScripts
 				.map( ( packageName ) => ( {
 					from: '*.css',
 					context: `./packages/${ packageName }/build-style`,
@@ -173,7 +187,12 @@ module.exports = {
 					noErrorOnMissing: true,
 				} ) )
 				.concat( bundledPackagesPhpConfig )
-				.concat( vendorsCopyConfig ),
+				.concat(
+					Object.entries( copiedVendors ).map( ( [ to, from ] ) => ( {
+						from: `node_modules/${ from }`,
+						to: `build/vendors/${ to }`,
+					} ) )
+				),
 		} ),
 		new MomentTimezoneDataPlugin( {
 			startYear: 2000,

@@ -8,25 +8,47 @@ import {
 	TextControl,
 	Modal,
 } from '@wordpress/components';
-import { useInstanceId } from '@wordpress/compose';
 import { __, sprintf } from '@wordpress/i18n';
 import { useState } from '@wordpress/element';
 import { speak } from '@wordpress/a11y';
+import { useSelect, useDispatch } from '@wordpress/data';
 
 /**
  * Internal dependencies
  */
+import { store as blockEditorStore } from '../../store';
+import { useBlockDisplayInformation } from '..';
 import isEmptyString from './is-empty-string';
 
-export default function BlockRenameModal( {
-	blockName,
-	originalBlockName,
-	onClose,
-	onSave,
-} ) {
-	const [ editedBlockName, setEditedBlockName ] = useState( blockName );
+export default function BlockRenameModal( { clientId, onClose } ) {
+	const [ editedBlockName, setEditedBlockName ] = useState();
 
-	const nameHasChanged = editedBlockName !== blockName;
+	const blockInformation = useBlockDisplayInformation( clientId );
+	const { metadata } = useSelect(
+		( select ) => {
+			const { getBlockAttributes } = select( blockEditorStore );
+
+			return {
+				metadata: getBlockAttributes( clientId )?.metadata,
+			};
+		},
+		[ clientId ]
+	);
+	const { updateBlockAttributes } = useDispatch( blockEditorStore );
+
+	const blockName = metadata?.name || '';
+	const originalBlockName = blockInformation?.title;
+	// Pattern Overrides is a WordPress-only feature but it also uses the Block Binding API.
+	// Ideally this should not be inside the block editor package, but we keep it here for simplicity.
+	const hasOverridesWarning =
+		!! blockName &&
+		!! metadata?.bindings &&
+		Object.values( metadata.bindings ).some(
+			( binding ) => binding.source === 'core/pattern-overrides'
+		);
+
+	const nameHasChanged =
+		editedBlockName !== undefined && editedBlockName !== blockName;
 	const nameIsOriginal = editedBlockName === originalBlockName;
 	const nameIsEmpty = isEmptyString( editedBlockName );
 
@@ -34,12 +56,9 @@ export default function BlockRenameModal( {
 
 	const autoSelectInputText = ( event ) => event.target.select();
 
-	const dialogDescription = useInstanceId(
-		BlockRenameModal,
-		`block-editor-rename-modal__description`
-	);
-
 	const handleSubmit = () => {
+		const newName =
+			nameIsOriginal || nameIsEmpty ? undefined : editedBlockName;
 		const message =
 			nameIsOriginal || nameIsEmpty
 				? sprintf(
@@ -55,7 +74,12 @@ export default function BlockRenameModal( {
 
 		// Must be assertive to immediately announce change.
 		speak( message, 'assertive' );
-		onSave( editedBlockName );
+		updateBlockAttributes( [ clientId ], {
+			metadata: {
+				...metadata,
+				name: newName,
+			},
+		} );
 
 		// Immediate close avoids ability to hit save multiple times.
 		onClose();
@@ -66,14 +90,9 @@ export default function BlockRenameModal( {
 			title={ __( 'Rename' ) }
 			onRequestClose={ onClose }
 			overlayClassName="block-editor-block-rename-modal"
-			aria={ {
-				describedby: dialogDescription,
-			} }
 			focusOnMount="firstContentElement"
+			size="small"
 		>
-			<p id={ dialogDescription }>
-				{ __( 'Enter a custom name for this block.' ) }
-			</p>
 			<form
 				onSubmit={ ( e ) => {
 					e.preventDefault();
@@ -89,9 +108,15 @@ export default function BlockRenameModal( {
 					<TextControl
 						__nextHasNoMarginBottom
 						__next40pxDefaultSize
-						value={ editedBlockName }
-						label={ __( 'Block name' ) }
-						hideLabelFromVision={ true }
+						value={ editedBlockName ?? blockName }
+						label={ __( 'Name' ) }
+						help={
+							hasOverridesWarning
+								? __(
+										'This block allows overrides. Changing the name can cause problems with content entered into instances of this pattern.'
+								  )
+								: undefined
+						}
 						placeholder={ originalBlockName }
 						onChange={ setEditedBlockName }
 						onFocus={ autoSelectInputText }
@@ -107,7 +132,8 @@ export default function BlockRenameModal( {
 
 						<Button
 							__next40pxDefaultSize
-							aria-disabled={ ! isNameValid }
+							accessibleWhenDisabled
+							disabled={ ! isNameValid }
 							variant="primary"
 							type="submit"
 						>

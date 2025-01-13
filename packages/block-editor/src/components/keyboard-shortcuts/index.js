@@ -29,8 +29,8 @@ function KeyboardShortcutsRegister() {
 			category: 'block',
 			description: __( 'Remove the selected block(s).' ),
 			keyCombination: {
-				modifier: 'access',
-				character: 'z',
+				modifier: 'shift',
+				character: 'backspace',
 			},
 		} );
 
@@ -130,6 +130,29 @@ function KeyboardShortcutsRegister() {
 			keyCombination: {
 				modifier: 'secondary',
 				character: 'y',
+			},
+		} );
+
+		// List view shortcuts.
+		registerShortcut( {
+			name: 'core/block-editor/collapse-list-view',
+			category: 'list-view',
+			description: __( 'Collapse all other items.' ),
+			keyCombination: {
+				modifier: 'alt',
+				character: 'l',
+			},
+		} );
+
+		registerShortcut( {
+			name: 'core/block-editor/group',
+			category: 'block',
+			description: __(
+				'Create a group block from the selected multiple blocks.'
+			),
+			keyCombination: {
+				modifier: 'primary',
+				character: 'g',
 			},
 		} );
 	}, [ registerShortcut ] );

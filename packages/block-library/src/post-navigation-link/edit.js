@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import classnames from 'classnames';
+import clsx from 'clsx';
 
 /**
  * WordPress dependencies
@@ -49,13 +49,16 @@ export default function PostNavigationLinkEdit( {
 	const displayArrow = arrowMap[ arrow ];
 
 	if ( showTitle ) {
-		/* translators: Label before for next and previous post. There is a space after the colon. */
-		placeholder = isNext ? __( 'Next: ' ) : __( 'Previous: ' );
+		placeholder = isNext
+			? /* translators: Label before for next and previous post. There is a space after the colon. */
+			  __( 'Next: ' ) // eslint-disable-line @wordpress/i18n-no-flanking-whitespace
+			: /* translators: Label before for next and previous post. There is a space after the colon. */
+			  __( 'Previous: ' ); // eslint-disable-line @wordpress/i18n-no-flanking-whitespace
 	}
 
 	const ariaLabel = isNext ? __( 'Next post' ) : __( 'Previous post' );
 	const blockProps = useBlockProps( {
-		className: classnames( {
+		className: clsx( {
 			[ `has-text-align-${ textAlign }` ]: textAlign,
 		} ),
 	} );
@@ -66,7 +69,6 @@ export default function PostNavigationLinkEdit( {
 			const filteredTaxonomies = getTaxonomies( {
 				type: postType,
 				per_page: -1,
-				context: 'view',
 			} );
 			return filteredTaxonomies;
 		},
@@ -78,11 +80,7 @@ export default function PostNavigationLinkEdit( {
 			value: '',
 		};
 		const taxonomyOptions = ( taxonomies ?? [] )
-			.filter(
-				( tax ) =>
-					tax.slug !== 'nav_menu' &&
-					tax.slug !== 'wp_pattern_category'
-			)
+			.filter( ( { visibility } ) => !! visibility?.publicly_queryable )
 			.map( ( item ) => {
 				return {
 					value: item.slug,
@@ -125,6 +123,7 @@ export default function PostNavigationLinkEdit( {
 						/>
 					) }
 					<ToggleGroupControl
+						__next40pxDefaultSize
 						__nextHasNoMarginBottom
 						label={ __( 'Arrow' ) }
 						value={ arrow }
@@ -162,13 +161,14 @@ export default function PostNavigationLinkEdit( {
 			</InspectorControls>
 			<InspectorControls group="advanced">
 				<SelectControl
+					__next40pxDefaultSize
+					__nextHasNoMarginBottom
 					label={ __( 'Filter by taxonomy' ) }
 					value={ taxonomy }
 					options={ getTaxonomyOptions() }
 					onChange={ ( value ) =>
 						setAttributes( {
 							taxonomy: value,
-							inSameTerm: value === '' ? false : true,
 						} )
 					}
 					help={ __(
@@ -194,6 +194,7 @@ export default function PostNavigationLinkEdit( {
 				) }
 				<RichText
 					tagName="a"
+					identifier="label"
 					aria-label={ ariaLabel }
 					placeholder={ placeholder }
 					value={ label }
@@ -213,7 +214,7 @@ export default function PostNavigationLinkEdit( {
 				{ isNext && displayArrow && (
 					<span
 						className={ `wp-block-post-navigation-link__arrow-next is-arrow-${ arrow }` }
-						aria-hidden={ true }
+						aria-hidden
 					>
 						{ displayArrow }
 					</span>

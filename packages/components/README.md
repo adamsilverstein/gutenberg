@@ -33,7 +33,7 @@ In non-WordPress projects, link to the `build-style/style.css` file directly, it
 
 By default, the `Popover` component will render within an extra element appended to the body of the document.
 
-If you want to precisely contol where the popovers render, you will need to use the `Popover.Slot` component.
+If you want to precisely control where the popovers render, you will need to use the `Popover.Slot` component.
 
 The following example illustrates how you can wrap a component using a
 `Popover` and have those popovers render to a single location in the DOM.
@@ -55,6 +55,19 @@ const Example = () => {
 		<Popover.Slot />
 	</SlotFillProvider>;
 };
+```
+
+### TypeScript
+
+This package exposes its own types for the components it exports, however it doesn't export its own types for component props. If you need to extract the props type, please use `React.ComponentProps` to get the types from the element.
+
+```tsx
+import type { ComponentProps } from 'react';
+import { Button } from '@wordpress/components';
+
+export default function MyButton( props: ComponentProps< typeof Button > ) {
+	return <Button { ...props }>Click Me!</Button>;
+}
 ```
 
 ## Docs & examples

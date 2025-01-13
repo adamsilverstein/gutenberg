@@ -9,7 +9,7 @@ import {
 	__experimentalText as Text,
 	__experimentalVStack as VStack,
 } from '@wordpress/components';
-import { store as editorStore } from '@wordpress/editor';
+import { store as coreStore } from '@wordpress/core-data';
 import { useSelect } from '@wordpress/data';
 import { __, sprintf } from '@wordpress/i18n';
 import { moreVertical } from '@wordpress/icons';
@@ -17,6 +17,7 @@ import { moreVertical } from '@wordpress/icons';
 /**
  * Internal dependencies
  */
+import AddNewPattern from '../add-new-pattern';
 import RenameCategoryMenuItem from './rename-category-menu-item';
 import DeleteCategoryMenuItem from './delete-category-menu-item';
 import usePatternCategories from '../sidebar-navigation-screen-patterns/use-pattern-categories';
@@ -31,7 +32,8 @@ export default function PatternsHeader( {
 	const { patternCategories } = usePatternCategories();
 	const templatePartAreas = useSelect(
 		( select ) =>
-			select( editorStore ).__experimentalGetDefaultTemplatePartAreas(),
+			select( coreStore ).getEntityRecord( 'root', '__unstableBase' )
+				?.default_template_part_areas || [],
 		[]
 	);
 
@@ -40,9 +42,11 @@ export default function PatternsHeader( {
 		const templatePartArea = templatePartAreas.find(
 			( area ) => area.area === categoryId
 		);
-		title = templatePartArea?.label;
-		description = templatePartArea?.description;
-	} else if ( type === PATTERN_TYPES.theme ) {
+		title = templatePartArea?.label || __( 'All Template Parts' );
+		description =
+			templatePartArea?.description ||
+			__( 'Includes every template part defined for any area.' );
+	} else if ( type === PATTERN_TYPES.user && !! categoryId ) {
 		patternCategory = patternCategories.find(
 			( category ) => category.name === categoryId
 		);
@@ -50,44 +54,64 @@ export default function PatternsHeader( {
 		description = patternCategory?.description;
 	}
 
-	if ( ! title ) return null;
+	if ( ! title ) {
+		return null;
+	}
 
 	return (
-		<VStack className="edit-site-patterns__section-header">
-			<HStack justify="space-between">
-				<Heading as="h2" level={ 4 } id={ titleId }>
+		<VStack className="edit-site-patterns__section-header" spacing={ 1 }>
+			<HStack
+				justify="space-between"
+				className="edit-site-patterns__title"
+			>
+				<Heading
+					as="h2"
+					level={ 3 }
+					id={ titleId }
+					weight={ 500 }
+					truncate
+				>
 					{ title }
 				</Heading>
-				{ !! patternCategory?.id && (
-					<DropdownMenu
-						icon={ moreVertical }
-						label={ __( 'Actions' ) }
-						toggleProps={ {
-							className: 'edit-site-patterns__button',
-							describedBy: sprintf(
-								/* translators: %s: pattern category name */
-								__( 'Action menu for %s pattern category' ),
-								title
-							),
-						} }
-					>
-						{ ( { onClose } ) => (
-							<MenuGroup>
-								<RenameCategoryMenuItem
-									category={ patternCategory }
-									onClose={ onClose }
-								/>
-								<DeleteCategoryMenuItem
-									category={ patternCategory }
-									onClose={ onClose }
-								/>
-							</MenuGroup>
-						) }
-					</DropdownMenu>
-				) }
+				<HStack expanded={ false }>
+					<AddNewPattern />
+					{ !! patternCategory?.id && (
+						<DropdownMenu
+							icon={ moreVertical }
+							label={ __( 'Actions' ) }
+							toggleProps={ {
+								className: 'edit-site-patterns__button',
+								description: sprintf(
+									/* translators: %s: pattern category name */
+									__( 'Action menu for %s pattern category' ),
+									title
+								),
+								size: 'compact',
+							} }
+						>
+							{ ( { onClose } ) => (
+								<MenuGroup>
+									<RenameCategoryMenuItem
+										category={ patternCategory }
+										onClose={ onClose }
+									/>
+									<DeleteCategoryMenuItem
+										category={ patternCategory }
+										onClose={ onClose }
+									/>
+								</MenuGroup>
+							) }
+						</DropdownMenu>
+					) }
+				</HStack>
 			</HStack>
 			{ description ? (
-				<Text variant="muted" as="p" id={ descriptionId }>
+				<Text
+					variant="muted"
+					as="p"
+					id={ descriptionId }
+					className="edit-site-patterns__sub-title"
+				>
 					{ description }
 				</Text>
 			) : null }
