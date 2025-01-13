@@ -1,4 +1,15 @@
 /**
+ * Internal dependencies
+ */
+import type { select as globalSelect } from './select';
+
+type RegistrySelector< Selector extends ( ...args: any[] ) => any > = {
+	( ...args: Parameters< Selector > ): ReturnType< Selector >;
+	isRegistrySelector?: boolean;
+	registry?: any;
+};
+
+/**
  * Creates a selector function that takes additional curried argument with the
  * registry `select` function. While a regular selector has signature
  * ```js
@@ -33,28 +44,41 @@
  * registry as argument. The registry binding happens automatically when registering the selector
  * with a store.
  *
- * @param {Function} registrySelector Function receiving a registry `select`
- *                                    function and returning a state selector.
+ * @param registrySelector Function receiving a registry `select`
+ *                         function and returning a state selector.
  *
- * @return {Function} Registry selector that can be registered with a store.
+ * @return Registry selector that can be registered with a store.
  */
-export function createRegistrySelector( registrySelector ) {
+export function createRegistrySelector<
+	Selector extends ( ...args: any[] ) => any,
+>(
+	registrySelector: ( select: typeof globalSelect ) => Selector
+): RegistrySelector< Selector > {
+	const selectorsByRegistry = new WeakMap();
 	// Create a selector function that is bound to the registry referenced by `selector.registry`
 	// and that has the same API as a regular selector. Binding it in such a way makes it
 	// possible to call the selector directly from another selector.
-	const selector = ( ...args ) =>
-		registrySelector( selector.registry.select )( ...args );
+	const wrappedSelector: RegistrySelector< Selector > = ( ...args ) => {
+		let selector = selectorsByRegistry.get( wrappedSelector.registry );
+		// We want to make sure the cache persists even when new registry
+		// instances are created. For example patterns create their own editors
+		// with their own core/block-editor stores, so we should keep track of
+		// the cache for each registry instance.
+		if ( ! selector ) {
+			selector = registrySelector( wrappedSelector.registry.select );
+			selectorsByRegistry.set( wrappedSelector.registry, selector );
+		}
+		return selector( ...args );
+	};
 
 	/**
 	 * Flag indicating that the selector is a registry selector that needs the correct registry
 	 * reference to be assigned to `selector.registry` to make it work correctly.
 	 * be mapped as a registry selector.
-	 *
-	 * @type {boolean}
 	 */
-	selector.isRegistrySelector = true;
+	wrappedSelector.isRegistrySelector = true;
 
-	return selector;
+	return wrappedSelector;
 }
 
 /**
@@ -73,11 +97,13 @@ export function createRegistrySelector( registrySelector ) {
  * When registering a control created with `createRegistryControl` with a store, the store
  * knows which calling convention to use when executing the control.
  *
- * @param {Function} registryControl Function receiving a registry object and returning a control.
+ * @param registryControl Function receiving a registry object and returning a control.
  *
- * @return {Function} Registry control that can be registered with a store.
+ * @return Registry control that can be registered with a store.
  */
-export function createRegistryControl( registryControl ) {
+export function createRegistryControl< T extends ( ...args: any ) => any >(
+	registryControl: T & { isRegistryControl?: boolean }
+) {
 	registryControl.isRegistryControl = true;
 
 	return registryControl;

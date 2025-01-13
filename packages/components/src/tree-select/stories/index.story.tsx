@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import type { ComponentMeta, ComponentStory } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 import type { ComponentProps } from 'react';
 /**
  * WordPress dependencies
@@ -13,15 +13,16 @@ import { useState } from '@wordpress/element';
  */
 import TreeSelect from '../';
 
-const meta: ComponentMeta< typeof TreeSelect > = {
-	title: 'Components/TreeSelect',
+const meta: Meta< typeof TreeSelect > = {
+	title: 'Components/Selection & Input/Common/TreeSelect',
+	id: 'components-treeselect',
 	component: TreeSelect,
 	argTypes: {
 		help: { control: { type: 'text' } },
 		label: { control: { type: 'text' } },
 		prefix: { control: { type: 'text' } },
 		suffix: { control: { type: 'text' } },
-		selectedId: { control: { type: null } },
+		selectedId: { control: false },
 	},
 	parameters: {
 		controls: {
@@ -33,7 +34,7 @@ const meta: ComponentMeta< typeof TreeSelect > = {
 
 export default meta;
 
-const TreeSelectWithState: ComponentStory< typeof TreeSelect > = ( props ) => {
+const TreeSelectWithState: StoryFn< typeof TreeSelect > = ( props ) => {
 	const [ selection, setSelection ] =
 		useState< ComponentProps< typeof TreeSelect >[ 'selectedId' ] >();
 
@@ -48,6 +49,8 @@ const TreeSelectWithState: ComponentStory< typeof TreeSelect > = ( props ) => {
 
 export const Default = TreeSelectWithState.bind( {} );
 Default.args = {
+	__nextHasNoMarginBottom: true,
+	__next40pxDefaultSize: true,
 	label: 'Label Text',
 	noOptionLabel: 'No parent page',
 	help: 'Help text to explain the select control.',

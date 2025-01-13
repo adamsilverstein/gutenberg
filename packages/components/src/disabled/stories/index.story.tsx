@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import type { ComponentMeta, ComponentStory } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 
 /**
  * WordPress dependencies
@@ -17,12 +17,13 @@ import TextControl from '../../text-control/';
 import TextareaControl from '../../textarea-control/';
 import { VStack } from '../../v-stack/';
 
-const meta: ComponentMeta< typeof Disabled > = {
-	title: 'Components/Disabled',
+const meta: Meta< typeof Disabled > = {
+	title: 'Components/Utilities/Disabled',
+	id: 'components-disabled',
 	component: Disabled,
 	argTypes: {
-		as: { control: { type: null } },
-		children: { control: { type: null } },
+		as: { control: false },
+		children: { control: false },
 	},
 	parameters: {
 		controls: {
@@ -41,6 +42,7 @@ const Form = () => {
 		<VStack>
 			<TextControl
 				__nextHasNoMarginBottom
+				__next40pxDefaultSize
 				label="Text Control"
 				value={ textControlValue }
 				onChange={ setTextControlValue }
@@ -53,6 +55,7 @@ const Form = () => {
 			/>
 			<SelectControl
 				__nextHasNoMarginBottom
+				__next40pxDefaultSize
 				label="Select Control"
 				onChange={ () => {} }
 				options={ [
@@ -66,7 +69,7 @@ const Form = () => {
 	);
 };
 
-export const Default: ComponentStory< typeof Disabled > = ( args ) => {
+export const Default: StoryFn< typeof Disabled > = ( args ) => {
 	return (
 		<Disabled { ...args }>
 			<Form />
@@ -77,10 +80,10 @@ Default.args = {
 	isDisabled: true,
 };
 
-export const ContentEditable: ComponentStory< typeof Disabled > = ( args ) => {
+export const ContentEditable: StoryFn< typeof Disabled > = ( args ) => {
 	return (
 		<Disabled { ...args }>
-			<div contentEditable tabIndex={ 0 }>
+			<div contentEditable tabIndex={ 0 } suppressContentEditableWarning>
 				contentEditable
 			</div>
 		</Disabled>

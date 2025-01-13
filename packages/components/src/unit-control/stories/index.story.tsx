@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import type { ComponentMeta, ComponentStory } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 
 /**
  * WordPress dependencies
@@ -14,16 +14,17 @@ import { useState } from '@wordpress/element';
 import { UnitControl } from '../';
 import { CSS_UNITS } from '../utils';
 
-const meta: ComponentMeta< typeof UnitControl > = {
+const meta: Meta< typeof UnitControl > = {
 	component: UnitControl,
-	title: 'Components (Experimental)/UnitControl',
+	title: 'Components (Experimental)/Selection & Input/UnitControl',
+	id: 'components-experimental-unitcontrol',
 	argTypes: {
 		__unstableInputWidth: { control: { type: 'text' } },
-		__unstableStateReducer: { control: { type: null } },
-		onChange: { control: { type: null } },
-		onUnitChange: { control: { type: null } },
+		__unstableStateReducer: { control: false },
+		onChange: { control: false },
+		onUnitChange: { control: false },
 		prefix: { control: { type: 'text' } },
-		value: { control: { type: null } },
+		value: { control: false },
 	},
 	parameters: {
 		actions: { argTypesRegex: '^on.*' },
@@ -35,7 +36,7 @@ const meta: ComponentMeta< typeof UnitControl > = {
 };
 export default meta;
 
-const DefaultTemplate: ComponentStory< typeof UnitControl > = ( {
+const DefaultTemplate: StoryFn< typeof UnitControl > = ( {
 	onChange,
 	...args
 } ) => {
@@ -53,10 +54,12 @@ const DefaultTemplate: ComponentStory< typeof UnitControl > = ( {
 	);
 };
 
-export const Default: ComponentStory< typeof UnitControl > =
-	DefaultTemplate.bind( {} );
+export const Default: StoryFn< typeof UnitControl > = DefaultTemplate.bind(
+	{}
+);
 Default.args = {
 	label: 'Label',
+	__next40pxDefaultSize: true,
 };
 
 /**
@@ -64,7 +67,7 @@ Default.args = {
  * will not fire while a new value is typed in the input field (you can verify this
  * behavior by inspecting the console's output).
  */
-export const PressEnterToChange: ComponentStory< typeof UnitControl > =
+export const PressEnterToChange: StoryFn< typeof UnitControl > =
 	DefaultTemplate.bind( {} );
 PressEnterToChange.args = {
 	...Default.args,
@@ -75,7 +78,7 @@ PressEnterToChange.args = {
  * Most of `NumberControl`'s props can be passed to `UnitControl`, and they will
  * affect its numeric input field.
  */
-export const TweakingTheNumberInput: ComponentStory< typeof UnitControl > =
+export const TweakingTheNumberInput: StoryFn< typeof UnitControl > =
 	DefaultTemplate.bind( {} );
 TweakingTheNumberInput.args = {
 	...Default.args,
@@ -88,7 +91,7 @@ TweakingTheNumberInput.args = {
 /**
  * When only one unit is available, the unit selection dropdown becomes static text.
  */
-export const WithSingleUnit: ComponentStory< typeof UnitControl > =
+export const WithSingleUnit: StoryFn< typeof UnitControl > =
 	DefaultTemplate.bind( {} );
 WithSingleUnit.args = {
 	...Default.args,
@@ -100,7 +103,7 @@ WithSingleUnit.args = {
  * if the `isResetValueOnUnitChange` is set to `true`, the input's quantity is
  * reset to the new unit's default value.
  */
-export const WithCustomUnits: ComponentStory< typeof UnitControl > = ( {
+export const WithCustomUnits: StoryFn< typeof UnitControl > = ( {
 	onChange,
 	...args
 } ) => {

@@ -4,12 +4,6 @@ Use Notices to communicate prominent messages to the user.
 
 ![Notice component](https://make.wordpress.org/design/files/2019/03/Notice-Screenshot-alt.png)
 
-## Table of contents
-
-1. [Design guidelines](#design-guidelines)
-2. [Development guidelines](#development-guidelines)
-3. [Related components](#related-components)
-
 ## Design guidelines
 
 A Notice displays a succinct message. It can also offer the user options, like viewing a published post or updating a setting, and requires a user action to be dismissed.
@@ -140,9 +134,9 @@ Whether the notice should be dismissible or not
 
 #### `onDismiss` : `() => void`
 
-A deprecated alternative to `onRemove`. This prop is kept for compatibilty reasons but should be avoided.
+A deprecated alternative to `onRemove`. This prop is kept for compatibility reasons but should be avoided.
 
-- Requiered: No
+- Required: No
 - Default: `noop`
 
 #### `actions`: `Array<NoticeAction>`.
@@ -160,4 +154,4 @@ The default appearance of an action button is inferred based on whether `url` or
 ## Related components
 
 - To create a more prominent message that requires action, use a Modal.
-- For low priority, non-interruptive messsages, use Snackbar.
+- For low priority, non-interruptive messages, use Snackbar.

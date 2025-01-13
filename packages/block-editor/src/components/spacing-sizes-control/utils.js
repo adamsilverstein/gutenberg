@@ -4,7 +4,6 @@
 import { __ } from '@wordpress/i18n';
 import {
 	sidesAll,
-	sidesAxial,
 	sidesBottom,
 	sidesHorizontal,
 	sidesLeft,
@@ -12,6 +11,8 @@ import {
 	sidesTop,
 	sidesVertical,
 } from '@wordpress/icons';
+
+export const RANGE_CONTROL_MAX_SIZE = 8;
 
 export const ALL_SIDES = [ 'top', 'right', 'bottom', 'left' ];
 
@@ -24,7 +25,7 @@ export const DEFAULT_VALUES = {
 
 export const ICONS = {
 	custom: sidesAll,
-	axial: sidesAxial,
+	axial: sidesAll,
 	horizontal: sidesHorizontal,
 	vertical: sidesVertical,
 	top: sidesTop,
@@ -362,6 +363,10 @@ export function getInitialView( values = {}, sides ) {
 		top === bottom && left === right && ( !! top || !! left );
 	const hasNoValuesAndBalancedSides =
 		! sideValues.length && hasBalancedSidesSupport( sides );
+	const hasOnlyAxialSides =
+		sides?.includes( 'horizontal' ) &&
+		sides?.includes( 'vertical' ) &&
+		sides?.length === 2;
 
 	if (
 		hasAxisSupport( sides ) &&
@@ -370,9 +375,9 @@ export function getInitialView( values = {}, sides ) {
 		return VIEWS.axial;
 	}
 
-	// Single side.
+	// Only axial sides are supported and single value defined.
 	// - Ensure the side returned is the first side that has a value.
-	if ( sideValues.length === 1 ) {
+	if ( hasOnlyAxialSides && sideValues.length === 1 ) {
 		let side;
 
 		Object.entries( values ).some( ( [ key, value ] ) => {

@@ -1,16 +1,17 @@
 /**
  * External dependencies
  */
-import type { ComponentMeta, ComponentStory } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 
 /**
  * Internal dependencies
  */
 import ExternalLink from '..';
 
-const meta: ComponentMeta< typeof ExternalLink > = {
+const meta: Meta< typeof ExternalLink > = {
 	component: ExternalLink,
-	title: 'Components/ExternalLink',
+	title: 'Components/Navigation/ExternalLink',
+	id: 'components-externallink',
 	argTypes: {
 		children: { control: { type: 'text' } },
 	},
@@ -23,13 +24,11 @@ const meta: ComponentMeta< typeof ExternalLink > = {
 };
 export default meta;
 
-const Template: ComponentStory< typeof ExternalLink > = ( { ...args } ) => {
+const Template: StoryFn< typeof ExternalLink > = ( { ...args } ) => {
 	return <ExternalLink { ...args } />;
 };
 
-export const Default: ComponentStory< typeof ExternalLink > = Template.bind(
-	{}
-);
+export const Default: StoryFn< typeof ExternalLink > = Template.bind( {} );
 Default.args = {
 	children: 'WordPress',
 	href: 'https://wordpress.org',

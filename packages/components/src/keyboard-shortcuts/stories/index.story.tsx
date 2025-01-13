@@ -1,16 +1,17 @@
 /**
  * External dependencies
  */
-import type { ComponentMeta, ComponentStory } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 
 /**
  * Internal dependencies
  */
 import KeyboardShortcuts from '..';
 
-const meta: ComponentMeta< typeof KeyboardShortcuts > = {
+const meta: Meta< typeof KeyboardShortcuts > = {
 	component: KeyboardShortcuts,
-	title: 'Components/KeyboardShortcuts',
+	title: 'Components/Utilities/KeyboardShortcuts',
+	id: 'components-keyboardshortcuts',
 	parameters: {
 		controls: { expanded: true },
 		docs: { canvas: { sourceState: 'shown' } },
@@ -18,7 +19,7 @@ const meta: ComponentMeta< typeof KeyboardShortcuts > = {
 };
 export default meta;
 
-const Template: ComponentStory< typeof KeyboardShortcuts > = ( props ) => (
+const Template: StoryFn< typeof KeyboardShortcuts > = ( props ) => (
 	<KeyboardShortcuts { ...props } />
 );
 
@@ -32,7 +33,9 @@ Default.args = {
 	},
 	children: (
 		<div>
-			<p>{ `Hit the "a" or "b" key in this textarea:` }</p>
+			{ /* eslint-disable react/no-unescaped-entities */ }
+			<p>Hit the "a" or "b" key in this textarea:</p>
+			{ /* eslint-enable react/no-unescaped-entities */ }
 			<textarea />
 		</div>
 	),

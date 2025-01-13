@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import type { ComponentMeta, ComponentStory } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 
 /**
  * Internal dependencies
@@ -23,9 +23,10 @@ const ALIGNMENTS = {
 	stretch: 'stretch',
 };
 
-const meta: ComponentMeta< typeof VStack > = {
+const meta: Meta< typeof VStack > = {
 	component: VStack,
-	title: 'Components (Experimental)/VStack',
+	title: 'Components (Experimental)/Layout/VStack',
+	id: 'components-experimental-vstack',
 	argTypes: {
 		alignment: {
 			control: { type: 'select' },
@@ -44,7 +45,7 @@ const meta: ComponentMeta< typeof VStack > = {
 };
 export default meta;
 
-const Template: ComponentStory< typeof VStack > = ( props ) => {
+const Template: StoryFn< typeof VStack > = ( props ) => {
 	return (
 		<VStack
 			{ ...props }

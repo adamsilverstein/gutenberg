@@ -1,16 +1,17 @@
 /**
  * External dependencies
  */
-import type { ComponentMeta, ComponentStory } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 
 /**
  * Internal dependencies
  */
 import Tip from '..';
 
-const meta: ComponentMeta< typeof Tip > = {
+const meta: Meta< typeof Tip > = {
 	component: Tip,
-	title: 'Components/Tip',
+	title: 'Components/Feedback/Tip',
+	id: 'components-tip',
 	argTypes: {
 		children: { control: { type: 'text' } },
 	},
@@ -23,11 +24,11 @@ const meta: ComponentMeta< typeof Tip > = {
 };
 export default meta;
 
-const Template: ComponentStory< typeof Tip > = ( args ) => {
+const Template: StoryFn< typeof Tip > = ( args ) => {
 	return <Tip { ...args } />;
 };
 
-export const Default: ComponentStory< typeof Tip > = Template.bind( {} );
+export const Default: StoryFn< typeof Tip > = Template.bind( {} );
 Default.args = {
 	children: 'An example tip',
 };

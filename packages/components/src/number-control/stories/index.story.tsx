@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import type { ComponentMeta, ComponentStory } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 
 /**
  * WordPress dependencies
@@ -13,8 +13,9 @@ import { useState } from '@wordpress/element';
  */
 import NumberControl from '..';
 
-const meta: ComponentMeta< typeof NumberControl > = {
-	title: 'Components (Experimental)/NumberControl',
+const meta: Meta< typeof NumberControl > = {
+	title: 'Components (Experimental)/Selection & Input/NumberControl',
+	id: 'components-experimental-numbercontrol',
 	component: NumberControl,
 	argTypes: {
 		onChange: { action: 'onChange' },
@@ -22,7 +23,7 @@ const meta: ComponentMeta< typeof NumberControl > = {
 		step: { control: { type: 'text' } },
 		suffix: { control: { type: 'text' } },
 		type: { control: { type: 'text' } },
-		value: { control: null },
+		value: { control: false },
 	},
 	parameters: {
 		controls: { expanded: true },
@@ -32,7 +33,7 @@ const meta: ComponentMeta< typeof NumberControl > = {
 
 export default meta;
 
-const Template: ComponentStory< typeof NumberControl > = ( {
+const Template: StoryFn< typeof NumberControl > = ( {
 	onChange,
 	...props
 } ) => {
@@ -61,4 +62,5 @@ const Template: ComponentStory< typeof NumberControl > = ( {
 export const Default = Template.bind( {} );
 Default.args = {
 	label: 'Value',
+	__next40pxDefaultSize: true,
 };

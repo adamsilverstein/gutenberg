@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import type { ComponentMeta, ComponentStory } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 
 /**
  * WordPress dependencies
@@ -13,11 +13,12 @@ import { useState } from '@wordpress/element';
  */
 import ToggleControl from '..';
 
-const meta: ComponentMeta< typeof ToggleControl > = {
-	title: 'Components/ToggleControl',
+const meta: Meta< typeof ToggleControl > = {
+	title: 'Components/Selection & Input/Common/ToggleControl',
+	id: 'components-togglecontrol',
 	component: ToggleControl,
 	argTypes: {
-		checked: { control: { type: null } },
+		checked: { control: false },
 		help: { control: { type: 'text' } },
 		label: { control: { type: 'text' } },
 		onChange: { action: 'onChange' },
@@ -29,7 +30,7 @@ const meta: ComponentMeta< typeof ToggleControl > = {
 };
 export default meta;
 
-const Template: ComponentStory< typeof ToggleControl > = ( {
+const Template: StoryFn< typeof ToggleControl > = ( {
 	onChange,
 	...props
 } ) => {
@@ -48,6 +49,7 @@ const Template: ComponentStory< typeof ToggleControl > = ( {
 
 export const Default = Template.bind( {} );
 Default.args = {
+	__nextHasNoMarginBottom: true,
 	label: 'Enable something',
 };
 

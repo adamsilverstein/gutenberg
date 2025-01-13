@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import type { ComponentMeta, ComponentStory } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 
 /**
  * WordPress dependencies
@@ -14,13 +14,14 @@ import { useState } from '@wordpress/element';
 import MenuItemsChoice from '..';
 import MenuGroup from '../../menu-group';
 
-const meta: ComponentMeta< typeof MenuItemsChoice > = {
+const meta: Meta< typeof MenuItemsChoice > = {
 	component: MenuItemsChoice,
-	title: 'Components/MenuItemsChoice',
+	title: 'Components/Actions/MenuItemsChoice',
+	id: 'components-menuitemschoice',
 	argTypes: {
 		onHover: { action: 'onHover' },
 		onSelect: { action: 'onSelect' },
-		value: { control: { type: null } },
+		value: { control: false },
 	},
 	parameters: {
 		controls: {
@@ -31,7 +32,7 @@ const meta: ComponentMeta< typeof MenuItemsChoice > = {
 };
 export default meta;
 
-const Template: ComponentStory< typeof MenuItemsChoice > = ( {
+const Template: StoryFn< typeof MenuItemsChoice > = ( {
 	onHover,
 	onSelect,
 	choices,
@@ -53,9 +54,7 @@ const Template: ComponentStory< typeof MenuItemsChoice > = ( {
 	);
 };
 
-export const Default: ComponentStory< typeof MenuItemsChoice > = Template.bind(
-	{}
-);
+export const Default: StoryFn< typeof MenuItemsChoice > = Template.bind( {} );
 
 Default.args = {
 	choices: [

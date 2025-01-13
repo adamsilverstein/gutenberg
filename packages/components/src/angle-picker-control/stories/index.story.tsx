@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import type { ComponentMeta, ComponentStory } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 
 /**
  * WordPress dependencies
@@ -13,12 +13,12 @@ import { useState } from '@wordpress/element';
  */
 import { AnglePickerControl } from '..';
 
-const meta: ComponentMeta< typeof AnglePickerControl > = {
+const meta: Meta< typeof AnglePickerControl > = {
 	title: 'Components/AnglePickerControl',
 	component: AnglePickerControl,
 	argTypes: {
-		as: { control: { type: null } },
-		value: { control: { type: null } },
+		as: { control: false },
+		value: { control: false },
 	},
 	parameters: {
 		actions: { argTypesRegex: '^on.*' },
@@ -31,7 +31,7 @@ const meta: ComponentMeta< typeof AnglePickerControl > = {
 
 export default meta;
 
-const AnglePickerWithState: ComponentStory< typeof AnglePickerControl > = ( {
+const AnglePickerWithState: StoryFn< typeof AnglePickerControl > = ( {
 	onChange,
 	...args
 } ) => {
@@ -52,6 +52,3 @@ const AnglePickerWithState: ComponentStory< typeof AnglePickerControl > = ( {
 };
 
 export const Default = AnglePickerWithState.bind( {} );
-Default.args = {
-	__nextHasNoMarginBottom: true,
-};

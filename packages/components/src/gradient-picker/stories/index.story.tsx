@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import type { ComponentMeta, ComponentStory } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 /**
  * WordPress dependencies
  */
@@ -12,8 +12,9 @@ import { useState } from '@wordpress/element';
  */
 import GradientPicker from '..';
 
-const meta: ComponentMeta< typeof GradientPicker > = {
-	title: 'Components/GradientPicker',
+const meta: Meta< typeof GradientPicker > = {
+	title: 'Components/Selection & Input/Color/GradientPicker',
+	id: 'components-gradientpicker',
 	component: GradientPicker,
 	parameters: {
 		controls: { expanded: true },
@@ -21,7 +22,7 @@ const meta: ComponentMeta< typeof GradientPicker > = {
 		actions: { argTypesRegex: '^on.*' },
 	},
 	argTypes: {
-		value: { control: { type: null } },
+		value: { control: false },
 	},
 };
 export default meta;
@@ -65,7 +66,7 @@ const GRADIENTS = [
 	},
 ];
 
-const Template: ComponentStory< typeof GradientPicker > = ( {
+const Template: StoryFn< typeof GradientPicker > = ( {
 	onChange,
 	...props
 } ) => {
@@ -85,7 +86,6 @@ const Template: ComponentStory< typeof GradientPicker > = ( {
 
 export const Default = Template.bind( {} );
 Default.args = {
-	__nextHasNoMargin: true,
 	gradients: GRADIENTS,
 };
 

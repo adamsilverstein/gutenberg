@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import type { ComponentMeta, ComponentStory } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 
 /**
  * Internal dependencies
@@ -13,11 +13,12 @@ import ResizableBox from '..';
  */
 import { useState } from '@wordpress/element';
 
-const meta: ComponentMeta< typeof ResizableBox > = {
-	title: 'Components/ResizableBox',
+const meta: Meta< typeof ResizableBox > = {
+	title: 'Components/Utilities/ResizableBox',
+	id: 'components-resizablebox',
 	component: ResizableBox,
 	argTypes: {
-		children: { control: { type: null } },
+		children: { control: false },
 		enable: { control: 'object' },
 		onResizeStop: { action: 'onResizeStop' },
 	},
@@ -28,7 +29,7 @@ const meta: ComponentMeta< typeof ResizableBox > = {
 };
 export default meta;
 
-const Template: ComponentStory< typeof ResizableBox > = ( {
+const Template: StoryFn< typeof ResizableBox > = ( {
 	onResizeStop,
 	...props
 } ) => {

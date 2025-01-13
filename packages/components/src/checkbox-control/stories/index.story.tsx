@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import type { ComponentMeta, ComponentStory } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 
 /**
  * WordPress dependencies
@@ -13,16 +13,18 @@ import { useState } from '@wordpress/element';
  */
 import CheckboxControl from '..';
 import { VStack } from '../../v-stack';
+import { HStack } from '../../h-stack';
 
-const meta: ComponentMeta< typeof CheckboxControl > = {
+const meta: Meta< typeof CheckboxControl > = {
 	component: CheckboxControl,
-	title: 'Components/CheckboxControl',
+	title: 'Components/Selection & Input/Common/CheckboxControl',
+	id: 'components-checkboxcontrol',
 	argTypes: {
 		onChange: {
 			action: 'onChange',
 		},
 		checked: {
-			control: { type: null },
+			control: false,
 		},
 		help: { control: { type: 'text' } },
 	},
@@ -36,7 +38,7 @@ const meta: ComponentMeta< typeof CheckboxControl > = {
 };
 export default meta;
 
-const DefaultTemplate: ComponentStory< typeof CheckboxControl > = ( {
+const DefaultTemplate: StoryFn< typeof CheckboxControl > = ( {
 	onChange,
 	...args
 } ) => {
@@ -54,14 +56,16 @@ const DefaultTemplate: ComponentStory< typeof CheckboxControl > = ( {
 	);
 };
 
-export const Default: ComponentStory< typeof CheckboxControl > =
-	DefaultTemplate.bind( {} );
+export const Default: StoryFn< typeof CheckboxControl > = DefaultTemplate.bind(
+	{}
+);
 Default.args = {
+	__nextHasNoMarginBottom: true,
 	label: 'Is author',
 	help: 'Is the user an author or not?',
 };
 
-export const Indeterminate: ComponentStory< typeof CheckboxControl > = ( {
+export const Indeterminate: StoryFn< typeof CheckboxControl > = ( {
 	onChange,
 	...args
 } ) => {
@@ -112,5 +116,51 @@ export const Indeterminate: ComponentStory< typeof CheckboxControl > = ( {
 };
 Indeterminate.args = {
 	label: 'Select all',
+	__nextHasNoMarginBottom: true,
+};
+
+/**
+ * For more complex designs, a custom `<label>` element can be associated with the checkbox
+ * by leaving the `label` prop undefined and using the `id` and `htmlFor` props instead.
+ * Because the label element also functions as a click target for the checkbox, [do not
+ * place interactive elements](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/label#interactive_content)
+ * such as links or buttons inside the `<label>` node.
+ *
+ * Similarly, a custom description can be added by omitting the `help` prop
+ * and using the `aria-describedby` prop instead.
+ */
+export const WithCustomLabel: StoryFn< typeof CheckboxControl > = ( {
+	onChange,
+	...args
+} ) => {
+	const [ isChecked, setChecked ] = useState( true );
+
+	return (
+		<HStack justify="flex-start" alignment="top" spacing={ 0 }>
+			<CheckboxControl
+				{ ...args }
+				checked={ isChecked }
+				onChange={ ( v ) => {
+					setChecked( v );
+					onChange( v );
+				} }
+				// Disable reason: For simplicity of the code snippet.
+				// eslint-disable-next-line no-restricted-syntax
+				id="my-checkbox-with-custom-label"
+				aria-describedby="my-custom-description"
+			/>
+			<VStack>
+				<label htmlFor="my-checkbox-with-custom-label">
+					My custom label
+				</label>
+				{ /* eslint-disable-next-line no-restricted-syntax */ }
+				<div id="my-custom-description" style={ { fontSize: 13 } }>
+					A custom description.
+				</div>
+			</VStack>
+		</HStack>
+	);
+};
+WithCustomLabel.args = {
 	__nextHasNoMarginBottom: true,
 };

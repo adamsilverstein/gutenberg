@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import classnames from 'classnames';
+import clsx from 'clsx';
 
 /**
  * WordPress dependencies
@@ -10,11 +10,11 @@ import {
 	__experimentalToolsPanel as ToolsPanel,
 	__experimentalToolsPanelItem as ToolsPanelItem,
 	__experimentalItemGroup as ItemGroup,
+	__experimentalItem as Item,
 	__experimentalHStack as HStack,
 	__experimentalZStack as ZStack,
-	__experimentalVStack as VStack,
 	__experimentalDropdownContentWrapper as DropdownContentWrapper,
-	Button,
+	MenuGroup,
 	ColorIndicator,
 	DuotonePicker,
 	DuotoneSwatch,
@@ -28,7 +28,7 @@ import { useCallback, useMemo } from '@wordpress/element';
 /**
  * Internal dependencies
  */
-import { getValueFromVariable } from './utils';
+import { getValueFromVariable, useToolsPanelDropdownMenuProps } from './utils';
 import { setImmutably } from '../../utils/object';
 
 const EMPTY_ARRAY = [];
@@ -54,13 +54,15 @@ function useMultiOriginColorPresets(
 }
 
 export function useHasFiltersPanel( settings ) {
-	const hasDuotone = useHasDuotoneControl( settings );
-
-	return hasDuotone;
+	return useHasDuotoneControl( settings );
 }
 
 function useHasDuotoneControl( settings ) {
-	return settings.color.customDuotone || settings.color.defaultDuotone;
+	return (
+		settings.color.customDuotone ||
+		settings.color.defaultDuotone ||
+		settings.color.duotone.length > 0
+	);
 }
 
 function FiltersToolsPanel( {
@@ -70,6 +72,7 @@ function FiltersToolsPanel( {
 	panelId,
 	children,
 } ) {
+	const dropdownMenuProps = useToolsPanelDropdownMenuProps();
 	const resetAll = () => {
 		const updatedValue = resetAllFilter( value );
 		onChange( updatedValue );
@@ -80,6 +83,7 @@ function FiltersToolsPanel( {
 			label={ _x( 'Filters', 'Name for applying graphical effects' ) }
 			resetAll={ resetAll }
 			panelId={ panelId }
+			dropdownMenuProps={ dropdownMenuProps }
 		>
 			{ children }
 		</ToolsPanel>
@@ -140,18 +144,15 @@ export default function FiltersPanel( {
 		const duotonePreset = duotonePalette.find( ( { colors } ) => {
 			return colors === newValue;
 		} );
-		const settedValue = duotonePreset
+		const duotoneValue = duotonePreset
 			? `var:preset|duotone|${ duotonePreset.slug }`
 			: newValue;
-		onChange( setImmutably( value, [ 'filter', 'duotone' ], settedValue ) );
+		onChange(
+			setImmutably( value, [ 'filter', 'duotone' ], duotoneValue )
+		);
 	};
 	const hasDuotone = () => !! value?.filter?.duotone;
 	const resetDuotone = () => setDuotone( undefined );
-
-	const disableCustomColors = ! settings?.color?.custom;
-	const disableCustomDuotone =
-		! settings?.color?.customDuotone ||
-		( colorPalette?.length === 0 && disableCustomColors );
 
 	const resetAllFilter = useCallback( ( previousValue ) => {
 		return {
@@ -184,24 +185,24 @@ export default function FiltersPanel( {
 						renderToggle={ ( { onToggle, isOpen } ) => {
 							const toggleProps = {
 								onClick: onToggle,
-								className: classnames( { 'is-open': isOpen } ),
+								className: clsx( { 'is-open': isOpen } ),
 								'aria-expanded': isOpen,
 							};
 
 							return (
 								<ItemGroup isBordered isSeparated>
-									<Button { ...toggleProps }>
+									<Item as="button" { ...toggleProps }>
 										<LabeledColorIndicator
 											indicator={ duotone }
 											label={ __( 'Duotone' ) }
 										/>
-									</Button>
+									</Item>
 								</ItemGroup>
 							);
 						} }
 						renderContent={ () => (
-							<DropdownContentWrapper paddingSize="medium">
-								<VStack>
+							<DropdownContentWrapper paddingSize="small">
+								<MenuGroup label={ __( 'Duotone' ) }>
 									<p>
 										{ __(
 											'Create a two-tone color effect without losing your original image.'
@@ -210,16 +211,13 @@ export default function FiltersPanel( {
 									<DuotonePicker
 										colorPalette={ colorPalette }
 										duotonePalette={ duotonePalette }
-										disableCustomColors={
-											disableCustomColors
-										}
-										disableCustomDuotone={
-											disableCustomDuotone
-										}
+										// TODO: Re-enable both when custom colors are supported for block-level styles.
+										disableCustomColors
+										disableCustomDuotone
 										value={ duotone }
 										onChange={ setDuotone }
 									/>
-								</VStack>
+								</MenuGroup>
 							</DropdownContentWrapper>
 						) }
 					/>

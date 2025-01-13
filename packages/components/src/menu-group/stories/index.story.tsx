@@ -13,13 +13,14 @@ import MenuItemsChoice from '../../menu-items-choice';
 /**
  * External dependencies
  */
-import type { ComponentMeta, ComponentStory } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 
-const meta: ComponentMeta< typeof MenuGroup > = {
-	title: 'Components/MenuGroup',
+const meta: Meta< typeof MenuGroup > = {
+	title: 'Components/Actions/MenuGroup',
 	component: MenuGroup,
+	id: 'components-menugroup',
 	argTypes: {
-		children: { control: { type: null } },
+		children: { control: false },
 	},
 	parameters: {
 		controls: { expanded: true },
@@ -28,7 +29,7 @@ const meta: ComponentMeta< typeof MenuGroup > = {
 };
 export default meta;
 
-const Template: ComponentStory< typeof MenuGroup > = ( args ) => {
+const Template: StoryFn< typeof MenuGroup > = ( args ) => {
 	return (
 		<MenuGroup { ...args }>
 			<MenuItem>Menu Item 1</MenuItem>
@@ -37,9 +38,9 @@ const Template: ComponentStory< typeof MenuGroup > = ( args ) => {
 	);
 };
 
-export const Default: ComponentStory< typeof MenuGroup > = Template.bind( {} );
+export const Default: StoryFn< typeof MenuGroup > = Template.bind( {} );
 
-const MultiGroupsTemplate: ComponentStory< typeof MenuGroup > = ( args ) => {
+const MultiGroupsTemplate: StoryFn< typeof MenuGroup > = ( args ) => {
 	const [ mode, setMode ] = useState( 'visual' );
 	const choices = [
 		{
@@ -54,7 +55,7 @@ const MultiGroupsTemplate: ComponentStory< typeof MenuGroup > = ( args ) => {
 
 	return (
 		<>
-			<MenuGroup label={ 'View' }>
+			<MenuGroup label="View">
 				<MenuItem>Top Toolbar</MenuItem>
 				<MenuItem>Spotlight Mode</MenuItem>
 				<MenuItem>Distraction Free</MenuItem>
@@ -75,8 +76,8 @@ const MultiGroupsTemplate: ComponentStory< typeof MenuGroup > = ( args ) => {
  * When other menu items exist above or below a MenuGroup, the group
  * should have a divider line between it and the adjacent item.
  */
-export const WithSeperator = MultiGroupsTemplate.bind( {} );
-WithSeperator.args = {
+export const WithSeparator = MultiGroupsTemplate.bind( {} );
+WithSeparator.args = {
 	...Default.args,
 	hideSeparator: false,
 	label: 'Editor',

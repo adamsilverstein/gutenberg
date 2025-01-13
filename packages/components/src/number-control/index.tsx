@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import classNames from 'classnames';
+import clsx from 'clsx';
 import type { ForwardedRef, KeyboardEvent, MouseEvent } from 'react';
 
 /**
@@ -20,21 +20,26 @@ import { Input, SpinButton, styles } from './styles/number-control-styles';
 import * as inputControlActionTypes from '../input-control/reducer/actions';
 import { add, subtract, roundClamp } from '../utils/math';
 import { ensureNumber, isValueEmpty } from '../utils/values';
-import type { WordPressComponentProps } from '../ui/context/wordpress-component';
+import type { WordPressComponentProps } from '../context/wordpress-component';
 import type { NumberControlProps } from './types';
 import { HStack } from '../h-stack';
 import { Spacer } from '../spacer';
 import { useCx } from '../utils';
+import { useDeprecated36pxDefaultSizeProp } from '../utils/use-deprecated-props';
+import { maybeWarnDeprecated36pxSize } from '../utils/deprecated-36px-size';
 
 const noop = () => {};
 
 function UnforwardedNumberControl(
-	{
+	props: WordPressComponentProps< NumberControlProps, 'input', false >,
+	forwardedRef: ForwardedRef< any >
+) {
+	const {
 		__unstableStateReducer: stateReducerProp,
 		className,
 		dragDirection = 'n',
 		hideHTMLArrows = false,
-		spinControls = 'native',
+		spinControls = hideHTMLArrows ? 'none' : 'native',
 		isDragEnabled = true,
 		isShiftStepEnabled = true,
 		label,
@@ -49,17 +54,23 @@ function UnforwardedNumberControl(
 		size = 'default',
 		suffix,
 		onChange = noop,
-		...props
-	}: WordPressComponentProps< NumberControlProps, 'input', false >,
-	forwardedRef: ForwardedRef< any >
-) {
+		__shouldNotWarnDeprecated36pxSize,
+		...restProps
+	} = useDeprecated36pxDefaultSizeProp< NumberControlProps >( props );
+
+	maybeWarnDeprecated36pxSize( {
+		componentName: 'NumberControl',
+		size,
+		__next40pxDefaultSize: restProps.__next40pxDefaultSize,
+		__shouldNotWarnDeprecated36pxSize,
+	} );
+
 	if ( hideHTMLArrows ) {
 		deprecated( 'wp.components.NumberControl hideHTMLArrows prop ', {
 			alternative: 'spinControls="none"',
 			since: '6.2',
 			version: '6.3',
 		} );
-		spinControls = 'none';
 	}
 	const inputRef = useRef< HTMLInputElement >();
 	const mergedRef = useMergeRefs( [ inputRef, forwardedRef ] );
@@ -80,7 +91,7 @@ function UnforwardedNumberControl(
 	};
 
 	const autoComplete = typeProp === 'number' ? 'off' : undefined;
-	const classes = classNames( 'components-number-control', className );
+	const classes = clsx( 'components-number-control', className );
 	const cx = useCx();
 	const spinButtonClasses = cx( size === 'small' && styles.smallSpinButtons );
 
@@ -212,7 +223,7 @@ function UnforwardedNumberControl(
 		<Input
 			autoComplete={ autoComplete }
 			inputMode="numeric"
-			{ ...props }
+			{ ...restProps }
 			className={ classes }
 			dragDirection={ dragDirection }
 			hideHTMLArrows={ spinControls !== 'native' }
@@ -231,6 +242,7 @@ function UnforwardedNumberControl(
 				return stateReducerProp?.( baseState, action ) ?? baseState;
 			} }
 			size={ size }
+			__shouldNotWarnDeprecated36pxSize
 			suffix={
 				spinControls === 'custom' ? (
 					<>
@@ -240,10 +252,8 @@ function UnforwardedNumberControl(
 								<SpinButton
 									className={ spinButtonClasses }
 									icon={ plusIcon }
-									isSmall
-									aria-hidden="true"
-									aria-label={ __( 'Increment' ) }
-									tabIndex={ -1 }
+									size="small"
+									label={ __( 'Increment' ) }
 									onClick={ buildSpinButtonClickHandler(
 										'up'
 									) }
@@ -251,10 +261,8 @@ function UnforwardedNumberControl(
 								<SpinButton
 									className={ spinButtonClasses }
 									icon={ resetIcon }
-									isSmall
-									aria-hidden="true"
-									aria-label={ __( 'Decrement' ) }
-									tabIndex={ -1 }
+									size="small"
+									label={ __( 'Decrement' ) }
 									onClick={ buildSpinButtonClickHandler(
 										'down'
 									) }

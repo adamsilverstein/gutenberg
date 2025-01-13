@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import type { ComponentMeta, ComponentStory } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 
 /**
  * WordPress dependencies
@@ -13,11 +13,11 @@ import { useState } from '@wordpress/element';
  */
 import FontSizePicker from '../';
 
-const meta: ComponentMeta< typeof FontSizePicker > = {
+const meta: Meta< typeof FontSizePicker > = {
 	title: 'Components/FontSizePicker',
 	component: FontSizePicker,
 	argTypes: {
-		value: { control: { type: null } },
+		value: { control: false },
 	},
 	parameters: {
 		actions: { argTypesRegex: '^on.*' },
@@ -27,7 +27,7 @@ const meta: ComponentMeta< typeof FontSizePicker > = {
 };
 export default meta;
 
-const FontSizePickerWithState: ComponentStory< typeof FontSizePicker > = ( {
+const FontSizePickerWithState: StoryFn< typeof FontSizePicker > = ( {
 	value,
 	onChange,
 	...props
@@ -45,7 +45,7 @@ const FontSizePickerWithState: ComponentStory< typeof FontSizePicker > = ( {
 	);
 };
 
-const TwoFontSizePickersWithState: ComponentStory< typeof FontSizePicker > = ( {
+const TwoFontSizePickersWithState: StoryFn< typeof FontSizePicker > = ( {
 	fontSizes,
 	...props
 } ) => {
@@ -63,10 +63,10 @@ const TwoFontSizePickersWithState: ComponentStory< typeof FontSizePicker > = ( {
 	);
 };
 
-export const Default: ComponentStory< typeof FontSizePicker > =
+export const Default: StoryFn< typeof FontSizePicker > =
 	FontSizePickerWithState.bind( {} );
 Default.args = {
-	__nextHasNoMarginBottom: true,
+	__next40pxDefaultSize: true,
 	disableCustomFontSizes: false,
 	fontSizes: [
 		{
@@ -85,12 +85,11 @@ Default.args = {
 			size: 26,
 		},
 	],
-	units: [ 'px', 'em', 'rem' ],
 	value: 16,
 	withSlider: false,
 };
 
-export const WithSlider: ComponentStory< typeof FontSizePicker > =
+export const WithSlider: StoryFn< typeof FontSizePicker > =
 	FontSizePickerWithState.bind( {} );
 WithSlider.args = {
 	...Default.args,
@@ -103,7 +102,7 @@ WithSlider.args = {
  * With custom font sizes disabled via the `disableCustomFontSizes` prop, the user will
  * only be able to pick one of the predefined sizes passed in `fontSizes`.
  */
-export const WithCustomSizesDisabled: ComponentStory< typeof FontSizePicker > =
+export const WithCustomSizesDisabled: StoryFn< typeof FontSizePicker > =
 	FontSizePickerWithState.bind( {} );
 WithCustomSizesDisabled.args = {
 	...Default.args,
@@ -113,7 +112,7 @@ WithCustomSizesDisabled.args = {
 /**
  * When there are more than 5 font size options, the UI is no longer a toggle group.
  */
-export const WithMoreFontSizes: ComponentStory< typeof FontSizePicker > =
+export const WithMoreFontSizes: StoryFn< typeof FontSizePicker > =
 	FontSizePickerWithState.bind( {} );
 WithMoreFontSizes.args = {
 	...Default.args,
@@ -155,7 +154,7 @@ WithMoreFontSizes.args = {
 /**
  * When units like `px` are specified explicitly, it will be shown as a label hint.
  */
-export const WithUnits: ComponentStory< typeof FontSizePicker > =
+export const WithUnits: StoryFn< typeof FontSizePicker > =
 	TwoFontSizePickersWithState.bind( {} );
 WithUnits.args = {
 	...WithMoreFontSizes.args,
@@ -170,7 +169,7 @@ WithUnits.args = {
  * The label hint will not be shown if it is a complex CSS value. Some examples of complex CSS values
  * in this context are CSS functions like `calc()`, `clamp()`, and `var()`.
  */
-export const WithComplexCSSValues: ComponentStory< typeof FontSizePicker > =
+export const WithComplexCSSValues: StoryFn< typeof FontSizePicker > =
 	TwoFontSizePickersWithState.bind( {} );
 WithComplexCSSValues.args = {
 	...Default.args,

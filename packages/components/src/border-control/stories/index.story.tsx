@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import type { ComponentMeta, ComponentStory } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 import type { ComponentProps } from 'react';
 
 /**
@@ -13,19 +13,17 @@ import { useState } from '@wordpress/element';
  * Internal dependencies
  */
 import { BorderControl } from '..';
-import { Provider as SlotFillProvider } from '../../slot-fill';
-import Popover from '../../popover';
 import type { Border } from '../types';
 
-const meta: ComponentMeta< typeof BorderControl > = {
-	title: 'Components (Experimental)/BorderControl',
+const meta: Meta< typeof BorderControl > = {
+	title: 'Components/BorderControl',
 	component: BorderControl,
 	argTypes: {
 		onChange: {
 			action: 'onChange',
 		},
 		width: { control: { type: 'text' } },
-		value: { control: { type: null } },
+		value: { control: false },
 	},
 	parameters: {
 		controls: { expanded: true },
@@ -70,7 +68,7 @@ const multipleOriginColors = [
 	},
 ];
 
-const Template: ComponentStory< typeof BorderControl > = ( {
+const Template: StoryFn< typeof BorderControl > = ( {
 	onChange,
 	...props
 } ) => {
@@ -83,15 +81,11 @@ const Template: ComponentStory< typeof BorderControl > = ( {
 	};
 
 	return (
-		<SlotFillProvider>
-			<BorderControl
-				onChange={ onChangeMerged }
-				value={ border }
-				{ ...props }
-			/>
-			{ /* @ts-expect-error Ignore until Popover.Slot is converted to TS */ }
-			<Popover.Slot />
-		</SlotFillProvider>
+		<BorderControl
+			onChange={ onChangeMerged }
+			value={ border }
+			{ ...props }
+		/>
 	);
 };
 
@@ -99,6 +93,10 @@ export const Default = Template.bind( {} );
 Default.args = {
 	colors,
 	label: 'Border',
+	__next40pxDefaultSize: true,
+	enableAlpha: true,
+	enableStyle: true,
+	shouldSanitizeBorder: true,
 };
 
 /**
@@ -138,13 +136,4 @@ export const WithMultipleOrigins = Template.bind( {} );
 WithMultipleOrigins.args = {
 	...Default.args,
 	colors: multipleOriginColors,
-};
-
-/**
- * Allow the alpha channel to be edited on each color.
- */
-export const WithAlphaEnabled = Template.bind( {} );
-WithAlphaEnabled.args = {
-	...Default.args,
-	enableAlpha: true,
 };

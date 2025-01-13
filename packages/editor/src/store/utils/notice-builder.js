@@ -4,11 +4,6 @@
 import { __ } from '@wordpress/i18n';
 
 /**
- * Internal dependencies
- */
-import { SAVE_POST_NOTICE_ID, TRASH_POST_NOTICE_ID } from '../constants';
-
-/**
  * Builds the arguments for a success notification dispatch.
  *
  * @param {Object} data Incoming data to build the arguments from.
@@ -23,21 +18,21 @@ export function getNotificationArgumentsForSaveSuccess( data ) {
 		return [];
 	}
 
-	// No notice is shown after trashing a post
-	if ( post.status === 'trash' && previousPost.status !== 'trash' ) {
-		return [];
-	}
-
 	const publishStatus = [ 'publish', 'private', 'future' ];
 	const isPublished = publishStatus.includes( previousPost.status );
 	const willPublish = publishStatus.includes( post.status );
+	const willTrash =
+		post.status === 'trash' && previousPost.status !== 'trash';
 
 	let noticeMessage;
 	let shouldShowLink = postType?.viewable ?? false;
 	let isDraft;
 
 	// Always should a notice, which will be spoken for accessibility.
-	if ( ! isPublished && ! willPublish ) {
+	if ( willTrash ) {
+		noticeMessage = postType.labels.item_trashed;
+		shouldShowLink = false;
+	} else if ( ! isPublished && ! willPublish ) {
 		// If saving a non-published post, don't show notice.
 		noticeMessage = __( 'Draft saved.' );
 		isDraft = true;
@@ -68,7 +63,7 @@ export function getNotificationArgumentsForSaveSuccess( data ) {
 	return [
 		noticeMessage,
 		{
-			id: SAVE_POST_NOTICE_ID,
+			id: 'editor-save',
 			type: 'snackbar',
 			actions,
 		},
@@ -113,7 +108,7 @@ export function getNotificationArgumentsForSaveFail( data ) {
 	return [
 		noticeMessage,
 		{
-			id: SAVE_POST_NOTICE_ID,
+			id: 'editor-save',
 		},
 	];
 }
@@ -131,7 +126,7 @@ export function getNotificationArgumentsForTrashFail( data ) {
 			? data.error.message
 			: __( 'Trashing failed' ),
 		{
-			id: TRASH_POST_NOTICE_ID,
+			id: 'editor-trash-fail',
 		},
 	];
 }

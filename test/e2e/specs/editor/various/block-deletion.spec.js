@@ -30,7 +30,7 @@ test.describe( 'Block deletion', () => {
 		await expect(
 			editor.canvas
 				.getByRole( 'document', {
-					name: 'Paragraph block',
+					name: 'Block: Paragraph',
 				} )
 				.last()
 		).toBeFocused();
@@ -78,7 +78,7 @@ test.describe( 'Block deletion', () => {
 
 		// Select the paragraph.
 		const paragraph = editor.canvas.getByRole( 'document', {
-			name: 'Paragraph block',
+			name: 'Block: Paragraph',
 		} );
 		await editor.selectBlocks( paragraph );
 
@@ -128,13 +128,13 @@ test.describe( 'Block deletion', () => {
 		await expect(
 			editor.canvas
 				.getByRole( 'document', {
-					name: 'Paragraph block',
+					name: 'Block: Paragraph',
 				} )
 				.last()
 		).toBeFocused();
 
 		// Remove the current paragraph via dedicated keyboard shortcut.
-		await pageUtils.pressKeys( 'access+z' );
+		await pageUtils.pressKeys( 'shift+Backspace' );
 
 		// Ensure the last block was removed.
 		await expect.poll( editor.getBlocks ).toMatchObject( [
@@ -307,7 +307,7 @@ test.describe( 'Block deletion', () => {
 		} );
 		await expect(
 			editor.canvas.getByRole( 'document', {
-				name: 'Paragraph block',
+				name: 'Block: Paragraph',
 			} )
 		).toBeFocused();
 
@@ -377,7 +377,7 @@ test.describe( 'Block deletion', () => {
 		await expect.poll( editor.getBlocks ).toHaveLength( 0 );
 		await expect(
 			editor.canvas.getByRole( 'document', { name: 'Empty block' } )
-		).not.toBeVisible();
+		).toBeHidden();
 
 		// Ensure that the block appender button is visible.
 		await expect(

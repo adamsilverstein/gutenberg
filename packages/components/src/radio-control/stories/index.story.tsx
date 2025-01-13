@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import type { ComponentMeta, ComponentStory } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 
 /**
  * WordPress dependencies
@@ -13,15 +13,16 @@ import { useState } from '@wordpress/element';
  */
 import RadioControl from '..';
 
-const meta: ComponentMeta< typeof RadioControl > = {
+const meta: Meta< typeof RadioControl > = {
 	component: RadioControl,
-	title: 'Components/RadioControl',
+	title: 'Components/Selection & Input/Common/RadioControl',
+	id: 'components-radiocontrol',
 	argTypes: {
 		onChange: {
 			action: 'onChange',
 		},
 		selected: {
-			control: { type: null },
+			control: false,
 		},
 		label: {
 			control: { type: 'text' },
@@ -39,7 +40,7 @@ const meta: ComponentMeta< typeof RadioControl > = {
 };
 export default meta;
 
-const Template: ComponentStory< typeof RadioControl > = ( {
+const Template: StoryFn< typeof RadioControl > = ( {
 	onChange,
 	options,
 	...args
@@ -59,14 +60,35 @@ const Template: ComponentStory< typeof RadioControl > = ( {
 	);
 };
 
-export const Default: ComponentStory< typeof RadioControl > = Template.bind(
-	{}
-);
+export const Default: StoryFn< typeof RadioControl > = Template.bind( {} );
 Default.args = {
 	label: 'Post visibility',
 	options: [
 		{ label: 'Public', value: 'public' },
 		{ label: 'Private', value: 'private' },
 		{ label: 'Password Protected', value: 'password' },
+	],
+};
+
+export const WithOptionDescriptions: StoryFn< typeof RadioControl > =
+	Template.bind( {} );
+WithOptionDescriptions.args = {
+	...Default.args,
+	options: [
+		{
+			label: 'Public',
+			value: 'public',
+			description: 'Visible to everyone',
+		},
+		{
+			label: 'Private',
+			value: 'private',
+			description: 'Only visible to you',
+		},
+		{
+			label: 'Password Protected',
+			value: 'password',
+			description: 'Protected by a password',
+		},
 	],
 };

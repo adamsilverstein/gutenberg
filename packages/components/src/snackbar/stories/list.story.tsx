@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import type { ComponentMeta, ComponentStory } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 
 /**
  * WordPress dependencies
@@ -13,14 +13,15 @@ import { useState } from '@wordpress/element';
  */
 import SnackbarList from '../list';
 
-const meta: ComponentMeta< typeof SnackbarList > = {
-	title: 'Components/SnackbarList',
+const meta: Meta< typeof SnackbarList > = {
+	title: 'Components/Feedback/SnackbarList',
+	id: 'components-snackbarlist',
 	component: SnackbarList,
 	argTypes: {
-		as: { control: { type: null } },
+		as: { control: false },
 		onRemove: {
 			action: 'onRemove',
-			control: { type: null },
+			control: false,
 		},
 	},
 	parameters: {
@@ -32,7 +33,7 @@ const meta: ComponentMeta< typeof SnackbarList > = {
 };
 export default meta;
 
-export const Default: ComponentStory< typeof SnackbarList > = ( {
+export const Default: StoryFn< typeof SnackbarList > = ( {
 	children,
 	notices: noticesProp,
 	...props
@@ -70,7 +71,6 @@ Default.args = {
 				},
 			],
 			content: 'Post published.',
-			isDismissible: true,
 			explicitDismiss: false,
 		},
 		{
@@ -83,7 +83,6 @@ Default.args = {
 				},
 			],
 			content: 'Post updated.',
-			isDismissible: true,
 			explicitDismiss: false,
 		},
 		{
@@ -91,7 +90,6 @@ Default.args = {
 			spokenMessage: 'All content copied.',
 			actions: [],
 			content: 'All content copied.',
-			isDismissible: true,
 			explicitDismiss: false,
 		},
 	],

@@ -1,4 +1,16 @@
 /**
+ * External dependencies
+ */
+import {
+	Controls,
+	Description,
+	Primary,
+	Stories,
+	Subtitle,
+	Title,
+} from '@storybook/blocks';
+
+/**
  * Internal dependencies
  */
 import { WithGlobalCSS } from './decorators/with-global-css';
@@ -6,6 +18,7 @@ import { WithMarginChecker } from './decorators/with-margin-checker';
 import { WithMaxWidthWrapper } from './decorators/with-max-width-wrapper';
 import { WithRTL } from './decorators/with-rtl';
 import { WithTheme } from './decorators/with-theme';
+import badgesConfig from './badges';
 
 export const globalTypes = {
 	direction: {
@@ -73,6 +86,8 @@ export const globalTypes = {
 			items: [
 				{ value: 'none', title: 'None' },
 				{ value: 'wordpress-sidebar', title: 'WP Sidebar' },
+				{ value: 'small-container', title: 'Small container' },
+				{ value: 'large-container', title: 'Large container' },
 			],
 		},
 	},
@@ -87,8 +102,27 @@ export const decorators = [
 ];
 
 export const parameters = {
+	// For @geometricpanda/storybook-addon-badges
+	badgesConfig,
 	controls: {
 		sort: 'requiredFirst',
+	},
+	docs: {
+		controls: {
+			sort: 'requiredFirst',
+		},
+		// Flips the order of the description and the primary component story
+		// so the component is always visible before the fold.
+		page: () => (
+			<>
+				<Title />
+				<Subtitle />
+				<Primary />
+				<Description />
+				<Controls />
+				<Stories includePrimary={ false } />
+			</>
+		),
 	},
 	options: {
 		storySort: {
@@ -97,10 +131,34 @@ export const parameters = {
 				'Playground',
 				'BlockEditor',
 				'Components',
+				[
+					'Introduction',
+					'Contributing Guidelines',
+					'Actions',
+					'Containers',
+					'Feedback',
+					'Layout',
+					'Navigation',
+					'Overlays',
+					'Selection & Input',
+					[ 'Color', 'Common', 'File Upload', 'Time & Date' ],
+					'Typography',
+					'Utilities',
+				],
 				'Components (Experimental)',
+				[
+					'Actions',
+					'Layout',
+					'Navigation',
+					'Overlays',
+					'Selection & Input',
+					'Typography',
+				],
 				'Icons',
 			],
 		},
 	},
 	sourceLinkPrefix: 'https://github.com/WordPress/gutenberg/blob/trunk/',
 };
+
+export const tags = [ 'autodocs' ];

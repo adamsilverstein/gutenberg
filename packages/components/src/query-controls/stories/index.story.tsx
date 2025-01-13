@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import type { ComponentMeta, Story } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 
 /**
  * WordPress dependencies
@@ -18,16 +18,16 @@ import type {
 	QueryControlsWithMultipleCategorySelectionProps,
 } from '../types';
 
-const meta: ComponentMeta< typeof QueryControls > = {
+const meta: Meta< typeof QueryControls > = {
 	title: 'Components/QueryControls',
 	component: QueryControls,
 	argTypes: {
-		numberOfItems: { control: { type: null } },
-		order: { control: { type: null } },
-		orderBy: { control: { type: null } },
-		selectedAuthorId: { control: { type: null } },
-		selectedCategories: { control: { type: null } },
-		selectedCategoryId: { control: { type: null } },
+		numberOfItems: { control: false },
+		order: { control: false },
+		orderBy: { control: false },
+		selectedAuthorId: { control: false },
+		selectedCategories: { control: false },
+		selectedCategoryId: { control: false },
 	},
 	parameters: {
 		actions: { argTypesRegex: '^on.*' },
@@ -37,7 +37,7 @@ const meta: ComponentMeta< typeof QueryControls > = {
 };
 export default meta;
 
-export const Default: Story< typeof QueryControls > = ( args ) => {
+export const Default: StoryFn< typeof QueryControls > = ( args ) => {
 	const {
 		onAuthorChange,
 		onCategoryChange,
@@ -146,7 +146,7 @@ Default.args = {
 	selectedAuthorId: 1,
 };
 
-const SingleCategoryTemplate: Story< typeof QueryControls > = ( args ) => {
+const SingleCategoryTemplate: StoryFn< typeof QueryControls > = ( args ) => {
 	const {
 		onAuthorChange,
 		onCategoryChange,
@@ -184,8 +184,7 @@ const SingleCategoryTemplate: Story< typeof QueryControls > = ( args ) => {
 		/>
 	);
 };
-export const SelectSingleCategory: Story< typeof QueryControls > =
-	SingleCategoryTemplate.bind( {} );
+export const SelectSingleCategory = SingleCategoryTemplate.bind( {} );
 SelectSingleCategory.args = {
 	categoriesList: [
 		{

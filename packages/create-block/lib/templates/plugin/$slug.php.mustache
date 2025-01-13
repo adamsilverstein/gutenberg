@@ -7,9 +7,13 @@
 {{#description}}
  * Description:       {{description}}
 {{/description}}
- * Requires at least: 6.1
- * Requires PHP:      7.0
  * Version:           {{version}}
+{{#requiresAtLeast}}
+ * Requires at least: {{requiresAtLeast}}
+{{/requiresAtLeast}}
+{{#requiresPHP}}
+ * Requires PHP:      {{requiresPHP}}
+{{/requiresPHP}}
 {{#author}}
  * Author:            {{author}}
 {{/author}}
@@ -27,8 +31,12 @@
  * Update URI:        {{{updateURI}}}
 {{/updateURI}}
  *
- * @package           {{namespace}}
+ * @package {{namespacePascalCase}}
  */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit; // Exit if accessed directly.
+}
 
 /**
  * Registers the block using the metadata loaded from the `block.json` file.
@@ -38,6 +46,6 @@
  * @see https://developer.wordpress.org/reference/functions/register_block_type/
  */
 function {{namespaceSnakeCase}}_{{slugSnakeCase}}_block_init() {
-	register_block_type( __DIR__ . '/build' );
+	register_block_type( __DIR__ . '/build/{{slug}}' );
 }
 add_action( 'init', '{{namespaceSnakeCase}}_{{slugSnakeCase}}_block_init' );

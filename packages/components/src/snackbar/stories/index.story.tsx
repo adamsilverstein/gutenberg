@@ -1,28 +1,35 @@
 /**
  * External dependencies
  */
-import type { ComponentMeta, ComponentStory } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
+
+/**
+ * WordPress dependencies
+ */
+import { wordpress } from '@wordpress/icons';
 
 /**
  * Internal dependencies
  */
+import Icon from '../../icon';
 import Snackbar from '..';
 
-const meta: ComponentMeta< typeof Snackbar > = {
-	title: 'Components/Snackbar',
+const meta: Meta< typeof Snackbar > = {
+	title: 'Components/Feedback/Snackbar',
+	id: 'components-snackbar',
 	component: Snackbar,
 	argTypes: {
-		as: { control: { type: null } },
+		as: { control: false },
 		onRemove: {
 			action: 'onRemove',
-			control: { type: null },
+			control: false,
 		},
 		onDismiss: {
 			action: 'onDismiss',
-			control: { type: null },
+			control: false,
 		},
 		listRef: {
-			control: { type: null },
+			control: false,
 		},
 	},
 	parameters: {
@@ -34,23 +41,22 @@ const meta: ComponentMeta< typeof Snackbar > = {
 };
 export default meta;
 
-const DefaultTemplate: ComponentStory< typeof Snackbar > = ( {
+const DefaultTemplate: StoryFn< typeof Snackbar > = ( {
 	children,
 	...props
 } ) => {
 	return <Snackbar { ...props }>{ children }</Snackbar>;
 };
 
-export const Default: ComponentStory< typeof Snackbar > = DefaultTemplate.bind(
-	{}
-);
+export const Default: StoryFn< typeof Snackbar > = DefaultTemplate.bind( {} );
 Default.args = {
 	children:
 		'Use Snackbars to communicate low priority, non-interruptive messages to the user.',
 };
 
-export const WithActions: ComponentStory< typeof Snackbar > =
-	DefaultTemplate.bind( {} );
+export const WithActions: StoryFn< typeof Snackbar > = DefaultTemplate.bind(
+	{}
+);
 WithActions.args = {
 	actions: [
 		{
@@ -61,19 +67,13 @@ WithActions.args = {
 	children: 'Use Snackbars with an action link to an external page.',
 };
 
-export const WithIcon: ComponentStory< typeof Snackbar > = DefaultTemplate.bind(
-	{}
-);
+export const WithIcon: StoryFn< typeof Snackbar > = DefaultTemplate.bind( {} );
 WithIcon.args = {
 	children: 'Add an icon to make your snackbar stand out',
-	icon: (
-		<span role="img" aria-label="Icon" style={ { fontSize: 21 } }>
-			🌮
-		</span>
-	),
+	icon: <Icon style={ { fill: 'currentcolor' } } icon={ wordpress } />,
 };
 
-export const WithExplicitDismiss: ComponentStory< typeof Snackbar > =
+export const WithExplicitDismiss: StoryFn< typeof Snackbar > =
 	DefaultTemplate.bind( {} );
 WithExplicitDismiss.args = {
 	children:
@@ -81,7 +81,7 @@ WithExplicitDismiss.args = {
 	explicitDismiss: true,
 };
 
-export const WithActionAndExplicitDismiss: ComponentStory< typeof Snackbar > =
+export const WithActionAndExplicitDismiss: StoryFn< typeof Snackbar > =
 	DefaultTemplate.bind( {} );
 WithActionAndExplicitDismiss.args = {
 	actions: [

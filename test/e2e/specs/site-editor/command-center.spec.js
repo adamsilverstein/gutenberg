@@ -9,7 +9,10 @@ test.describe( 'Site editor command palette', () => {
 	} );
 
 	test.afterAll( async ( { requestUtils } ) => {
-		await requestUtils.activateTheme( 'twentytwentyone' );
+		await Promise.all( [
+			requestUtils.activateTheme( 'twentytwentyone' ),
+			requestUtils.deleteAllPages(),
+		] );
 	} );
 
 	test.beforeEach( async ( { admin } ) => {
@@ -19,6 +22,7 @@ test.describe( 'Site editor command palette', () => {
 
 	test( 'Open the command palette and navigate to the page create page', async ( {
 		page,
+		editor,
 	} ) => {
 		await page
 			.getByRole( 'button', { name: 'Open command palette' } )
@@ -26,13 +30,13 @@ test.describe( 'Site editor command palette', () => {
 		await page.keyboard.press( 'Meta+k' );
 		await page.keyboard.type( 'new page' );
 		await page.getByRole( 'option', { name: 'Add new page' } ).click();
-		await page.waitForSelector( 'iframe[name="editor-canvas"]' );
-		const frame = page.frame( 'editor-canvas' );
 		await expect( page ).toHaveURL(
-			'/wp-admin/post-new.php?post_type=page'
+			/\/wp-admin\/site-editor.php\?p=%2Fpage%2F(\d+)&canvas=edit/
 		);
 		await expect(
-			frame.getByRole( 'textbox', { name: 'Add title' } )
+			editor.canvas
+				.getByLabel( 'Block: Title' )
+				.locator( '[data-rich-text-placeholder="No title"]' )
 		).toBeVisible();
 	} );
 
@@ -44,8 +48,25 @@ test.describe( 'Site editor command palette', () => {
 			.click();
 		await page.keyboard.type( 'index' );
 		await page.getByRole( 'option', { name: 'index' } ).click();
-		await expect( page.getByRole( 'heading', { level: 1 } ) ).toHaveText(
-			'Index'
-		);
+		await expect(
+			page
+				.getByRole( 'region', { name: 'Editor top bar' } )
+				.getByRole( 'heading', { level: 1 } )
+		).toContainText( 'Index' );
+	} );
+
+	test( 'Open the command palette and navigate to Customize CSS', async ( {
+		page,
+	} ) => {
+		await page
+			.getByRole( 'button', { name: 'Open command palette' } )
+			.click();
+		await page.keyboard.type( 'Customize' );
+		await page.getByRole( 'option', { name: 'customize css' } ).click();
+		await expect(
+			page
+				.getByRole( 'region', { name: 'Editor settings' } )
+				.getByLabel( 'Additional CSS' )
+		).toBeVisible();
 	} );
 } );

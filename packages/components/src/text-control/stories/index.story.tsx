@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import type { ComponentMeta, ComponentStory } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 
 /**
  * WordPress dependencies
@@ -13,14 +13,15 @@ import { useState } from '@wordpress/element';
  */
 import TextControl from '..';
 
-const meta: ComponentMeta< typeof TextControl > = {
+const meta: Meta< typeof TextControl > = {
 	component: TextControl,
-	title: 'Components/TextControl',
+	title: 'Components/Selection & Input/Common/TextControl',
+	id: 'components-textcontrol',
 	argTypes: {
 		help: { control: { type: 'text' } },
 		label: { control: { type: 'text' } },
 		onChange: { action: 'onChange' },
-		value: { control: { type: null } },
+		value: { control: false },
 	},
 	parameters: {
 		controls: {
@@ -31,7 +32,7 @@ const meta: ComponentMeta< typeof TextControl > = {
 };
 export default meta;
 
-const DefaultTemplate: ComponentStory< typeof TextControl > = ( {
+const DefaultTemplate: StoryFn< typeof TextControl > = ( {
 	onChange,
 	...args
 } ) => {
@@ -49,11 +50,15 @@ const DefaultTemplate: ComponentStory< typeof TextControl > = ( {
 	);
 };
 
-export const Default: ComponentStory< typeof TextControl > =
-	DefaultTemplate.bind( {} );
-Default.args = {};
+export const Default: StoryFn< typeof TextControl > = DefaultTemplate.bind(
+	{}
+);
+Default.args = {
+	__nextHasNoMarginBottom: true,
+	__next40pxDefaultSize: true,
+};
 
-export const WithLabelAndHelpText: ComponentStory< typeof TextControl > =
+export const WithLabelAndHelpText: StoryFn< typeof TextControl > =
 	DefaultTemplate.bind( {} );
 WithLabelAndHelpText.args = {
 	...Default.args,

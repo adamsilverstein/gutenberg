@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import type { ComponentMeta, Story } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 
 /**
  * WordPress dependencies
@@ -14,7 +14,7 @@ import { useState } from '@wordpress/element';
 import PaletteEdit from '..';
 import type { Color, Gradient } from '../types';
 
-const meta: ComponentMeta< typeof PaletteEdit > = {
+const meta: Meta< typeof PaletteEdit > = {
 	title: 'Components/PaletteEdit',
 	component: PaletteEdit,
 	parameters: {
@@ -25,7 +25,7 @@ const meta: ComponentMeta< typeof PaletteEdit > = {
 };
 export default meta;
 
-const Template: Story< typeof PaletteEdit > = ( args ) => {
+const Template: StoryFn< typeof PaletteEdit > = ( args ) => {
 	const { colors, gradients, onChange, ...props } = args;
 	const [ value, setValue ] = useState( gradients || colors );
 
@@ -56,6 +56,7 @@ Default.args = {
 	colors: [
 		{ color: '#1a4548', name: 'Primary', slug: 'primary' },
 		{ color: '#0000ff', name: 'Secondary', slug: 'secondary' },
+		{ color: '#fb326b', name: 'Tertiary', slug: 'tertiary' },
 	],
 	paletteLabel: 'Colors',
 	emptyMessage: 'Colors are empty',

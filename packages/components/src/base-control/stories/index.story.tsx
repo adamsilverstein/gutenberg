@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import type { ComponentMeta, ComponentStory } from '@storybook/react';
+import type { Meta, StoryFn } from '@storybook/react';
 
 /**
  * Internal dependencies
@@ -9,11 +9,16 @@ import type { ComponentMeta, ComponentStory } from '@storybook/react';
 import BaseControl, { useBaseControlProps } from '..';
 import Button from '../../button';
 
-const meta: ComponentMeta< typeof BaseControl > = {
-	title: 'Components/BaseControl',
+const meta: Meta< typeof BaseControl > = {
+	title: 'Components/Selection & Input/Common/BaseControl',
+	id: 'components-basecontrol',
 	component: BaseControl,
+	subcomponents: {
+		// @ts-expect-error - See https://github.com/storybookjs/storybook/issues/23170
+		'BaseControl.VisualLabel': BaseControl.VisualLabel,
+	},
 	argTypes: {
-		children: { control: { type: null } },
+		children: { control: false },
 		help: { control: { type: 'text' } },
 		label: { control: { type: 'text' } },
 	},
@@ -24,9 +29,7 @@ const meta: ComponentMeta< typeof BaseControl > = {
 };
 export default meta;
 
-const BaseControlWithTextarea: ComponentStory< typeof BaseControl > = (
-	props
-) => {
+const BaseControlWithTextarea: StoryFn< typeof BaseControl > = ( props ) => {
 	const { baseControlProps, controlProps } = useBaseControlProps( props );
 
 	return (
@@ -36,7 +39,7 @@ const BaseControlWithTextarea: ComponentStory< typeof BaseControl > = (
 	);
 };
 
-export const Default: ComponentStory< typeof BaseControl > =
+export const Default: StoryFn< typeof BaseControl > =
 	BaseControlWithTextarea.bind( {} );
 Default.args = {
 	__nextHasNoMarginBottom: true,
@@ -56,10 +59,7 @@ WithHelpText.args = {
  * e.g., a button, but we want an additional visual label for that section equivalent to the labels `BaseControl` would
  * otherwise use if the `label` prop was passed.
  */
-export const WithVisualLabel: ComponentStory< typeof BaseControl > = (
-	props
-) => {
-	// @ts-expect-error - Unclear how to fix, see also https://github.com/WordPress/gutenberg/pull/39468#discussion_r827150516
+export const WithVisualLabel: StoryFn< typeof BaseControl > = ( props ) => {
 	BaseControl.VisualLabel.displayName = 'BaseControl.VisualLabel';
 
 	return (
