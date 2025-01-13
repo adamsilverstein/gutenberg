@@ -44,9 +44,7 @@ describe( 'getUpdatedLinkAttributes method', () => {
 
 		expect( result.url ).toEqual( 'http://example.com' );
 		expect( result.linkTarget ).toEqual( '_blank' );
-		expect( result.rel ).toEqual(
-			'rel_value noopener nofollow'
-		);
+		expect( result.rel ).toEqual( 'rel_value noopener nofollow' );
 	} );
 
 	it( 'should correctly update link attributes with opensInNewTab', () => {
@@ -106,9 +104,7 @@ describe( 'getUpdatedLinkAttributes method', () => {
 
 		expect( result.url ).toEqual( 'http://example.com' );
 		expect( result.linkTarget ).toEqual( '_blank' );
-		expect( result.rel ).toEqual(
-			'rel_value nofollow noopener'
-		);
+		expect( result.rel ).toEqual( 'rel_value nofollow noopener' );
 	} );
 
 	it( 'should correctly handle rel with existing new tab values and remove duplicates', () => {

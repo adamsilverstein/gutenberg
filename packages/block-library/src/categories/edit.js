@@ -93,7 +93,7 @@ export default function CategoriesEdit( {
 		const { id, link, count, name } = category;
 		return (
 			<li key={ id } className={ `cat-item cat-item-${ id }` }>
-				<a href={ link } target="_blank" rel="noopener">
+				<a href={ link } target="_blank" rel="noopener noreferrer">
 					{ renderCategoryName( name ) }
 				</a>
 				{ showPostCounts && ` (${ count })` }
