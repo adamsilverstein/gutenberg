@@ -864,7 +864,7 @@ Given a callback function and an optional registry, returns a Promise that resol
 import { waitForTransition } from '@wordpress/data;
 
 // Wait for isSavingPost() to become true, then false.
-waitForTransition(  () => wp.data.select( 'core/editor' ).isSavingPost() ).then( () => {
+waitForTransition( () => wp.data.select( 'core/editor' ).isSavingPost() ).then( () => {
    // Do something when the post is done saving.
    console.log( 'Post saved!' );
 } );

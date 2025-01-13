@@ -116,7 +116,7 @@ export function createRegistryControl< T extends ( ...args: any ) => any >(
  * import { waitForTransition } from '@wordpress/data;
  *
  * // Wait for isSavingPost() to become true, then false.
- * waitForTransition(  () => wp.data.select( 'core/editor' ).isSavingPost() ).then( () => {
+ * waitForTransition( () => wp.data.select( 'core/editor' ).isSavingPost() ).then( () => {
  *    // Do something when the post is done saving.
  *    console.log( 'Post saved!' );
  * } );
