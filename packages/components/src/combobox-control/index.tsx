@@ -27,6 +27,7 @@ import SuggestionsList from '../form-token-field/suggestions-list';
 import BaseControl from '../base-control';
 import Button from '../button';
 import { FlexBlock } from '../flex';
+import Spinner from '../spinner';
 import withFocusOutside from '../higher-order/with-focus-outside';
 import { useControlledValue } from '../utils/hooks';
 import { normalizeTextString } from '../utils/strings';
@@ -126,6 +127,7 @@ function ComboboxControl( props: ComboboxControlProps ) {
 		help,
 		allowReset = true,
 		className,
+		isLoading = false,
 		messages = {
 			selected: __( 'Item selected.' ),
 		},
@@ -362,6 +364,7 @@ function ComboboxControl( props: ComboboxControlProps ) {
 								onChange={ onInputChange }
 							/>
 						</FlexBlock>
+						{ isLoading && <Spinner /> }
 						{ allowReset && (
 							<Button
 								size="small"
