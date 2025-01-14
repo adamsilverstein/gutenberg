@@ -6,6 +6,7 @@ import {
 	useShortcut,
 	store as keyboardShortcutsStore,
 } from '@wordpress/keyboard-shortcuts';
+import { isAppleOS } from '@wordpress/keycodes';
 import { useDispatch } from '@wordpress/data';
 import { __ } from '@wordpress/i18n';
 import { store as coreStore } from '@wordpress/core-data';
@@ -19,38 +20,26 @@ function KeyboardShortcuts() {
 	const { redo, undo } = useDispatch( coreStore );
 	const { saveEditedWidgetAreas } = useDispatch( editWidgetsStore );
 
-	useShortcut(
-		'core/edit-widgets/undo',
-		( event ) => {
-			undo();
-			event.preventDefault();
-		},
-		{ bindGlobal: true }
-	);
+	useShortcut( 'core/edit-widgets/undo', ( event ) => {
+		undo();
+		event.preventDefault();
+	} );
 
-	useShortcut(
-		'core/edit-widgets/redo',
-		( event ) => {
-			redo();
-			event.preventDefault();
-		},
-		{ bindGlobal: true }
-	);
+	useShortcut( 'core/edit-widgets/redo', ( event ) => {
+		redo();
+		event.preventDefault();
+	} );
 
-	useShortcut(
-		'core/edit-widgets/save',
-		( event ) => {
-			event.preventDefault();
-			saveEditedWidgetAreas();
-		},
-		{ bindGlobal: true }
-	);
+	useShortcut( 'core/edit-widgets/save', ( event ) => {
+		event.preventDefault();
+		saveEditedWidgetAreas();
+	} );
 
 	return null;
 }
 
 function KeyboardShortcutsRegister() {
-	// Registering the shortcuts
+	// Registering the shortcuts.
 	const { registerShortcut } = useDispatch( keyboardShortcutsStore );
 	useEffect( () => {
 		registerShortcut( {
@@ -71,6 +60,18 @@ function KeyboardShortcutsRegister() {
 				modifier: 'primaryShift',
 				character: 'z',
 			},
+			// Disable on Apple OS because it conflicts with the browser's
+			// history shortcut. It's a fine alias for both Windows and Linux.
+			// Since there's no conflict for Ctrl+Shift+Z on both Windows and
+			// Linux, we keep it as the default for consistency.
+			aliases: isAppleOS()
+				? []
+				: [
+						{
+							modifier: 'primary',
+							character: 'y',
+						},
+				  ],
 		} );
 
 		registerShortcut( {
@@ -121,6 +122,10 @@ function KeyboardShortcutsRegister() {
 				{
 					modifier: 'access',
 					character: 'p',
+				},
+				{
+					modifier: 'ctrlShift',
+					character: '~',
 				},
 			],
 		} );

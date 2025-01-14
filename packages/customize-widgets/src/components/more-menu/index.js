@@ -2,9 +2,9 @@
  * WordPress dependencies
  */
 import {
-	ToolbarDropdownMenu,
 	MenuGroup,
 	MenuItem,
+	ToolbarDropdownMenu,
 	VisuallyHidden,
 } from '@wordpress/components';
 import { useState } from '@wordpress/element';
@@ -12,20 +12,12 @@ import { __, _x } from '@wordpress/i18n';
 import { external, moreVertical } from '@wordpress/icons';
 import { displayShortcut } from '@wordpress/keycodes';
 import { useShortcut } from '@wordpress/keyboard-shortcuts';
+import { PreferenceToggleMenuItem } from '@wordpress/preferences';
 
 /**
  * Internal dependencies
  */
-import FeatureToggle from './feature-toggle';
 import KeyboardShortcutHelpModal from '../keyboard-shortcut-help-modal';
-
-const POPOVER_PROPS = {
-	className: 'customize-widgets-more-menu__content',
-	position: 'bottom left',
-};
-const TOGGLE_PROPS = {
-	tooltipPosition: 'bottom',
-};
 
 export default function MoreMenu() {
 	const [
@@ -37,27 +29,29 @@ export default function MoreMenu() {
 
 	useShortcut(
 		'core/customize-widgets/keyboard-shortcuts',
-		toggleKeyboardShortcutsModal,
-		{
-			bindGlobal: true,
-		}
+		toggleKeyboardShortcutsModal
 	);
 
 	return (
 		<>
 			<ToolbarDropdownMenu
-				className="customize-widgets-more-menu"
 				icon={ moreVertical }
-				/* translators: button label text should, if possible, be under 16 characters. */
 				label={ __( 'Options' ) }
-				popoverProps={ POPOVER_PROPS }
-				toggleProps={ TOGGLE_PROPS }
+				popoverProps={ {
+					placement: 'bottom-end',
+					className: 'more-menu-dropdown__content',
+				} }
+				toggleProps={ {
+					tooltipPosition: 'bottom',
+					size: 'compact',
+				} }
 			>
 				{ () => (
 					<>
 						<MenuGroup label={ _x( 'View', 'noun' ) }>
-							<FeatureToggle
-								feature="fixedToolbar"
+							<PreferenceToggleMenuItem
+								scope="core/customize-widgets"
+								name="fixedToolbar"
 								label={ __( 'Top toolbar' ) }
 								info={ __(
 									'Access all block and document tools in a single place'
@@ -79,15 +73,16 @@ export default function MoreMenu() {
 							>
 								{ __( 'Keyboard shortcuts' ) }
 							</MenuItem>
-							<FeatureToggle
-								feature="welcomeGuide"
+							<PreferenceToggleMenuItem
+								scope="core/customize-widgets"
+								name="welcomeGuide"
 								label={ __( 'Welcome Guide' ) }
 							/>
 							<MenuItem
 								role="menuitem"
 								icon={ external }
 								href={ __(
-									'https://wordpress.org/support/article/block-based-widgets-editor/'
+									'https://wordpress.org/documentation/article/block-based-widgets-editor/'
 								) }
 								target="_blank"
 								rel="noopener noreferrer"
@@ -102,8 +97,9 @@ export default function MoreMenu() {
 							</MenuItem>
 						</MenuGroup>
 						<MenuGroup label={ __( 'Preferences' ) }>
-							<FeatureToggle
-								feature="keepCaretInsideBlock"
+							<PreferenceToggleMenuItem
+								scope="core/customize-widgets"
+								name="keepCaretInsideBlock"
 								label={ __(
 									'Contain text cursor inside block'
 								) }

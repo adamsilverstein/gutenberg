@@ -2,24 +2,25 @@
  * External dependencies
  */
 import { AccessibilityInfo, Platform } from 'react-native';
-import { delay } from 'lodash';
 
 /**
  * WordPress dependencies
  */
-import { __ } from '@wordpress/i18n';
+import { __, _x } from '@wordpress/i18n';
 import { Dropdown, ToolbarButton, Picker } from '@wordpress/components';
 import { Component } from '@wordpress/element';
-import { withSelect } from '@wordpress/data';
+import { withDispatch, withSelect } from '@wordpress/data';
 import { compose, withPreferredColorScheme } from '@wordpress/compose';
 import { isUnmodifiedDefaultBlock } from '@wordpress/blocks';
 import {
 	Icon,
+	plus,
 	plusCircle,
 	plusCircleFilled,
 	insertAfter,
 	insertBefore,
 } from '@wordpress/icons';
+import { setBlockTypeImpressions } from '@wordpress/react-native-bridge';
 
 /**
  * Internal dependencies
@@ -32,46 +33,48 @@ import { store as blockEditorStore } from '../../store';
 const VOICE_OVER_ANNOUNCEMENT_DELAY = 1000;
 
 const defaultRenderToggle = ( {
-	enableEditorOnboarding,
 	onToggle,
 	disabled,
-	style,
+	iconStyle,
+	buttonStyle,
 	onLongPress,
-} ) => (
-	<ToolbarButton
-		title={
-			enableEditorOnboarding
-				? __( 'Tap to add content' )
-				: __( 'Add block' )
-		}
-		icon={
-			<Icon
-				icon={ plusCircleFilled }
-				style={ style }
-				color={ style.color }
-			/>
-		}
-		showTooltip={ enableEditorOnboarding }
-		tooltipPosition="top right"
-		onClick={ onToggle }
-		extraProps={ {
-			hint: __( 'Double tap to add a block' ),
-			// testID is present to disambiguate this element for native UI tests. It's not
-			// usually required for components. See: https://git.io/JeQ7G.
-			testID: 'add-block-button',
-			onLongPress,
-		} }
-		isDisabled={ disabled }
-	/>
-);
+} ) => {
+	return (
+		<ToolbarButton
+			title={ _x(
+				'Add block',
+				'Generic label for block inserter button'
+			) }
+			icon={ <Icon icon={ plus } style={ iconStyle } /> }
+			onClick={ onToggle }
+			extraProps={ {
+				hint: __( 'Double tap to add a block' ),
+				// testID is present to disambiguate this element for native UI tests. It's not
+				// usually required for components. See: https://github.com/WordPress/gutenberg/pull/18832#issuecomment-561411389.
+				testID: 'add-block-button',
+				onLongPress,
+				hitSlop: { top: 10, bottom: 10, left: 10, right: 10 },
+			} }
+			isDisabled={ disabled }
+			customContainerStyles={ buttonStyle }
+			fixedRatio={ false }
+		/>
+	);
+};
 
 export class Inserter extends Component {
+	announcementTimeout;
+
 	constructor() {
 		super( ...arguments );
 
 		this.onToggle = this.onToggle.bind( this );
 		this.renderInserterToggle = this.renderInserterToggle.bind( this );
 		this.renderContent = this.renderContent.bind( this );
+	}
+
+	componentWillUnmount() {
+		clearTimeout( this.announcementTimeout );
 	}
 
 	getInsertionOptions() {
@@ -161,9 +164,35 @@ export class Inserter extends Component {
 	}
 
 	onToggle( isOpen ) {
-		const { onToggle } = this.props;
+		const { blockTypeImpressions, onToggle, updateSettings } = this.props;
 
-		// Surface toggle callback to parent component
+		if ( ! isOpen ) {
+			const impressionsRemain = Object.values(
+				blockTypeImpressions
+			).some( ( count ) => count > 0 );
+
+			if ( impressionsRemain ) {
+				const decrementedImpressions = Object.entries(
+					blockTypeImpressions
+				).reduce(
+					( acc, [ blockName, count ] ) => ( {
+						...acc,
+						[ blockName ]: Math.max( count - 1, 0 ),
+					} ),
+					{}
+				);
+
+				// Persist block type impression to JavaScript store.
+				updateSettings( {
+					impressions: decrementedImpressions,
+				} );
+
+				// Persist block type impression count to native app store.
+				setBlockTypeImpressions( decrementedImpressions );
+			}
+		}
+
+		// Surface toggle callback to parent component.
 		if ( onToggle ) {
 			onToggle( isOpen );
 		}
@@ -171,13 +200,13 @@ export class Inserter extends Component {
 	}
 
 	onInserterToggledAnnouncement( isOpen ) {
-		AccessibilityInfo.isScreenReaderEnabled().done( ( isEnabled ) => {
+		AccessibilityInfo.isScreenReaderEnabled().then( ( isEnabled ) => {
 			if ( isEnabled ) {
 				const isIOS = Platform.OS === 'ios';
 				const announcement = isOpen
 					? __( 'Scrollable block menu opened. Select a block.' )
 					: __( 'Scrollable block menu closed.' );
-				delay(
+				this.announcementTimeout = setTimeout(
 					() =>
 						AccessibilityInfo.announceForAccessibility(
 							announcement
@@ -196,11 +225,10 @@ export class Inserter extends Component {
 	 *                                    pressed.
 	 * @param {boolean}  options.isOpen   Whether dropdown is currently open.
 	 *
-	 * @return {WPElement} Dropdown toggle element.
+	 * @return {Element} Dropdown toggle element.
 	 */
 	renderInserterToggle( { onToggle, isOpen } ) {
 		const {
-			enableEditorOnboarding,
 			disabled,
 			renderToggle = defaultRenderToggle,
 			getStylesFromColorScheme,
@@ -209,9 +237,15 @@ export class Inserter extends Component {
 		if ( showSeparator && isOpen ) {
 			return <BlockInsertionPoint />;
 		}
-		const style = getStylesFromColorScheme(
-			styles.addBlockButton,
-			styles.addBlockButtonDark
+
+		const buttonStyle = getStylesFromColorScheme(
+			styles[ 'inserter-menu__add-block-button' ],
+			styles[ 'inserter-menu__add-block-button--dark' ]
+		);
+
+		const iconStyle = getStylesFromColorScheme(
+			styles[ 'inserter-menu__add-block-button-icon' ],
+			styles[ 'inserter-menu__add-block-button-icon--dark' ]
 		);
 
 		const onPress = () => {
@@ -235,9 +269,8 @@ export class Inserter extends Component {
 			this.setState(
 				{
 					destinationRootClientId: this.props.destinationRootClientId,
-					shouldReplaceBlock: this.shouldReplaceBlock(
-						insertionType
-					),
+					shouldReplaceBlock:
+						this.shouldReplaceBlock( insertionType ),
 					insertionIndex: this.getInsertionIndex( insertionType ),
 				},
 				onToggle
@@ -247,11 +280,11 @@ export class Inserter extends Component {
 		return (
 			<>
 				{ renderToggle( {
-					enableEditorOnboarding,
 					onToggle: onPress,
 					isOpen,
 					disabled,
-					style,
+					iconStyle,
+					buttonStyle,
 					onLongPress,
 				} ) }
 				<Picker
@@ -272,15 +305,12 @@ export class Inserter extends Component {
 	 *                                   closed.
 	 * @param {boolean}  options.isOpen  Whether dropdown is currently open.
 	 *
-	 * @return {WPElement} Dropdown content element.
+	 * @return {Element} Dropdown content element.
 	 */
 	renderContent( { onClose, isOpen } ) {
 		const { clientId, isAppender } = this.props;
-		const {
-			destinationRootClientId,
-			shouldReplaceBlock,
-			insertionIndex,
-		} = this.state;
+		const { destinationRootClientId, shouldReplaceBlock, insertionIndex } =
+			this.state;
 		return (
 			<InserterMenu
 				isOpen={ isOpen }
@@ -308,6 +338,10 @@ export class Inserter extends Component {
 }
 
 export default compose( [
+	withDispatch( ( dispatch ) => {
+		const { updateSettings } = dispatch( blockEditorStore );
+		return { updateSettings };
+	} ),
 	withSelect( ( select, { clientId, isAppender, rootClientId } ) => {
 		const {
 			getBlockRootClientId,
@@ -326,42 +360,38 @@ export default compose( [
 		const destinationRootClientId = isAnyBlockSelected
 			? getBlockRootClientId( end )
 			: rootClientId;
-		const selectedBlockIndex = getBlockIndex(
-			end,
-			destinationRootClientId
-		);
+		const selectedBlockIndex = getBlockIndex( end );
 		const endOfRootIndex = getBlockOrder( rootClientId ).length;
 		const isSelectedUnmodifiedDefaultBlock = isAnyBlockSelected
 			? isUnmodifiedDefaultBlock( getBlock( end ) )
 			: undefined;
 
 		function getDefaultInsertionIndex() {
-			const {
-				__experimentalShouldInsertAtTheTop: shouldInsertAtTheTop,
-			} = getBlockEditorSettings();
+			const { __experimentalShouldInsertAtTheTop: shouldInsertAtTheTop } =
+				getBlockEditorSettings();
 
-			// if post title is selected insert as first block
+			// If post title is selected insert as first block.
 			if ( shouldInsertAtTheTop ) {
 				return 0;
 			}
 
 			// If the clientId is defined, we insert at the position of the block.
 			if ( clientId ) {
-				return getBlockIndex( clientId, rootClientId );
+				return getBlockIndex( clientId );
 			}
 
 			// If there is a selected block,
 			if ( isAnyBlockSelected ) {
-				// and the last selected block is unmodified (empty), it will be replaced
+				// And the last selected block is unmodified (empty), it will be replaced.
 				if ( isSelectedUnmodifiedDefaultBlock ) {
 					return selectedBlockIndex;
 				}
 
-				// we insert after the selected block.
+				// We insert after the selected block.
 				return selectedBlockIndex + 1;
 			}
 
-			// Otherwise, we insert at the end of the current rootClientId
+			// Otherwise, we insert at the end of the current rootClientId.
 			return endOfRootIndex;
 		}
 
@@ -378,7 +408,7 @@ export default compose( [
 		const insertionIndexEnd = endOfRootIndex;
 
 		return {
-			enableEditorOnboarding: getBlockEditorSettings().editorOnboarding,
+			blockTypeImpressions: getBlockEditorSettings().impressions,
 			destinationRootClientId,
 			insertionIndexDefault: getDefaultInsertionIndex(),
 			insertionIndexBefore,

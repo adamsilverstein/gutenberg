@@ -32,7 +32,7 @@ describe( 'getQueriedItems', () => {
 			},
 			queries: {
 				default: {
-					'': [ 1, 2 ],
+					'': { itemIds: [ 1, 2 ] },
 				},
 			},
 		};
@@ -56,7 +56,7 @@ describe( 'getQueriedItems', () => {
 					2: true,
 				},
 			},
-			queries: [ 1, 2 ],
+			queries: { itemIds: [ 1, 2 ] },
 		};
 
 		const resultA = getQueriedItems( state, {} );
@@ -81,7 +81,8 @@ describe( 'getQueriedItems', () => {
 			},
 			queries: {
 				default: {
-					'': [ 1, 2 ],
+					'': { itemIds: [ 1, 2 ] },
+					'include=1': { itemIds: [ 1 ] },
 				},
 			},
 		};
@@ -115,7 +116,7 @@ describe( 'getQueriedItems', () => {
 			},
 			queries: {
 				default: {
-					'_fields=content': [ 1, 2 ],
+					'_fields=content': { itemIds: [ 1, 2 ] },
 				},
 			},
 		};
@@ -160,7 +161,7 @@ describe( 'getQueriedItems', () => {
 			},
 			queries: {
 				default: {
-					'_fields=content%2Cmeta.template': [ 1, 2 ],
+					'_fields=content%2Cmeta.template': { itemIds: [ 1, 2 ] },
 				},
 			},
 		};
@@ -197,7 +198,7 @@ describe( 'getQueriedItems', () => {
 			},
 			queries: {
 				default: {
-					'': [ 1, 2 ],
+					'': { itemIds: [ 1, 2 ] },
 				},
 			},
 		};
@@ -229,7 +230,7 @@ describe( 'getQueriedItems', () => {
 			},
 			queries: {
 				default: {
-					'': [ 1, 2 ],
+					'': { itemIds: [ 1, 2 ] },
 				},
 			},
 		};

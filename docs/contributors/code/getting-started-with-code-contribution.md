@@ -1,22 +1,25 @@
 # Getting Started With Code Contribution
 
-The following guide is for setting up your local environment to contribute to the Gutenberg project. There is significant overlap between an environment to contribute and an environment used to extend the WordPress block editor. You can review the [Development Environment tutorial](/docs/getting-started/tutorials/devenv/README.md) for additional setup information.
+The following guide is for setting up your local environment to contribute to the Gutenberg project. There is significant overlap between an environment to contribute and an environment used to extend the WordPress block editor. You can review the [Development Environment tutorial](/docs/getting-started/devenv/README.md) for additional setup information.
 
 ## Prerequisites
 
 -   Node.js
-    Gutenberg is a JavaScript project and requires [Node.js](https://nodejs.org/). The project is built using the latest active LTS release of node, and the latest version of NPM. See the [LTS release schedule](https://github.com/nodejs/Release#release-schedule) for details.
+    Gutenberg is a JavaScript project that requires [Node.js](https://nodejs.org/). The project is currently built using Node.js v20 and npm v10. Though best efforts are made to always use the Active LTS version of Node.js, this will not always be the case. For more details, please refer to the [Node.js release schedule](https://github.com/nodejs/Release#release-schedule).
 
-We recommend using the [Node Version Manager](https://github.com/nvm-sh/nvm) (nvm) since it is the easiest way to install and manage node for macOS, Linux, and Windows 10 using WSL2. See [our Development Tools guide](/docs/getting-started/tutorials/devenv/README.md#development-tools) or the Nodejs site for additional installation instructions.
+We recommend using the [Node Version Manager](https://github.com/nvm-sh/nvm) (nvm) since it is the easiest way to install and manage node for macOS, Linux, and Windows 10 using WSL2. See [our Development Tools guide](/docs/getting-started/devenv/README.md#development-tools) or the Nodejs site for additional installation instructions.
 
 -   Git
     Gutenberg is using git for source control. Make sure you have an updated version of git installed on your computer, as well as a GitHub account. You can read the [Git Workflow](/docs/contributors/code/git-workflow.md) to learn more about using git and GitHub with Gutenberg
 
 -   [Recommended] Docker Desktop
-    We recommend using the [wp-env package](/packages/env/README.md) for setting WordPress environment locally. You'll need to install Docker to use `wp-env`. See the [Development Environment tutorial for additional details](/docs/getting-started/tutorials/devenv/README.md).
+    We recommend using the [wp-env package](/packages/env/README.md) for setting WordPress environment locally. You'll need to install Docker to use `wp-env`. See the [Development Environment tutorial for additional details](/docs/getting-started/devenv/README.md).
     > Note: To install Docker on Windows 10 Home Edition, follow the [install instructions from Docker for Windows with WSL2](https://docs.docker.com/docker-for-windows/wsl/).
 
-As an alternative to Docker setup, you can use [Local by Flywheel](https://localbyflywheel.com/), [WampServer](http://www.wampserver.com/en/), or [MAMP](https://www.mamp.info/), or even use a remote server.
+As an alternative to Docker setup, you can use [Local](https://localwp.com/), [WampServer](https://wampserver.aviatechno.net/), or [MAMP](https://www.mamp.info/), or even use a remote server.
+
+-   GitHub CLI
+    Although not a requirement, the [GitHub CLI](https://cli.github.com/) can be very useful in helping you checkout pull requests locally. Both from the Gutenberg repo and forked repos. This can be a major time saver while code reviewing and testing pull requests.
 
 ## Getting the Gutenberg code
 
@@ -33,13 +36,13 @@ $ git remote add upstream https://github.com/WordPress/gutenberg.git
 Install the Gutenberg dependencies and build your code in development mode:
 
 ```bash
-npm ci
+npm install
 npm run dev
 ```
 
 > Note: The install scripts require [Python](https://www.python.org/) to be installed and in the path of the local system. This might be installed by default for your operating system, or require downloading and installing.
 
-There are two ways to build your code. While developing, you probably will want to use `npm run dev` to run continuous builds automatically as source files change. The dev build also includes additional warnings and errors to help troubleshoot while developing. Once you are happy with your changes, you can run `npm build` to create optimized production build.
+There are two ways to build your code. While developing, you probably will want to use `npm run dev` to run continuous builds automatically as source files change. The dev build also includes additional warnings and errors to help troubleshoot while developing. Once you are happy with your changes, you can run `npm run build` to create optimized production build.
 
 Once built, Gutenberg is ready to be used as a WordPress plugin!
 
@@ -71,7 +74,7 @@ To stop the running environment:
 npm run wp-env stop
 ```
 
-If everyting went well, you should see the following message in your terminal:
+If everything went well, you should see the following message in your terminal:
 
 ```bash
 WordPress development site started at http://localhost:8888/
@@ -116,13 +119,14 @@ To access the MySQL database on the `wp-env` instance you will first need the co
 ```
 Host: 127.0.0.1
 Username: root
+Password: password
 Database: wordpress
 Port: {MYSQL_PORT_NUMBER}
 ```
 
 **Please note**: the MySQL port number will change each time `wp-env` restarts. If you find you can no longer access your database, simply repeat the steps above to find the new port number and restore your connection.
 
-**Tip**: [Sequel Ace](https://sequel-ace.com/) is a useful GUI tool for accessing a MySQL database. Other tools are available and documented in this [article on accessing the WordPress database](https://wordpress.org/support/article/creating-database-for-wordpress/).
+**Tip**: [Sequel Ace](https://sequel-ace.com/) is a useful GUI tool for accessing a MySQL database. Other tools are available and documented in this [article on accessing the WordPress database](https://developer.wordpress.org/advanced-administration/before-install/creating-database/).
 
 #### Troubleshooting
 
@@ -130,7 +134,7 @@ If you run into an issue, check the [troubleshooting section in `wp-env` documen
 
 ### Using Local or MAMP
 
-As an alternative to Docker and `wp-env`, you can also use [Local by Flywheel](https://localbyflywheel.com/), [WampServer](http://www.wampserver.com/en/), or [MAMP](https://www.mamp.info/) to run a local WordPress environment. To do so clone and install Gutenberg as a regular plugin in your installation by creating a symlink or copying the directory to the proper `wp-content/plugins` directory.
+As an alternative to Docker and `wp-env`, you can also use [Local](https://localwp.com/), [WampServer](https://wampserver.aviatechno.net/), or [MAMP](https://www.mamp.info/) to run a local WordPress environment. To do so clone and install Gutenberg as a regular plugin in your installation by creating a symlink or copying the directory to the proper `wp-content/plugins` directory.
 
 You will also need some extra configuration to be able to run the e2e tests.
 
@@ -143,7 +147,7 @@ ln -s gutenberg/packages/e2e-tests/plugins/* .
 You'll need to run this again if new plugins are added. To run e2e tests:
 
 ```bash
-WP_BASE_URL=http://localhost:8888/gutenberg npm run test-e2e
+WP_BASE_URL=http://localhost:8888/gutenberg/ npm run test:e2e
 ```
 
 #### Caching of PHP files
@@ -179,7 +183,7 @@ If so, you need to instruct Apache to allow following such links:
 
 Tools like MAMP tend to configure MySQL to use ports other than the default 3306, often preferring 8889. This may throw off WP-CLI, which will fail after trying to connect to the database. To remedy this, edit `wp-config.php` and change the `DB_HOST` constant from `define( 'DB_HOST', 'localhost' )` to `define( 'DB_HOST', '127.0.0.1:8889' )`.
 
-### On A Remote Server
+### On a remote server
 
 You can use a remote server in development by building locally and then uploading the built files as a plugin to the remote server.
 
@@ -199,7 +203,7 @@ You can launch Storybook by running `npm run storybook:dev` locally. It will ope
 
 You can also test Storybook for the current `trunk` branch on GitHub Pages: [https://wordpress.github.io/gutenberg/](https://wordpress.github.io/gutenberg/)
 
-## Developer Tools
+## Developer tools
 
 We recommend configuring your editor to automatically check for syntax and lint errors. This will help you save time as you develop by automatically fixing minor formatting issues. Here are some directions for setting up Visual Studio Code, a popular editor used by many of the core developers, these tools are also available for other editors.
 

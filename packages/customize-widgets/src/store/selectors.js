@@ -1,20 +1,48 @@
-/**
- * External dependencies
- */
-import { get } from 'lodash';
+const EMPTY_INSERTION_POINT = {
+	rootClientId: undefined,
+	insertionIndex: undefined,
+};
 
 /**
- * Returns whether the given feature is enabled or not.
+ * Returns true if the inserter is opened.
  *
- * This function is unstable, as it is mostly copied from the edit-post
- * package. Editor features and preferences have a lot of scope for
- * being generalized and refactored.
+ * @param {Object} state Global application state.
  *
- * @param {Object} state   Global application state.
- * @param {string} feature Feature slug.
+ * @example
+ * ```js
+ * import { store as customizeWidgetsStore } from '@wordpress/customize-widgets';
+ * import { __ } from '@wordpress/i18n';
+ * import { useSelect } from '@wordpress/data';
  *
- * @return {boolean} Is active.
+ * const ExampleComponent = () => {
+ *    const { isInserterOpened } = useSelect(
+ *        ( select ) => select( customizeWidgetsStore ),
+ *        []
+ *    );
+ *
+ *    return isInserterOpened()
+ *        ? __( 'Inserter is open' )
+ *        : __( 'Inserter is closed.' );
+ * };
+ * ```
+ *
+ * @return {boolean} Whether the inserter is opened.
  */
-export function __unstableIsFeatureActive( state, feature ) {
-	return get( state.preferences.features, [ feature ], false );
+export function isInserterOpened( state ) {
+	return !! state.blockInserterPanel;
+}
+
+/**
+ * Get the insertion point for the inserter.
+ *
+ * @param {Object} state Global application state.
+ *
+ * @return {Object} The root client ID and index to insert at.
+ */
+export function __experimentalGetInsertionPoint( state ) {
+	if ( typeof state.blockInserterPanel === 'boolean' ) {
+		return EMPTY_INSERTION_POINT;
+	}
+
+	return state.blockInserterPanel;
 }

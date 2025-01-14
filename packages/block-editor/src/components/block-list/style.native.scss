@@ -6,7 +6,6 @@
 
 .horizontalContentContainer {
 	flex-direction: row;
-	flex-wrap: wrap;
 	justify-content: flex-start;
 	align-items: stretch;
 	overflow: visible;
@@ -67,17 +66,17 @@
 }
 
 .defaultBlock {
-	margin: $block-edge-to-content;
+	margin: $block-edge-to-content * 0.5 $block-edge-to-content;
 }
 
 .defaultAppender {
-	margin-top: $block-edge-to-content;
-	margin-bottom: $block-edge-to-content;
+	margin-top: $grid-unit;
+	margin-bottom: $grid-unit;
 	width: 100%;
 }
 
 .innerAppender {
-	margin: $block-edge-to-content / 2;
+	margin: $block-edge-to-content * 0.5;
 }
 
 .blockBorder {

@@ -2,35 +2,42 @@
  * WordPress dependencies
  */
 import { useSelect } from '@wordpress/data';
+import { __ } from '@wordpress/i18n';
+import { useMemo } from '@wordpress/element';
 
 /**
  * Internal dependencies
  */
 import BlockTypesList from '../block-types-list';
 import { store as blockEditorStore } from '../../store';
-
-const REUSABLE_BLOCKS_CATEGORY = 'reusable';
+import { createInserterSection, filterInserterItems } from './utils';
 
 function ReusableBlocksTab( { onSelect, rootClientId, listProps } ) {
-	const { items } = useSelect(
+	const { inserterItems } = useSelect(
 		( select ) => {
 			const { getInserterItems } = select( blockEditorStore );
 			const allItems = getInserterItems( rootClientId );
-			const reusableBlockItems = allItems.filter(
-				( { category } ) => category === REUSABLE_BLOCKS_CATEGORY
-			);
 
-			return { items: reusableBlockItems };
+			return {
+				inserterItems: allItems,
+			};
 		},
 		[ rootClientId ]
 	);
 
+	const items = useMemo( () => {
+		return filterInserterItems( inserterItems, { onlyReusable: true } );
+	}, [ inserterItems ] );
+
+	const sections = [ createInserterSection( { key: 'reusable', items } ) ];
+
 	return (
 		<BlockTypesList
-			name="ReusableBlocks"
-			items={ items }
+			name="SyncedPatterns"
+			sections={ sections }
 			onSelect={ onSelect }
 			listProps={ listProps }
+			label={ __( 'Synced patterns' ) }
 		/>
 	);
 }

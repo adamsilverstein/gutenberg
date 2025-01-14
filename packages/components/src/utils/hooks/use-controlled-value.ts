@@ -12,23 +12,33 @@ type Props< T > = {
 /**
  * Simplified and improved implementation of useControlledState.
  *
- * @param  props
- * @param  props.defaultValue
- * @param  props.value
- * @param  props.onChange
+ * @param props
+ * @param props.defaultValue
+ * @param props.value
+ * @param props.onChange
  * @return The controlled value and the value setter.
  */
 export function useControlledValue< T >( {
 	defaultValue,
 	onChange,
 	value: valueProp,
-}: Props< T > ): [ T | undefined, ( value: T ) => void ] {
+}: Props< T > ) {
 	const hasValue = typeof valueProp !== 'undefined';
 	const initialValue = hasValue ? valueProp : defaultValue;
 	const [ state, setState ] = useState( initialValue );
 	const value = hasValue ? valueProp : state;
-	const setValue =
-		hasValue && typeof onChange === 'function' ? onChange : setState;
 
-	return [ value, setValue ];
+	let setValue: ( nextValue: T ) => void;
+	if ( hasValue && typeof onChange === 'function' ) {
+		setValue = onChange;
+	} else if ( ! hasValue && typeof onChange === 'function' ) {
+		setValue = ( nextValue ) => {
+			onChange( nextValue );
+			setState( nextValue );
+		};
+	} else {
+		setValue = setState;
+	}
+
+	return [ value, setValue as typeof setState ] as const;
 }

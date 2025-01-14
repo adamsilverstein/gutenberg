@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import classnames from 'classnames';
+import clsx from 'clsx';
 
 /**
  * WordPress dependencies
@@ -20,7 +20,7 @@ export default function TermDescriptionEdit( {
 } ) {
 	const { textAlign } = attributes;
 	const blockProps = useBlockProps( {
-		className: classnames( {
+		className: clsx( {
 			[ `has-text-align-${ textAlign }` ]: textAlign,
 		} ),
 		style: mergedStyle,
@@ -37,7 +37,7 @@ export default function TermDescriptionEdit( {
 			</BlockControls>
 			<div { ...blockProps }>
 				<div className="wp-block-term-description__placeholder">
-					<span>{ __( 'Term description.' ) }</span>
+					<span>{ __( 'Term Description' ) }</span>
 				</div>
 			</div>
 		</>

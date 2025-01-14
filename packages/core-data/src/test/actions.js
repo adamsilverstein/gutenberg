@@ -1,7 +1,9 @@
 /**
  * WordPress dependencies
  */
-import { controls } from '@wordpress/data';
+import apiFetch from '@wordpress/api-fetch';
+
+jest.mock( '@wordpress/api-fetch' );
 
 /**
  * Internal dependencies
@@ -9,26 +11,13 @@ import { controls } from '@wordpress/data';
 import {
 	editEntityRecord,
 	saveEntityRecord,
+	saveEditedEntityRecord,
 	deleteEntityRecord,
-	receiveEntityRecords,
 	receiveUserPermission,
 	receiveAutosaves,
 	receiveCurrentUser,
 	__experimentalBatch,
 } from '../actions';
-
-jest.mock( '../locks/actions', () => ( {
-	__unstableAcquireStoreLock: jest.fn( () => [
-		{
-			type: 'MOCKED_ACQUIRE_LOCK',
-		},
-	] ),
-	__unstableReleaseStoreLock: jest.fn( () => [
-		{
-			type: 'MOCKED_RELEASE_LOCK',
-		},
-	] ),
-} ) );
 
 jest.mock( '../batch', () => {
 	const { createBatch } = jest.requireActual( '../batch' );
@@ -40,167 +29,421 @@ jest.mock( '../batch', () => {
 } );
 
 describe( 'editEntityRecord', () => {
-	it( 'throws when the edited entity does not have a loaded config.', () => {
-		const entity = { kind: 'someKind', name: 'someName', id: 'someId' };
-		const fulfillment = editEntityRecord(
-			entity.kind,
-			entity.name,
-			entity.id,
-			{}
+	it( 'throws when the edited entity does not have a loaded config.', async () => {
+		const entityConfig = {
+			kind: 'someKind',
+			name: 'someName',
+			id: 'someId',
+		};
+		const select = {
+			getEntityConfig: jest.fn(),
+		};
+		const fulfillment = () =>
+			editEntityRecord(
+				entityConfig.kind,
+				entityConfig.name,
+				entityConfig.id,
+				{}
+			)( { select } );
+		expect( fulfillment ).toThrow(
+			`The entity being edited (${ entityConfig.kind }, ${ entityConfig.name }) does not have a loaded config.`
 		);
-		expect( fulfillment.next().value ).toEqual(
-			controls.select( 'core', 'getEntity', entity.kind, entity.name )
-		);
-
-		// Don't pass back an entity config.
-		expect( fulfillment.next.bind( fulfillment ) ).toThrow(
-			`The entity being edited (${ entity.kind }, ${ entity.name }) does not have a loaded config.`
-		);
+		expect( select.getEntityConfig ).toHaveBeenCalledTimes( 1 );
 	} );
 } );
 
 describe( 'deleteEntityRecord', () => {
+	beforeEach( async () => {
+		apiFetch.mockReset();
+	} );
+
 	it( 'triggers a DELETE request for an existing record', async () => {
-		const post = 10;
-		const entities = [
+		const deletedRecord = { title: 'new post', id: 10 };
+		const configs = [
 			{ name: 'post', kind: 'postType', baseURL: '/wp/v2/posts' },
 		];
-		const fulfillment = deleteEntityRecord( 'postType', 'post', post );
 
-		// Trigger generator
-		fulfillment.next();
+		const dispatch = Object.assign( jest.fn(), {
+			receiveEntityRecords: jest.fn(),
+			__unstableAcquireStoreLock: jest.fn(),
+			__unstableReleaseStoreLock: jest.fn(),
+		} );
+		const resolveSelect = { getEntitiesConfig: jest.fn( () => configs ) };
 
-		// Acquire lock
-		expect( fulfillment.next( entities ).value.type ).toBe(
-			'MOCKED_ACQUIRE_LOCK'
-		);
+		// Provide response
+		apiFetch.mockImplementation( () => deletedRecord );
 
-		// Start
-		expect( fulfillment.next().value.type ).toEqual(
-			'DELETE_ENTITY_RECORD_START'
-		);
+		const result = await deleteEntityRecord(
+			'postType',
+			'post',
+			deletedRecord.id
+		)( { dispatch, resolveSelect } );
 
-		// delete api call
-		const { value: apiFetchAction } = fulfillment.next();
-		expect( apiFetchAction.request ).toEqual( {
+		expect( apiFetch ).toHaveBeenCalledTimes( 1 );
+		expect( apiFetch ).toHaveBeenCalledWith( {
 			path: '/wp/v2/posts/10',
 			method: 'DELETE',
 		} );
 
-		expect( fulfillment.next().value.type ).toBe( 'REMOVE_ITEMS' );
-
-		expect( fulfillment.next().value.type ).toBe(
-			'DELETE_ENTITY_RECORD_FINISH'
-		);
-
-		// Release lock
-		expect( fulfillment.next().value.type ).toEqual(
-			'MOCKED_RELEASE_LOCK'
-		);
-
-		expect( fulfillment.next() ).toMatchObject( {
-			done: true,
-			value: undefined,
+		expect( dispatch ).toHaveBeenCalledTimes( 3 );
+		expect( dispatch ).toHaveBeenCalledWith( {
+			type: 'DELETE_ENTITY_RECORD_START',
+			kind: 'postType',
+			name: 'post',
+			recordId: 10,
 		} );
+		expect( dispatch ).toHaveBeenCalledWith( {
+			type: 'DELETE_ENTITY_RECORD_FINISH',
+			kind: 'postType',
+			name: 'post',
+			recordId: 10,
+			error: undefined,
+		} );
+		expect( dispatch.__unstableAcquireStoreLock ).toHaveBeenCalledTimes(
+			1
+		);
+		expect( dispatch.__unstableReleaseStoreLock ).toHaveBeenCalledTimes(
+			1
+		);
+
+		expect( result ).toBe( deletedRecord );
+	} );
+
+	it( 'throws on error when throwOnError is true', async () => {
+		const entities = [
+			{ name: 'post', kind: 'postType', baseURL: '/wp/v2/posts' },
+		];
+
+		const dispatch = Object.assign( jest.fn(), {
+			receiveEntityRecords: jest.fn(),
+			__unstableAcquireStoreLock: jest.fn(),
+			__unstableReleaseStoreLock: jest.fn(),
+		} );
+		const resolveSelect = { getEntitiesConfig: jest.fn( () => entities ) };
+
+		// Provide response
+		apiFetch.mockImplementation( () => {
+			throw new Error( 'API error' );
+		} );
+
+		await expect(
+			deleteEntityRecord(
+				'postType',
+				'post',
+				10,
+				{},
+				{
+					throwOnError: true,
+				}
+			)( { dispatch, resolveSelect } )
+		).rejects.toEqual( new Error( 'API error' ) );
+	} );
+
+	it( 'resolves on error when throwOnError is false', async () => {
+		const entities = [
+			{ name: 'post', kind: 'postType', baseURL: '/wp/v2/posts' },
+		];
+
+		const dispatch = Object.assign( jest.fn(), {
+			receiveEntityRecords: jest.fn(),
+			__unstableAcquireStoreLock: jest.fn(),
+			__unstableReleaseStoreLock: jest.fn(),
+		} );
+		const resolveSelect = { getEntitiesConfig: jest.fn( () => entities ) };
+
+		// Provide response
+		apiFetch.mockImplementation( () => {
+			throw new Error( 'API error' );
+		} );
+
+		await expect(
+			deleteEntityRecord(
+				'postType',
+				'post',
+				10,
+				{},
+				{
+					throwOnError: false,
+				}
+			)( { dispatch, resolveSelect } )
+		).resolves.toBe( false );
+	} );
+} );
+
+describe( 'saveEditedEntityRecord', () => {
+	beforeEach( async () => {
+		apiFetch.mockReset();
+	} );
+
+	it( 'Uses "id" as a key when no entity key is provided', async () => {
+		const item = { id: 1, menu: 0 };
+		const configs = [
+			{
+				kind: 'root',
+				name: 'menuItem',
+				baseURL: '/wp/v2/menu-items',
+			},
+		];
+		const select = {
+			getEntityRecordNonTransientEdits: () => [],
+			hasEditsForEntityRecord: () => true,
+		};
+
+		const dispatch = Object.assign( jest.fn(), {
+			saveEntityRecord: jest.fn(),
+		} );
+		const resolveSelect = { getEntitiesConfig: jest.fn( () => configs ) };
+
+		// Provide response
+		const updatedRecord = { ...item, menu: 10 };
+		apiFetch.mockImplementation( () => {
+			return updatedRecord;
+		} );
+
+		await saveEditedEntityRecord(
+			'root',
+			'menuItem',
+			1
+		)( { dispatch, select, resolveSelect } );
+
+		expect( dispatch.saveEntityRecord ).toHaveBeenCalledWith(
+			'root',
+			'menuItem',
+			{ id: 1 },
+			undefined
+		);
+	} );
+
+	it( 'Uses the entity key when provided', async () => {
+		const item = { name: 'primary', menu: 0 };
+		const configs = [
+			{
+				kind: 'root',
+				name: 'menuLocation',
+				baseURL: '/wp/v2/menu-items',
+				key: 'name',
+			},
+		];
+		const select = {
+			getEntityRecordNonTransientEdits: () => [],
+			hasEditsForEntityRecord: () => true,
+		};
+
+		const dispatch = Object.assign( jest.fn(), {
+			saveEntityRecord: jest.fn(),
+		} );
+		const resolveSelect = { getEntitiesConfig: jest.fn( () => configs ) };
+
+		// Provide response
+		const updatedRecord = { ...item, menu: 10 };
+		apiFetch.mockImplementation( () => {
+			return updatedRecord;
+		} );
+
+		await saveEditedEntityRecord(
+			'root',
+			'menuLocation',
+			'primary'
+		)( { dispatch, select, resolveSelect } );
+
+		expect( dispatch.saveEntityRecord ).toHaveBeenCalledWith(
+			'root',
+			'menuLocation',
+			{ name: 'primary' },
+			undefined
+		);
 	} );
 } );
 
 describe( 'saveEntityRecord', () => {
+	let dispatch;
+
+	beforeEach( async () => {
+		apiFetch.mockReset();
+		dispatch = Object.assign( jest.fn(), {
+			receiveEntityRecords: jest.fn(),
+			__unstableAcquireStoreLock: jest.fn(),
+			__unstableReleaseStoreLock: jest.fn(),
+		} );
+	} );
+
 	it( 'triggers a POST request for a new record', async () => {
 		const post = { title: 'new post' };
-		const entities = [
+		const configs = [
 			{ name: 'post', kind: 'postType', baseURL: '/wp/v2/posts' },
 		];
-		const fulfillment = saveEntityRecord( 'postType', 'post', post );
-		// Trigger generator
-		fulfillment.next();
+		const select = {
+			getRawEntityRecord: () => post,
+		};
+		const resolveSelect = { getEntitiesConfig: jest.fn( () => configs ) };
 
-		// Provide entities and acquire lock
-		expect( fulfillment.next( entities ).value.type ).toBe(
-			'MOCKED_ACQUIRE_LOCK'
-		);
+		// Provide response
+		const updatedRecord = { ...post, id: 10 };
+		apiFetch.mockImplementation( () => {
+			return updatedRecord;
+		} );
 
-		// Trigger apiFetch
-		expect( fulfillment.next().value.type ).toEqual(
-			'SAVE_ENTITY_RECORD_START'
-		);
+		const result = await saveEntityRecord(
+			'postType',
+			'post',
+			post
+		)( { select, dispatch, resolveSelect } );
 
-		expect( fulfillment.next().value.type ).toBe( '@@data/SELECT' );
-		const { value: apiFetchAction } = fulfillment.next( {} );
-		expect( apiFetchAction.request ).toEqual( {
+		expect( apiFetch ).toHaveBeenCalledTimes( 1 );
+		expect( apiFetch ).toHaveBeenCalledWith( {
 			path: '/wp/v2/posts',
 			method: 'POST',
 			data: post,
 		} );
-		// Provide response and trigger action
-		const updatedRecord = { ...post, id: 10 };
-		const { value: received } = fulfillment.next( updatedRecord );
-		expect( received ).toEqual(
-			receiveEntityRecords(
-				'postType',
-				'post',
-				updatedRecord,
-				undefined,
-				true,
-				{ title: 'new post' }
-			)
+
+		expect( dispatch ).toHaveBeenCalledTimes( 2 );
+		expect( dispatch ).toHaveBeenCalledWith( {
+			type: 'SAVE_ENTITY_RECORD_START',
+			kind: 'postType',
+			name: 'post',
+			recordId: undefined,
+			isAutosave: false,
+		} );
+		expect( dispatch.__unstableAcquireStoreLock ).toHaveBeenCalledTimes(
+			1
 		);
-		expect( fulfillment.next().value.type ).toBe(
-			'SAVE_ENTITY_RECORD_FINISH'
-		);
-		// Release lock
-		expect( fulfillment.next().value.type ).toEqual(
-			'MOCKED_RELEASE_LOCK'
+		expect( dispatch ).toHaveBeenCalledWith( {
+			type: 'SAVE_ENTITY_RECORD_FINISH',
+			kind: 'postType',
+			name: 'post',
+			recordId: undefined,
+			error: undefined,
+			isAutosave: false,
+		} );
+		expect( dispatch.__unstableReleaseStoreLock ).toHaveBeenCalledTimes(
+			1
 		);
 
-		expect( fulfillment.next().value ).toBe( updatedRecord );
+		expect( dispatch.receiveEntityRecords ).toHaveBeenCalledTimes( 1 );
+		expect( dispatch.receiveEntityRecords ).toHaveBeenCalledWith(
+			'postType',
+			'post',
+			updatedRecord,
+			undefined,
+			true,
+			post
+		);
+
+		expect( result ).toBe( updatedRecord );
+	} );
+
+	it( 'throws on error when throwOnError is true', async () => {
+		const post = { title: 'new post' };
+		const entities = [
+			{ name: 'post', kind: 'postType', baseURL: '/wp/v2/posts' },
+		];
+		const select = {
+			getRawEntityRecord: () => post,
+		};
+		const resolveSelect = { getEntitiesConfig: jest.fn( () => entities ) };
+
+		// Provide response
+		apiFetch.mockImplementation( () => {
+			throw new Error( 'API error' );
+		} );
+
+		await expect(
+			saveEntityRecord( 'postType', 'post', post, {
+				throwOnError: true,
+			} )( { select, dispatch, resolveSelect } )
+		).rejects.toEqual( new Error( 'API error' ) );
+	} );
+
+	it( 'resolves on error when throwOnError is false', async () => {
+		const post = { title: 'new post' };
+		const entities = [
+			{ name: 'post', kind: 'postType', baseURL: '/wp/v2/posts' },
+		];
+		const select = {
+			getRawEntityRecord: () => post,
+		};
+		const resolveSelect = { getEntitiesConfig: jest.fn( () => entities ) };
+
+		// Provide response
+		apiFetch.mockImplementation( () => {
+			throw new Error( 'API error' );
+		} );
+
+		await expect(
+			saveEntityRecord( 'postType', 'post', post, {
+				throwOnError: false,
+			} )( { select, dispatch, resolveSelect } )
+		).resolves.toEqual( undefined );
 	} );
 
 	it( 'triggers a PUT request for an existing record', async () => {
 		const post = { id: 10, title: 'new post' };
-		const entities = [
+		const configs = [
 			{ name: 'post', kind: 'postType', baseURL: '/wp/v2/posts' },
 		];
-		const fulfillment = saveEntityRecord( 'postType', 'post', post );
-		// Trigger generator
-		fulfillment.next();
+		const select = {
+			getRawEntityRecord: () => post,
+		};
+		const resolveSelect = { getEntitiesConfig: jest.fn( () => configs ) };
 
-		// Provide entities and acquire lock
-		expect( fulfillment.next( entities ).value.type ).toBe(
-			'MOCKED_ACQUIRE_LOCK'
-		);
+		// Provide response
+		const updatedRecord = { ...post, id: 10 };
+		apiFetch.mockImplementation( () => {
+			return updatedRecord;
+		} );
 
-		// Trigger apiFetch
-		expect( fulfillment.next().value.type ).toEqual(
-			'SAVE_ENTITY_RECORD_START'
-		);
-		expect( fulfillment.next().value.type ).toBe( '@@data/SELECT' );
-		const { value: apiFetchAction } = fulfillment.next( {} );
-		expect( apiFetchAction.request ).toEqual( {
+		const result = await saveEntityRecord(
+			'postType',
+			'post',
+			post
+		)( { select, dispatch, resolveSelect } );
+
+		expect( apiFetch ).toHaveBeenCalledTimes( 1 );
+		expect( apiFetch ).toHaveBeenCalledWith( {
 			path: '/wp/v2/posts/10',
 			method: 'PUT',
 			data: post,
 		} );
-		// Provide response and trigger action
-		const { value: received } = fulfillment.next( post );
-		expect( received ).toEqual(
-			receiveEntityRecords( 'postType', 'post', post, undefined, true, {
-				title: 'new post',
-				id: 10,
-			} )
+
+		expect( dispatch ).toHaveBeenCalledTimes( 2 );
+		expect( dispatch ).toHaveBeenCalledWith( {
+			type: 'SAVE_ENTITY_RECORD_START',
+			kind: 'postType',
+			name: 'post',
+			recordId: 10,
+			isAutosave: false,
+		} );
+		expect( dispatch.__unstableAcquireStoreLock ).toHaveBeenCalledTimes(
+			1
 		);
-		expect( fulfillment.next().value.type ).toBe(
-			'SAVE_ENTITY_RECORD_FINISH'
+		expect( dispatch ).toHaveBeenCalledWith( {
+			type: 'SAVE_ENTITY_RECORD_FINISH',
+			kind: 'postType',
+			name: 'post',
+			recordId: 10,
+			error: undefined,
+			isAutosave: false,
+		} );
+		expect( dispatch.__unstableReleaseStoreLock ).toHaveBeenCalledTimes(
+			1
 		);
-		// Release lock
-		expect( fulfillment.next().value.type ).toEqual(
-			'MOCKED_RELEASE_LOCK'
+
+		expect( dispatch.receiveEntityRecords ).toHaveBeenCalledTimes( 1 );
+		expect( dispatch.receiveEntityRecords ).toHaveBeenCalledWith(
+			'postType',
+			'post',
+			updatedRecord,
+			undefined,
+			true,
+			post
 		);
+
+		expect( result ).toBe( updatedRecord );
 	} );
 
 	it( 'triggers a PUT request for an existing record with a custom key', async () => {
 		const postType = { slug: 'page', title: 'Pages' };
-		const entities = [
+		const configs = [
 			{
 				name: 'postType',
 				kind: 'root',
@@ -208,45 +451,61 @@ describe( 'saveEntityRecord', () => {
 				key: 'slug',
 			},
 		];
-		const fulfillment = saveEntityRecord( 'root', 'postType', postType );
-		// Trigger generator
-		fulfillment.next();
+		const select = {
+			getRawEntityRecord: () => ( {} ),
+		};
+		const resolveSelect = { getEntitiesConfig: jest.fn( () => configs ) };
 
-		// Provide entities and acquire lock
-		expect( fulfillment.next( entities ).value.type ).toBe(
-			'MOCKED_ACQUIRE_LOCK'
-		);
+		// Provide response
+		apiFetch.mockImplementation( () => postType );
 
-		// Trigger apiFetch
-		expect( fulfillment.next().value.type ).toEqual(
-			'SAVE_ENTITY_RECORD_START'
-		);
-		expect( fulfillment.next().value.type ).toBe( '@@data/SELECT' );
-		const { value: apiFetchAction } = fulfillment.next( {} );
-		expect( apiFetchAction.request ).toEqual( {
+		const result = await saveEntityRecord(
+			'root',
+			'postType',
+			postType
+		)( { select, dispatch, resolveSelect } );
+
+		expect( apiFetch ).toHaveBeenCalledTimes( 1 );
+		expect( apiFetch ).toHaveBeenCalledWith( {
 			path: '/wp/v2/types/page',
 			method: 'PUT',
 			data: postType,
 		} );
-		// Provide response and trigger action
-		const { value: received } = fulfillment.next( postType );
-		expect( received ).toEqual(
-			receiveEntityRecords(
-				'root',
-				'postType',
-				postType,
-				undefined,
-				true,
-				{ slug: 'page', title: 'Pages' }
-			)
+
+		expect( dispatch ).toHaveBeenCalledTimes( 2 );
+		expect( dispatch ).toHaveBeenCalledWith( {
+			type: 'SAVE_ENTITY_RECORD_START',
+			kind: 'root',
+			name: 'postType',
+			recordId: 'page',
+			isAutosave: false,
+		} );
+		expect( dispatch.__unstableAcquireStoreLock ).toHaveBeenCalledTimes(
+			1
 		);
-		expect( fulfillment.next().value.type ).toBe(
-			'SAVE_ENTITY_RECORD_FINISH'
+		expect( dispatch ).toHaveBeenCalledWith( {
+			type: 'SAVE_ENTITY_RECORD_FINISH',
+			kind: 'root',
+			name: 'postType',
+			recordId: 'page',
+			error: undefined,
+			isAutosave: false,
+		} );
+		expect( dispatch.__unstableReleaseStoreLock ).toHaveBeenCalledTimes(
+			1
 		);
-		// Release lock
-		expect( fulfillment.next().value.type ).toEqual(
-			'MOCKED_RELEASE_LOCK'
+
+		expect( dispatch.receiveEntityRecords ).toHaveBeenCalledTimes( 1 );
+		expect( dispatch.receiveEntityRecords ).toHaveBeenCalledWith(
+			'root',
+			'postType',
+			postType,
+			undefined,
+			true,
+			{ slug: 'page', title: 'Pages' }
 		);
+
+		expect( result ).toBe( postType );
 	} );
 } );
 
@@ -305,21 +564,7 @@ describe( 'receiveCurrentUser', () => {
 
 describe( '__experimentalBatch', () => {
 	it( 'batches multiple actions together', async () => {
-		const generator = __experimentalBatch(
-			[
-				( { saveEntityRecord: _saveEntityRecord } ) =>
-					_saveEntityRecord( 'root', 'widget', {} ),
-				( { saveEditedEntityRecord: _saveEditedEntityRecord } ) =>
-					_saveEditedEntityRecord( 'root', 'widget', 123 ),
-				( { deleteEntityRecord: _deleteEntityRecord } ) =>
-					_deleteEntityRecord( 'root', 'widget', 123, {} ),
-			],
-			{ __unstableProcessor: ( inputs ) => Promise.resolve( inputs ) }
-		);
-		// Run generator up to `yield getDispatch()`.
-		const { value: getDispatchControl } = generator.next();
-		expect( getDispatchControl ).toEqual( { type: 'GET_DISPATCH' } );
-		const actions = {
+		const dispatch = {
 			saveEntityRecord: jest.fn(
 				( kind, name, record, { __unstableFetch } ) => {
 					__unstableFetch( {} );
@@ -339,36 +584,39 @@ describe( '__experimentalBatch', () => {
 				}
 			),
 		};
-		const dispatch = () => actions;
-		// Run generator up to `yield __unstableAwaitPromise( ... )`.
-		const { value: awaitPromiseControl } = generator.next( dispatch );
-		expect( actions.saveEntityRecord ).toHaveBeenCalledWith(
+
+		const results = await __experimentalBatch(
+			[
+				( { saveEntityRecord: _saveEntityRecord } ) =>
+					_saveEntityRecord( 'root', 'widget', {} ),
+				( { saveEditedEntityRecord: _saveEditedEntityRecord } ) =>
+					_saveEditedEntityRecord( 'root', 'widget', 123 ),
+				( { deleteEntityRecord: _deleteEntityRecord } ) =>
+					_deleteEntityRecord( 'root', 'widget', 123, {} ),
+			],
+			{ __unstableProcessor: ( inputs ) => Promise.resolve( inputs ) }
+		)( { dispatch } );
+
+		expect( dispatch.saveEntityRecord ).toHaveBeenCalledWith(
 			'root',
 			'widget',
 			{},
 			{ __unstableFetch: expect.any( Function ) }
 		);
-		expect( actions.saveEditedEntityRecord ).toHaveBeenCalledWith(
+		expect( dispatch.saveEditedEntityRecord ).toHaveBeenCalledWith(
 			'root',
 			'widget',
 			123,
 			{ __unstableFetch: expect.any( Function ) }
 		);
-		expect( actions.deleteEntityRecord ).toHaveBeenCalledWith(
+		expect( dispatch.deleteEntityRecord ).toHaveBeenCalledWith(
 			'root',
 			'widget',
 			123,
 			{},
 			{ __unstableFetch: expect.any( Function ) }
 		);
-		expect( awaitPromiseControl ).toEqual( {
-			type: 'AWAIT_PROMISE',
-			promise: expect.any( Promise ),
-		} );
-		// Run generator to the end.
-		const { value: results } = generator.next(
-			await awaitPromiseControl.promise
-		);
+
 		expect( results ).toEqual( [
 			{ id: 123, created: true },
 			{ id: 123, updated: true },

@@ -23,6 +23,7 @@ function LinkSettingsNavigation( props ) {
 			isVisible={ props.isVisible }
 			onClose={ props.onClose }
 			onDismiss={ props.onDismiss }
+			testID="link-settings-navigation"
 			hideHeader
 			hasNavigation
 		>

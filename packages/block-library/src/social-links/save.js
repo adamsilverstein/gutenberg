@@ -1,32 +1,30 @@
 /**
  * External dependencies
  */
-import classNames from 'classnames';
+import clsx from 'clsx';
 
 /**
  * WordPress dependencies
  */
-import { InnerBlocks, useBlockProps } from '@wordpress/block-editor';
+import { useInnerBlocksProps, useBlockProps } from '@wordpress/block-editor';
 
 export default function save( props ) {
 	const {
 		attributes: {
 			iconBackgroundColorValue,
 			iconColorValue,
-			itemsJustification,
+			showLabels,
 			size,
 		},
 	} = props;
 
-	const className = classNames( size, {
+	const className = clsx( size, {
+		'has-visible-labels': showLabels,
 		'has-icon-color': iconColorValue,
 		'has-icon-background-color': iconBackgroundColorValue,
-		[ `items-justified-${ itemsJustification }` ]: itemsJustification,
 	} );
+	const blockProps = useBlockProps.save( { className } );
+	const innerBlocksProps = useInnerBlocksProps.save( blockProps );
 
-	return (
-		<ul { ...useBlockProps.save( { className } ) }>
-			<InnerBlocks.Content />
-		</ul>
-	);
+	return <ul { ...innerBlocksProps } />;
 }

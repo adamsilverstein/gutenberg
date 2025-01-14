@@ -10,7 +10,7 @@ Install the module
 npm install @wordpress/url --save
 ```
 
-_This package assumes that your code will run in an **ES2015+** environment. If you're using an environment that has limited or no support for ES2015+ such as IE browsers then using [core-js](https://github.com/zloirock/core-js) will add polyfills for these methods._
+_This package assumes that your code will run in an **ES2015+** environment. If you're using an environment that has limited or no support for such language features and APIs, you should include [the polyfill shipped in `@wordpress/babel-preset-default`](https://github.com/WordPress/gutenberg/tree/HEAD/packages/babel-preset-default#polyfill) in your code._
 
 ## Usage
 
@@ -18,9 +18,7 @@ _This package assumes that your code will run in an **ES2015+** environment. If 
 
 ### addQueryArgs
 
-Appends arguments as querystring to the provided URL. If the URL already
-includes query arguments, the arguments are merged with (and take precedent
-over) the existing set.
+Appends arguments as querystring to the provided URL. If the URL already includes query arguments, the arguments are merged with (and take precedent over) the existing set.
 
 _Usage_
 
@@ -41,20 +39,19 @@ _Returns_
 
 Generates URL-encoded query string using input query data.
 
-It is intended to behave equivalent as PHP's `http_build_query`, configured
-with encoding type PHP_QUERY_RFC3986 (spaces as `%20`).
+It is intended to behave equivalent as PHP's `http_build_query`, configured with encoding type PHP_QUERY_RFC3986 (spaces as `%20`).
 
 _Usage_
 
 ```js
 const queryString = buildQueryString( {
-   simple: 'is ok',
-   arrays: [ 'are', 'fine', 'too' ],
-   objects: {
-      evenNested: {
-         ok: 'yes',
-      },
-   },
+	simple: 'is ok',
+	arrays: [ 'are', 'fine', 'too' ],
+	objects: {
+		evenNested: {
+			ok: 'yes',
+		},
+	},
 } );
 // "simple=is%20ok&arrays%5B0%5D=are&arrays%5B1%5D=fine&arrays%5B2%5D=too&objects%5BevenNested%5D%5Bok%5D=yes"
 ```
@@ -71,14 +68,9 @@ _Returns_
 
 Performs some basic cleanup of a string for use as a post slug.
 
-This replicates some of what `sanitize_title()` does in WordPress core, but
-is only designed to approximate what the slug will be.
+This replicates some of what `sanitize_title()` does in WordPress core, but is only designed to approximate what the slug will be.
 
-Converts Latin-1 Supplement and Latin Extended-A letters to basic Latin
-letters. Removes combining diacritical marks. Converts whitespace, periods,
-and forward slashes to hyphens. Removes any remaining non-word characters
-except hyphens. Converts remaining string to lowercase. It does not account
-for octets, HTML entities, or other encoded characters.
+Converts Latin-1 Supplement and Latin Extended-A letters to basic Latin letters. Removes combining diacritical marks. Converts whitespace, periods, and forward slashes to hyphens. Removes any remaining non-word characters except hyphens. Converts remaining string to lowercase. It does not account for octets, HTML entities, or other encoded characters.
 
 _Parameters_
 
@@ -95,8 +87,13 @@ Returns a URL for display.
 _Usage_
 
 ```js
-const displayUrl = filterURLForDisplay( 'https://www.wordpress.org/gutenberg/' ); // wordpress.org/gutenberg
-const imageUrl = filterURLForDisplay( 'https://www.wordpress.org/wp-content/uploads/img.png', 20 ); // …ent/uploads/img.png
+const displayUrl = filterURLForDisplay(
+	'https://www.wordpress.org/gutenberg/'
+); // wordpress.org/gutenberg
+const imageUrl = filterURLForDisplay(
+	'https://www.wordpress.org/wp-content/uploads/img.png',
+	20
+); // …ent/uploads/img.png
 ```
 
 _Parameters_
@@ -127,6 +124,25 @@ _Returns_
 
 -   `string|void`: The authority part of the URL.
 
+### getFilename
+
+Returns the filename part of the URL.
+
+_Usage_
+
+```js
+const filename1 = getFilename( 'http://localhost:8080/this/is/a/test.jpg' ); // 'test.jpg'
+const filename2 = getFilename( '/this/is/a/test.png' ); // 'test.png'
+```
+
+_Parameters_
+
+-   _url_ `string`: The full URL.
+
+_Returns_
+
+-   `string|void`: The filename part of the URL.
+
 ### getFragment
 
 Returns the fragment part of the URL.
@@ -134,8 +150,12 @@ Returns the fragment part of the URL.
 _Usage_
 
 ```js
-const fragment1 = getFragment( 'http://localhost:8080/this/is/a/test?query=true#fragment' ); // '#fragment'
-const fragment2 = getFragment( 'https://wordpress.org#another-fragment?query=true' ); // '#another-fragment'
+const fragment1 = getFragment(
+	'http://localhost:8080/this/is/a/test?query=true#fragment'
+); // '#fragment'
+const fragment2 = getFragment(
+	'https://wordpress.org#another-fragment?query=true'
+); // '#another-fragment'
 ```
 
 _Parameters_
@@ -172,8 +192,12 @@ Returns the path part and query string part of the URL.
 _Usage_
 
 ```js
-const pathAndQueryString1 = getPathAndQueryString( 'http://localhost:8080/this/is/a/test?query=true' ); // '/this/is/a/test?query=true'
-const pathAndQueryString2 = getPathAndQueryString( 'https://wordpress.org/help/faq/' ); // '/help/faq'
+const pathAndQueryString1 = getPathAndQueryString(
+	'http://localhost:8080/this/is/a/test?query=true'
+); // '/this/is/a/test?query=true'
+const pathAndQueryString2 = getPathAndQueryString(
+	'https://wordpress.org/help/faq/'
+); // '/help/faq'
 ```
 
 _Parameters_
@@ -224,8 +248,7 @@ _Returns_
 
 ### getQueryArgs
 
-Returns an object of query arguments of the given URL. If the given URL is
-invalid or has no querystring, an empty object is returned.
+Returns an object of query arguments of the given URL. If the given URL is invalid or has no querystring, an empty object is returned.
 
 _Usage_
 
@@ -249,7 +272,9 @@ Returns the query string part of the URL.
 _Usage_
 
 ```js
-const queryString = getQueryString( 'http://localhost:8080/this/is/a/test?query=true#fragment' ); // 'query=true'
+const queryString = getQueryString(
+	'http://localhost:8080/this/is/a/test?query=true#fragment'
+); // 'query=true'
 ```
 
 _Parameters_
@@ -296,6 +321,24 @@ _Parameters_
 _Returns_
 
 -   `boolean`: Whether or not it looks like an email.
+
+### isPhoneNumber
+
+Determines whether the given string looks like a phone number.
+
+_Usage_
+
+```js
+const isPhoneNumber = isPhoneNumber( '+1 (555) 123-4567' ); // true
+```
+
+_Parameters_
+
+-   _phoneNumber_ `string`: The string to scrutinize.
+
+_Returns_
+
+-   `boolean`: Whether or not it looks like a phone number.
 
 ### isURL
 
@@ -415,6 +458,18 @@ _Returns_
 
 -   `boolean`: True if the argument contains a valid query string.
 
+### normalizePath
+
+Given a path, returns a normalized path where equal query parameter values will be treated as identical, regardless of order they appear in the original text.
+
+_Parameters_
+
+-   _path_ `string`: Original path.
+
+_Returns_
+
+-   `string`: Normalized path.
+
 ### prependHTTP
 
 Prepends "http\://" to a url, if it looks like something that is meant to be a TLD.
@@ -433,6 +488,26 @@ _Returns_
 
 -   `string`: The updated URL.
 
+### prependHTTPS
+
+Prepends "https\://" to a url, if it looks like something that is meant to be a TLD.
+
+Note: this will not replace "http\://" with "<https://">.
+
+_Usage_
+
+```js
+const actualURL = prependHTTPS( 'wordpress.org' ); // https://wordpress.org
+```
+
+_Parameters_
+
+-   _url_ `string`: The URL to test.
+
+_Returns_
+
+-   `string`: The updated URL.
+
 ### removeQueryArgs
 
 Removes arguments from the query string of the url
@@ -440,7 +515,11 @@ Removes arguments from the query string of the url
 _Usage_
 
 ```js
-const newUrl = removeQueryArgs( 'https://wordpress.org?foo=bar&bar=baz&baz=foobar', 'foo', 'bar' ); // https://wordpress.org?baz=foobar
+const newUrl = removeQueryArgs(
+	'https://wordpress.org?foo=bar&bar=baz&baz=foobar',
+	'foo',
+	'bar'
+); // https://wordpress.org?baz=foobar
 ```
 
 _Parameters_
@@ -454,8 +533,7 @@ _Returns_
 
 ### safeDecodeURI
 
-Safely decodes a URI with `decodeURI`. Returns the URI unmodified if
-`decodeURI` throws an error.
+Safely decodes a URI with `decodeURI`. Returns the URI unmodified if `decodeURI` throws an error.
 
 _Usage_
 
@@ -473,8 +551,7 @@ _Returns_
 
 ### safeDecodeURIComponent
 
-Safely decodes a URI component with `decodeURIComponent`. Returns the URI component unmodified if
-`decodeURIComponent` throws an error.
+Safely decodes a URI component with `decodeURIComponent`. Returns the URI component unmodified if `decodeURIComponent` throws an error.
 
 _Parameters_
 
@@ -484,7 +561,12 @@ _Returns_
 
 -   `string`: Decoded URI component if possible.
 
-
 <!-- END TOKEN(Autogenerated API docs) -->
 
-<br/><br/><p align="center"><img src="https://s.w.org/style/images/codeispoetry.png?1" alt="Code is Poetry." /></p>
+## Contributing to this package
+
+This is an individual package that's part of the Gutenberg project. The project is organized as a monorepo. It's made up of multiple self-contained software packages, each with a specific purpose. The packages in this monorepo are published to [npm](https://www.npmjs.com/) and used by [WordPress](https://make.wordpress.org/core/) as well as other software projects.
+
+To find out more about contributing to this package or Gutenberg as a whole, please read the project's main [contributor guide](https://github.com/WordPress/gutenberg/tree/HEAD/CONTRIBUTING.md).
+
+<br /><br /><p align="center"><img src="https://s.w.org/style/images/codeispoetry.png?1" alt="Code is Poetry." /></p>

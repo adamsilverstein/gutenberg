@@ -9,13 +9,19 @@ import { store as coreStore } from '@wordpress/core-data';
  */
 import PostAuthorCombobox from './combobox';
 import PostAuthorSelect from './select';
+import { AUTHORS_QUERY } from './constants';
 
 const minimumUsersForCombobox = 25;
 
+/**
+ * Renders the component for selecting the post author.
+ *
+ * @return {React.ReactNode} The rendered component.
+ */
 function PostAuthor() {
 	const showCombobox = useSelect( ( select ) => {
-		// Not using `getUsers()` because it requires `list_users` capability.
-		const authors = select( coreStore ).getAuthors();
+		const authors = select( coreStore ).getUsers( AUTHORS_QUERY );
+
 		return authors?.length >= minimumUsersForCombobox;
 	}, [] );
 

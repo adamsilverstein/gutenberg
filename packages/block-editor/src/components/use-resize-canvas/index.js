@@ -4,22 +4,13 @@
 import { useEffect, useState } from '@wordpress/element';
 
 /**
- * Internal dependencies
- */
-import { default as useSimulatedMediaQuery } from '../../components/use-simulated-media-query';
-
-/**
  * Function to resize the editor window.
  *
- * @param {string}  deviceType                  Used for determining the size of the container (e.g. Desktop, Tablet, Mobile)
- * @param {boolean} __unstableDisableSimulation Whether to disable media query simulation.
+ * @param {string} deviceType Used for determining the size of the container (e.g. Desktop, Tablet, Mobile)
  *
  * @return {Object} Inline styles to be added to resizable container.
  */
-export default function useResizeCanvas(
-	deviceType,
-	__unstableDisableSimulation
-) {
+export default function useResizeCanvas( deviceType ) {
 	const [ actualWidth, updateActualWidth ] = useState( window.innerWidth );
 
 	useEffect( () => {
@@ -52,31 +43,32 @@ export default function useResizeCanvas(
 		return deviceWidth < actualWidth ? deviceWidth : actualWidth;
 	};
 
-	const marginValue = () => ( window.innerHeight < 800 ? 36 : 72 );
-
 	const contentInlineStyles = ( device ) => {
 		const height = device === 'Mobile' ? '768px' : '1024px';
+		const marginVertical = '40px';
+		const marginHorizontal = 'auto';
+
 		switch ( device ) {
 			case 'Tablet':
 			case 'Mobile':
 				return {
 					width: getCanvasWidth( device ),
-					margin: marginValue() + 'px auto',
+					// Keeping margin styles separate to avoid warnings
+					// when those props get overridden in the iframe component
+					marginTop: marginVertical,
+					marginBottom: marginVertical,
+					marginLeft: marginHorizontal,
+					marginRight: marginHorizontal,
 					height,
-					borderRadius: '2px 2px 2px 2px',
-					border: '1px solid #ddd',
-					overflowY: 'auto',
+					maxWidth: '100%',
 				};
 			default:
-				return null;
+				return {
+					marginLeft: marginHorizontal,
+					marginRight: marginHorizontal,
+				};
 		}
 	};
-
-	const width = __unstableDisableSimulation
-		? null
-		: getCanvasWidth( deviceType );
-
-	useSimulatedMediaQuery( 'resizable-editor-section', width );
 
 	return contentInlineStyles( deviceType );
 }

@@ -1,8 +1,7 @@
 /**
  * External dependencies
  */
-import classnames from 'classnames';
-import { isString } from 'lodash';
+import clsx from 'clsx';
 
 /**
  * WordPress dependencies
@@ -37,7 +36,7 @@ const ShortcutList = ( { shortcuts } ) => (
 				className="customize-widgets-keyboard-shortcut-help-modal__shortcut"
 				key={ index }
 			>
-				{ isString( shortcut ) ? (
+				{ typeof shortcut === 'string' ? (
 					<DynamicShortcut name={ shortcut } />
 				) : (
 					<Shortcut { ...shortcut } />
@@ -50,7 +49,7 @@ const ShortcutList = ( { shortcuts } ) => (
 
 const ShortcutSection = ( { title, shortcuts, className } ) => (
 	<section
-		className={ classnames(
+		className={ clsx(
 			'customize-widgets-keyboard-shortcut-help-modal__section',
 			className
 		) }
@@ -101,9 +100,7 @@ export default function KeyboardShortcutHelpModal( {
 		},
 	} );
 
-	useShortcut( 'core/customize-widgets/keyboard-shortcuts', toggleModal, {
-		bindGlobal: true,
-	} );
+	useShortcut( 'core/customize-widgets/keyboard-shortcuts', toggleModal );
 
 	if ( ! isModalActive ) {
 		return null;
@@ -113,7 +110,6 @@ export default function KeyboardShortcutHelpModal( {
 		<Modal
 			className="customize-widgets-keyboard-shortcut-help-modal"
 			title={ __( 'Keyboard shortcuts' ) }
-			closeLabel={ __( 'Close' ) }
 			onRequestClose={ toggleModal }
 		>
 			<ShortcutSection

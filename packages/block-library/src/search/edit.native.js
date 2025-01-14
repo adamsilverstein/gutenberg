@@ -2,7 +2,7 @@
  * External dependencies
  */
 import { View, AccessibilityInfo } from 'react-native';
-import classnames from 'classnames';
+import clsx from 'clsx';
 
 /**
  * WordPress dependencies
@@ -42,6 +42,36 @@ const BUTTON_OPTIONS = [
 	{ value: 'no-button', label: __( 'No button' ) },
 ];
 
+function useIsScreenReaderEnabled() {
+	const [ isScreenReaderEnabled, setIsScreenReaderEnabled ] =
+		useState( false );
+
+	useEffect( () => {
+		let mounted = true;
+
+		const changeListener = AccessibilityInfo.addEventListener(
+			'screenReaderChanged',
+			( enabled ) => setIsScreenReaderEnabled( enabled )
+		);
+
+		AccessibilityInfo.isScreenReaderEnabled().then(
+			( screenReaderEnabled ) => {
+				if ( mounted && screenReaderEnabled ) {
+					setIsScreenReaderEnabled( screenReaderEnabled );
+				}
+			}
+		);
+
+		return () => {
+			mounted = false;
+
+			changeListener.remove();
+		};
+	}, [] );
+
+	return isScreenReaderEnabled;
+}
+
 export default function SearchEdit( {
 	onFocus,
 	isSelected,
@@ -49,17 +79,15 @@ export default function SearchEdit( {
 	setAttributes,
 	className,
 	blockWidth,
+	style,
 } ) {
 	const [ isButtonSelected, setIsButtonSelected ] = useState( false );
 	const [ isLabelSelected, setIsLabelSelected ] = useState( false );
-	const [ isPlaceholderSelected, setIsPlaceholderSelected ] = useState(
-		false
-	);
+	const [ isPlaceholderSelected, setIsPlaceholderSelected ] =
+		useState( false );
 	const [ isLongButton, setIsLongButton ] = useState( false );
 	const [ buttonWidth, setButtonWidth ] = useState( MIN_BUTTON_WIDTH );
-	const [ isScreenReaderEnabled, setIsScreenReaderEnabled ] = useState(
-		false
-	);
+	const isScreenReaderEnabled = useIsScreenReaderEnabled();
 
 	const textInputRef = useRef( null );
 
@@ -71,34 +99,6 @@ export default function SearchEdit( {
 		placeholder,
 		buttonText,
 	} = attributes;
-
-	/*
-	 * Check if screenreader is enabled and save to state. This is important for
-	 * properly creating accessibilityLabel text.
-	 */
-	useEffect( () => {
-		AccessibilityInfo.addEventListener(
-			'screenReaderChanged',
-			handleScreenReaderToggled
-		);
-
-		AccessibilityInfo.isScreenReaderEnabled().then(
-			( screenReaderEnabled ) => {
-				setIsScreenReaderEnabled( screenReaderEnabled );
-			}
-		);
-
-		return () => {
-			AccessibilityInfo.removeEventListener(
-				'screenReaderChanged',
-				handleScreenReaderToggled
-			);
-		};
-	}, [] );
-
-	const handleScreenReaderToggled = ( screenReaderEnabled ) => {
-		setIsScreenReaderEnabled( screenReaderEnabled );
-	};
 
 	/*
 	 * Called when the value of isSelected changes. Blurs the PlainText component
@@ -133,7 +133,7 @@ export default function SearchEdit( {
 	};
 
 	const getBlockClassNames = () => {
-		return classnames(
+		return clsx(
 			className,
 			'button-inside' === buttonPosition
 				? 'wp-block-search__button-inside'
@@ -192,7 +192,7 @@ export default function SearchEdit( {
 						} );
 					} }
 					options={ BUTTON_OPTIONS }
-					hideCancelButton={ true }
+					hideCancelButton
 				/>
 				{ buttonPosition !== 'no-button' && (
 					<ToggleControl
@@ -222,12 +222,18 @@ export default function SearchEdit( {
 			styles.plainTextInput,
 			styles.plainTextInputDark
 		),
+		style?.baseColors?.color && { color: style?.baseColors?.color?.text },
 	];
 
-	const placeholderStyle = usePreferredColorSchemeStyle(
-		styles.plainTextPlaceholder,
-		styles.plainTextPlaceholderDark
-	);
+	const placeholderStyle = {
+		...usePreferredColorSchemeStyle(
+			styles.plainTextPlaceholder,
+			styles.plainTextPlaceholderDark
+		),
+		...( style?.baseColors?.color && {
+			color: style?.baseColors?.color?.text,
+		} ),
+	};
 
 	const searchBarStyle = [
 		styles.searchBarContainer,
@@ -288,7 +294,7 @@ export default function SearchEdit( {
 		return (
 			<View
 				style={ styles.searchInputContainer }
-				accessible={ true }
+				accessible
 				accessibilityRole="none"
 				accessibilityHint={
 					isScreenReaderEnabled
@@ -303,7 +309,7 @@ export default function SearchEdit( {
 					className="wp-block-search__input"
 					style={ inputStyle }
 					numberOfLines={ 1 }
-					ellipsizeMode="tail" // currently only works on ios
+					ellipsizeMode="tail" // Currently only works on ios.
 					label={ null }
 					value={ placeholder }
 					placeholder={
@@ -332,25 +338,52 @@ export default function SearchEdit( {
 			? ''
 			: __( 'Add button text' );
 
+	const baseButtonStyles = {
+		...style?.baseColors?.blocks?.[ 'core/button' ]?.color,
+		...attributes?.style?.color,
+		...( style?.color && { text: style.color } ),
+	};
+
+	const richTextButtonContainerStyle = [
+		styles.buttonContainer,
+		isLongButton && styles.buttonContainerWide,
+		baseButtonStyles?.background && {
+			backgroundColor: baseButtonStyles.background,
+			borderWidth: 0,
+		},
+		style?.backgroundColor && {
+			backgroundColor: style.backgroundColor,
+			borderWidth: 0,
+		},
+	];
+
+	const richTextButtonStyle = {
+		...styles.richTextButton,
+		...( baseButtonStyles?.text && {
+			color: baseButtonStyles.text,
+			placeholderColor: baseButtonStyles.text,
+		} ),
+	};
+
+	const iconStyles = {
+		...styles.icon,
+		...( baseButtonStyles?.text && { fill: baseButtonStyles.text } ),
+	};
+
 	const renderButton = () => {
 		return (
-			<View
-				style={ [
-					styles.buttonContainer,
-					isLongButton && styles.buttonContainerWide,
-				] }
-			>
+			<View style={ richTextButtonContainerStyle }>
 				{ buttonUseIcon && (
 					<Icon
 						icon={ search }
-						{ ...styles.icon }
+						{ ...iconStyles }
 						onLayout={ onLayoutButton }
 					/>
 				) }
 
 				{ ! buttonUseIcon && (
 					<View
-						accessible={ true }
+						accessible
 						accessibilityRole="none"
 						accessibilityHint={
 							isScreenReaderEnabled
@@ -362,9 +395,9 @@ export default function SearchEdit( {
 					>
 						<RichText
 							className="wp-block-search__button"
-							identifier="text"
+							identifier="buttonText"
 							tagName="p"
-							style={ styles.richTextButton }
+							style={ richTextButtonStyle }
 							placeholder={ buttonPlaceholderText }
 							value={ buttonText }
 							withoutInteractiveFormatting
@@ -405,7 +438,7 @@ export default function SearchEdit( {
 
 			{ showLabel && (
 				<View
-					accessible={ true }
+					accessible
 					accessibilityRole="none"
 					accessibilityHint={
 						isScreenReaderEnabled
@@ -416,7 +449,7 @@ export default function SearchEdit( {
 				>
 					<RichText
 						className="wp-block-search__label"
-						identifier="text"
+						identifier="label"
 						tagName="p"
 						style={ styles.richTextLabel }
 						placeholder={ __( 'Add label…' ) }

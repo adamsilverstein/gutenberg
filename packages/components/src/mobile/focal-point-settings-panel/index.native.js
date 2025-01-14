@@ -8,14 +8,15 @@ import { useRoute, useNavigation } from '@react-navigation/native';
  * WordPress dependencies
  */
 import { __ } from '@wordpress/i18n';
-import { memo, useContext, useState } from '@wordpress/element';
-import { BottomSheetContext, FocalPointPicker } from '@wordpress/components';
+import { memo, useContext, useState, useCallback } from '@wordpress/element';
 
 /**
  * Internal dependencies
  */
-import NavigationHeader from '../bottom-sheet/navigation-header';
+import NavBar from '../bottom-sheet/nav-bar';
 import styles from './styles.scss';
+import { BottomSheetContext } from '../bottom-sheet/bottom-sheet-context';
+import FocalPointPicker from '../../focal-point-picker';
 
 const FocalPointSettingsPanelMemo = memo(
 	( {
@@ -43,15 +44,20 @@ const FocalPointSettingsPanelMemo = memo(
 
 		return (
 			<SafeAreaView style={ styles.safearea }>
-				<NavigationHeader
-					screen={ __( 'Edit focal point' ) }
-					leftButtonOnPress={ () => onButtonPress( 'cancel' ) }
-					applyButtonOnPress={ () => onButtonPress( 'apply' ) }
-					isFullscreen
-				/>
+				<NavBar>
+					<NavBar.DismissButton
+						onPress={ () => onButtonPress( 'cancel' ) }
+					/>
+					<NavBar.Heading>
+						{ __( 'Edit focal point' ) }
+					</NavBar.Heading>
+					<NavBar.ApplyButton
+						onPress={ () => onButtonPress( 'apply' ) }
+					/>
+				</NavBar>
 				<FocalPointPicker
 					focalPoint={ draftFocalPoint }
-					onChange={ setPosition }
+					onChange={ useCallback( setPosition, [] ) }
 					shouldEnableBottomSheetScroll={
 						shouldEnableBottomSheetScroll
 					}

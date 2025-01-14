@@ -1,8 +1,7 @@
 /**
  * External dependencies
  */
-import { size } from 'lodash';
-import classnames from 'classnames';
+import clsx from 'clsx';
 
 /**
  * WordPress dependencies
@@ -31,20 +30,25 @@ const defaultRenderToggle = ( {
 	hasSingleBlockType,
 	toggleProps = {},
 } ) => {
-	let label;
-	if ( hasSingleBlockType ) {
+	const {
+		as: Wrapper = Button,
+		label: labelProp,
+		onClick,
+		...rest
+	} = toggleProps;
+
+	let label = labelProp;
+	if ( ! label && hasSingleBlockType ) {
 		label = sprintf(
 			// translators: %s: the name of the block when there is only one
 			_x( 'Add %s', 'directly add the only allowed block' ),
 			blockTitle
 		);
-	} else {
+	} else if ( ! label ) {
 		label = _x( 'Add block', 'Generic label for block inserter button' );
 	}
 
-	const { onClick, ...rest } = toggleProps;
-
-	// Handle both onClick functions from the toggle and the parent component
+	// Handle both onClick functions from the toggle and the parent component.
 	function handleClick( event ) {
 		if ( onToggle ) {
 			onToggle( event );
@@ -55,7 +59,8 @@ const defaultRenderToggle = ( {
 	}
 
 	return (
-		<Button
+		<Wrapper
+			__next40pxDefaultSize={ toggleProps.as ? undefined : true }
 			icon={ plus }
 			label={ label }
 			tooltipPosition="bottom"
@@ -81,7 +86,7 @@ class Inserter extends Component {
 	onToggle( isOpen ) {
 		const { onToggle } = this.props;
 
-		// Surface toggle callback to parent component
+		// Surface toggle callback to parent component.
 		if ( onToggle ) {
 			onToggle( isOpen );
 		}
@@ -95,13 +100,14 @@ class Inserter extends Component {
 	 *                                    pressed.
 	 * @param {boolean}  options.isOpen   Whether dropdown is currently open.
 	 *
-	 * @return {WPElement} Dropdown toggle element.
+	 * @return {Element} Dropdown toggle element.
 	 */
 	renderToggle( { onToggle, isOpen } ) {
 		const {
 			disabled,
 			blockTitle,
 			hasSingleBlockType,
+			directInsertBlock,
 			toggleProps,
 			hasItems,
 			renderToggle = defaultRenderToggle,
@@ -113,6 +119,7 @@ class Inserter extends Component {
 			disabled: disabled || ! hasItems,
 			blockTitle,
 			hasSingleBlockType,
+			directInsertBlock,
 			toggleProps,
 		} );
 	}
@@ -124,7 +131,7 @@ class Inserter extends Component {
 	 * @param {Function} options.onClose Callback to invoke when dropdown is
 	 *                                   closed.
 	 *
-	 * @return {WPElement} Dropdown content element.
+	 * @return {Element} Dropdown content element.
 	 */
 	renderContent( { onClose } ) {
 		const {
@@ -136,17 +143,30 @@ class Inserter extends Component {
 			// This prop is experimental to give some time for the quick inserter to mature
 			// Feel free to make them stable after a few releases.
 			__experimentalIsQuick: isQuick,
+			onSelectOrClose,
+			selectBlockOnInsert,
 		} = this.props;
 
 		if ( isQuick ) {
 			return (
 				<QuickInserter
-					onSelect={ () => {
+					onSelect={ ( blocks ) => {
+						const firstBlock =
+							Array.isArray( blocks ) && blocks?.length
+								? blocks[ 0 ]
+								: blocks;
+						if (
+							onSelectOrClose &&
+							typeof onSelectOrClose === 'function'
+						) {
+							onSelectOrClose( firstBlock );
+						}
 						onClose();
 					} }
 					rootClientId={ rootClientId }
 					clientId={ clientId }
 					isAppender={ isAppender }
+					selectBlockOnInsert={ selectBlockOnInsert }
 				/>
 			);
 		}
@@ -168,23 +188,23 @@ class Inserter extends Component {
 		const {
 			position,
 			hasSingleBlockType,
+			directInsertBlock,
 			insertOnlyAllowedBlock,
 			__experimentalIsQuick: isQuick,
 			onSelectOrClose,
 		} = this.props;
 
-		if ( hasSingleBlockType ) {
+		if ( hasSingleBlockType || directInsertBlock ) {
 			return this.renderToggle( { onToggle: insertOnlyAllowedBlock } );
 		}
 
 		return (
 			<Dropdown
 				className="block-editor-inserter"
-				contentClassName={ classnames(
-					'block-editor-inserter__popover',
-					{ 'is-quick': isQuick }
-				) }
-				position={ position }
+				contentClassName={ clsx( 'block-editor-inserter__popover', {
+					'is-quick': isQuick,
+				} ) }
+				popoverProps={ { position, shift: true } }
 				onToggle={ this.onToggle }
 				expandOnMobile
 				headerTitle={ __( 'Add a block' ) }
@@ -197,38 +217,45 @@ class Inserter extends Component {
 }
 
 export default compose( [
-	withSelect( ( select, { clientId, rootClientId } ) => {
-		const {
-			getBlockRootClientId,
-			hasInserterItems,
-			__experimentalGetAllowedBlocks,
-		} = select( blockEditorStore );
-		const { getBlockVariations } = select( blocksStore );
+	withSelect(
+		( select, { clientId, rootClientId, shouldDirectInsert = true } ) => {
+			const {
+				getBlockRootClientId,
+				hasInserterItems,
+				getAllowedBlocks,
+				getDirectInsertBlock,
+			} = select( blockEditorStore );
 
-		rootClientId =
-			rootClientId || getBlockRootClientId( clientId ) || undefined;
+			const { getBlockVariations } = select( blocksStore );
 
-		const allowedBlocks = __experimentalGetAllowedBlocks( rootClientId );
+			rootClientId =
+				rootClientId || getBlockRootClientId( clientId ) || undefined;
 
-		const hasSingleBlockType =
-			size( allowedBlocks ) === 1 &&
-			size(
+			const allowedBlocks = getAllowedBlocks( rootClientId );
+
+			const directInsertBlock =
+				shouldDirectInsert && getDirectInsertBlock( rootClientId );
+
+			const hasSingleBlockType =
+				allowedBlocks?.length === 1 &&
 				getBlockVariations( allowedBlocks[ 0 ].name, 'inserter' )
-			) === 0;
+					?.length === 0;
 
-		let allowedBlockType = false;
-		if ( hasSingleBlockType ) {
-			allowedBlockType = allowedBlocks[ 0 ];
+			let allowedBlockType = false;
+			if ( hasSingleBlockType ) {
+				allowedBlockType = allowedBlocks[ 0 ];
+			}
+
+			return {
+				hasItems: hasInserterItems( rootClientId ),
+				hasSingleBlockType,
+				blockTitle: allowedBlockType ? allowedBlockType.title : '',
+				allowedBlockType,
+				directInsertBlock,
+				rootClientId,
+			};
 		}
-
-		return {
-			hasItems: hasInserterItems( rootClientId ),
-			hasSingleBlockType,
-			blockTitle: allowedBlockType ? allowedBlockType.title : '',
-			allowedBlockType,
-			rootClientId,
-		};
-	} ),
+	),
 	withDispatch( ( dispatch, ownProps, { select } ) => {
 		return {
 			insertOnlyAllowedBlock() {
@@ -238,11 +265,70 @@ export default compose( [
 					isAppender,
 					hasSingleBlockType,
 					allowedBlockType,
+					directInsertBlock,
 					onSelectOrClose,
+					selectBlockOnInsert,
 				} = ownProps;
 
-				if ( ! hasSingleBlockType ) {
+				if ( ! hasSingleBlockType && ! directInsertBlock ) {
 					return;
+				}
+
+				function getAdjacentBlockAttributes( attributesToCopy ) {
+					const { getBlock, getPreviousBlockClientId } =
+						select( blockEditorStore );
+
+					if (
+						! attributesToCopy ||
+						( ! clientId && ! rootClientId )
+					) {
+						return {};
+					}
+
+					const result = {};
+					let adjacentAttributes = {};
+
+					// If there is no clientId, then attempt to get attributes
+					// from the last block within innerBlocks of the root block.
+					if ( ! clientId ) {
+						const parentBlock = getBlock( rootClientId );
+
+						if ( parentBlock?.innerBlocks?.length ) {
+							const lastInnerBlock =
+								parentBlock.innerBlocks[
+									parentBlock.innerBlocks.length - 1
+								];
+
+							if (
+								directInsertBlock &&
+								directInsertBlock?.name === lastInnerBlock.name
+							) {
+								adjacentAttributes = lastInnerBlock.attributes;
+							}
+						}
+					} else {
+						// Otherwise, attempt to get attributes from the
+						// previous block relative to the current clientId.
+						const currentBlock = getBlock( clientId );
+						const previousBlock = getBlock(
+							getPreviousBlockClientId( clientId )
+						);
+
+						if ( currentBlock?.name === previousBlock?.name ) {
+							adjacentAttributes =
+								previousBlock?.attributes || {};
+						}
+					}
+
+					// Copy over only those attributes flagged to be copied.
+					attributesToCopy.forEach( ( attribute ) => {
+						if ( adjacentAttributes.hasOwnProperty( attribute ) ) {
+							result[ attribute ] =
+								adjacentAttributes[ attribute ];
+						}
+					} );
+
+					return result;
 				}
 
 				function getInsertionIndex() {
@@ -255,7 +341,7 @@ export default compose( [
 
 					// If the clientId is defined, we insert at the position of the block.
 					if ( clientId ) {
-						return getBlockIndex( clientId, rootClientId );
+						return getBlockIndex( clientId );
 					}
 
 					// If there a selected block, we insert after the selected block.
@@ -265,21 +351,44 @@ export default compose( [
 						end &&
 						getBlockRootClientId( end ) === rootClientId
 					) {
-						return getBlockIndex( end, rootClientId ) + 1;
+						return getBlockIndex( end ) + 1;
 					}
 
-					// Otherwise, we insert at the end of the current rootClientId
+					// Otherwise, we insert at the end of the current rootClientId.
 					return getBlockOrder( rootClientId ).length;
 				}
 
 				const { insertBlock } = dispatch( blockEditorStore );
 
-				const blockToInsert = createBlock( allowedBlockType.name );
+				let blockToInsert;
 
-				insertBlock( blockToInsert, getInsertionIndex(), rootClientId );
+				// Attempt to augment the directInsertBlock with attributes from an adjacent block.
+				// This ensures styling from nearby blocks is preserved in the newly inserted block.
+				// See: https://github.com/WordPress/gutenberg/issues/37904
+				if ( directInsertBlock ) {
+					const newAttributes = getAdjacentBlockAttributes(
+						directInsertBlock.attributesToCopy
+					);
+
+					blockToInsert = createBlock( directInsertBlock.name, {
+						...( directInsertBlock.attributes || {} ),
+						...newAttributes,
+					} );
+				} else {
+					blockToInsert = createBlock( allowedBlockType.name );
+				}
+
+				insertBlock(
+					blockToInsert,
+					getInsertionIndex(),
+					rootClientId,
+					selectBlockOnInsert
+				);
 
 				if ( onSelectOrClose ) {
-					onSelectOrClose();
+					onSelectOrClose( {
+						clientId: blockToInsert?.clientId,
+					} );
 				}
 
 				const message = sprintf(

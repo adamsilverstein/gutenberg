@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { isEqual } from 'lodash';
+import fastDeepEqual from 'fast-deep-equal/es6';
 
 /**
  * WordPress dependencies
@@ -14,12 +14,35 @@ import { addQueryArgs } from '@wordpress/url';
 import { Placeholder, Spinner } from '@wordpress/components';
 import { __experimentalSanitizeBlockAttributes } from '@wordpress/blocks';
 
+const EMPTY_OBJECT = {};
+
 export function rendererPath( block, attributes = null, urlQueryArgs = {} ) {
 	return addQueryArgs( `/wp/v2/block-renderer/${ block }`, {
 		context: 'edit',
 		...( null !== attributes ? { attributes } : {} ),
 		...urlQueryArgs,
 	} );
+}
+
+export function removeBlockSupportAttributes( attributes ) {
+	const {
+		backgroundColor,
+		borderColor,
+		fontFamily,
+		fontSize,
+		gradient,
+		textColor,
+		className,
+		...restAttributes
+	} = attributes;
+
+	const { border, color, elements, spacing, typography, ...restStyles } =
+		attributes?.style || EMPTY_OBJECT;
+
+	return {
+		...restAttributes,
+		style: restStyles,
+	};
 }
 
 function DefaultEmptyResponsePlaceholder( { className } ) {
@@ -39,11 +62,26 @@ function DefaultErrorResponsePlaceholder( { response, className } ) {
 	return <Placeholder className={ className }>{ errorMessage }</Placeholder>;
 }
 
-function DefaultLoadingResponsePlaceholder( { className } ) {
+function DefaultLoadingResponsePlaceholder( { children, showLoader } ) {
 	return (
-		<Placeholder className={ className }>
-			<Spinner />
-		</Placeholder>
+		<div style={ { position: 'relative' } }>
+			{ showLoader && (
+				<div
+					style={ {
+						position: 'absolute',
+						top: '50%',
+						left: '50%',
+						marginTop: '-9px',
+						marginLeft: '-9px',
+					} }
+				>
+					<Spinner />
+				</div>
+			) }
+			<div style={ { opacity: showLoader ? '0.3' : 1 } }>
+				{ children }
+			</div>
+		</div>
 	);
 }
 
@@ -54,27 +92,39 @@ export default function ServerSideRender( props ) {
 		className,
 		httpMethod = 'GET',
 		urlQueryArgs,
+		skipBlockSupportAttributes = false,
 		EmptyResponsePlaceholder = DefaultEmptyResponsePlaceholder,
 		ErrorResponsePlaceholder = DefaultErrorResponsePlaceholder,
 		LoadingResponsePlaceholder = DefaultLoadingResponsePlaceholder,
 	} = props;
 
-	const isMountedRef = useRef( true );
+	const isMountedRef = useRef( false );
+	const [ showLoader, setShowLoader ] = useState( false );
 	const fetchRequestRef = useRef();
 	const [ response, setResponse ] = useState( null );
 	const prevProps = usePrevious( props );
+	const [ isLoading, setIsLoading ] = useState( false );
 
 	function fetchData() {
 		if ( ! isMountedRef.current ) {
 			return;
 		}
-		if ( null !== response ) {
-			setResponse( null );
-		}
 
-		const sanitizedAttributes =
+		setIsLoading( true );
+
+		// Schedule showing the Spinner after 1 second.
+		const timeout = setTimeout( () => {
+			setShowLoader( true );
+		}, 1000 );
+
+		let sanitizedAttributes =
 			attributes &&
 			__experimentalSanitizeBlockAttributes( block, attributes );
+
+		if ( skipBlockSupportAttributes ) {
+			sanitizedAttributes =
+				removeBlockSupportAttributes( sanitizedAttributes );
+		}
 
 		// If httpMethod is 'POST', send the attributes in the request body instead of the URL.
 		// This allows sending a larger attributes object than in a GET request, where the attributes are in the URL.
@@ -113,6 +163,17 @@ export default function ServerSideRender( props ) {
 						errorMsg: error.message,
 					} );
 				}
+			} )
+			.finally( () => {
+				if (
+					isMountedRef.current &&
+					fetchRequest === fetchRequestRef.current
+				) {
+					setIsLoading( false );
+					// Cancel the timeout to show the Spinner.
+					setShowLoader( false );
+					clearTimeout( timeout );
+				}
 			} ) );
 
 		return fetchRequest;
@@ -122,28 +183,42 @@ export default function ServerSideRender( props ) {
 
 	// When the component unmounts, set isMountedRef to false. This will
 	// let the async fetch callbacks know when to stop.
-	useEffect(
-		() => () => {
+	useEffect( () => {
+		isMountedRef.current = true;
+		return () => {
 			isMountedRef.current = false;
-		},
-		[]
-	);
+		};
+	}, [] );
 
 	useEffect( () => {
 		// Don't debounce the first fetch. This ensures that the first render
-		// shows data as soon as possible
+		// shows data as soon as possible.
 		if ( prevProps === undefined ) {
 			fetchData();
-		} else if ( ! isEqual( prevProps, props ) ) {
+		} else if ( ! fastDeepEqual( prevProps, props ) ) {
 			debouncedFetchData();
 		}
 	} );
 
-	if ( response === '' ) {
+	const hasResponse = !! response;
+	const hasEmptyResponse = response === '';
+	const hasError = response?.error;
+
+	if ( isLoading ) {
+		return (
+			<LoadingResponsePlaceholder { ...props } showLoader={ showLoader }>
+				{ hasResponse && (
+					<RawHTML className={ className }>{ response }</RawHTML>
+				) }
+			</LoadingResponsePlaceholder>
+		);
+	}
+
+	if ( hasEmptyResponse || ! hasResponse ) {
 		return <EmptyResponsePlaceholder { ...props } />;
-	} else if ( ! response ) {
-		return <LoadingResponsePlaceholder { ...props } />;
-	} else if ( response.error ) {
+	}
+
+	if ( hasError ) {
 		return <ErrorResponsePlaceholder response={ response } { ...props } />;
 	}
 

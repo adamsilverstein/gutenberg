@@ -1,91 +1,57 @@
 /**
  * External dependencies
  */
-import classnames from 'classnames';
+import clsx from 'clsx';
 
 /**
  * WordPress dependencies
  */
-import {
-	BlockControls,
-	useBlockProps,
-	__experimentalUseInnerBlocksProps as useInnerBlocksProps,
-	JustifyContentControl,
-	store as blockEditorStore,
-} from '@wordpress/block-editor';
+import { useBlockProps, useInnerBlocksProps } from '@wordpress/block-editor';
 import { useSelect } from '@wordpress/data';
+import { store as blocksStore } from '@wordpress/blocks';
 
-/**
- * Internal dependencies
- */
-import { name as buttonBlockName } from '../button';
-
-const ALLOWED_BLOCKS = [ buttonBlockName ];
-const LAYOUT = {
-	type: 'default',
-	alignments: [],
+const DEFAULT_BLOCK = {
+	name: 'core/button',
+	attributesToCopy: [
+		'backgroundColor',
+		'border',
+		'className',
+		'fontFamily',
+		'fontSize',
+		'gradient',
+		'style',
+		'textColor',
+		'width',
+	],
 };
-const VERTICAL_JUSTIFY_CONTROLS = [ 'left', 'center', 'right' ];
-const HORIZONTAL_JUSTIFY_CONTROLS = [
-	'left',
-	'center',
-	'right',
-	'space-between',
-];
 
-function ButtonsEdit( {
-	attributes: { contentJustification, orientation },
-	setAttributes,
-} ) {
+function ButtonsEdit( { attributes, className } ) {
+	const { fontSize, layout, style } = attributes;
 	const blockProps = useBlockProps( {
-		className: classnames( {
-			[ `is-content-justification-${ contentJustification }` ]: contentJustification,
-			'is-vertical': orientation === 'vertical',
+		className: clsx( className, {
+			'has-custom-font-size': fontSize || style?.typography?.fontSize,
 		} ),
 	} );
-	const preferredStyle = useSelect( ( select ) => {
-		const preferredStyleVariations = select(
-			blockEditorStore
-		).getSettings().__experimentalPreferredStyleVariations;
-		return preferredStyleVariations?.value?.[ buttonBlockName ];
+	const { hasButtonVariations } = useSelect( ( select ) => {
+		const buttonVariations = select( blocksStore ).getBlockVariations(
+			'core/button',
+			'inserter'
+		);
+		return {
+			hasButtonVariations: buttonVariations.length > 0,
+		};
 	}, [] );
 
 	const innerBlocksProps = useInnerBlocksProps( blockProps, {
-		allowedBlocks: ALLOWED_BLOCKS,
-		template: [
-			[
-				buttonBlockName,
-				{ className: preferredStyle && `is-style-${ preferredStyle }` },
-			],
-		],
-		orientation,
-		__experimentalLayout: LAYOUT,
+		defaultBlock: DEFAULT_BLOCK,
+		// This check should be handled by the `Inserter` internally to be consistent across all blocks that use it.
+		directInsert: ! hasButtonVariations,
+		template: [ [ 'core/button' ] ],
 		templateInsertUpdatesSelection: true,
+		orientation: layout?.orientation ?? 'horizontal',
 	} );
 
-	const justifyControls =
-		orientation === 'vertical'
-			? VERTICAL_JUSTIFY_CONTROLS
-			: HORIZONTAL_JUSTIFY_CONTROLS;
-
-	return (
-		<>
-			<BlockControls group="block">
-				<JustifyContentControl
-					allowedControls={ justifyControls }
-					value={ contentJustification }
-					onChange={ ( value ) =>
-						setAttributes( { contentJustification: value } )
-					}
-					popoverProps={ {
-						position: 'bottom right',
-						isAlternate: true,
-					} }
-				/>
-			</BlockControls>
-			<div { ...innerBlocksProps } />
-		</>
-	);
+	return <div { ...innerBlocksProps } />;
 }
 
 export default ButtonsEdit;

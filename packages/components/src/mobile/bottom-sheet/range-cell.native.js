@@ -15,6 +15,7 @@ import { withPreferredColorScheme } from '@wordpress/compose';
  * Internal dependencies
  */
 import Cell from './cell';
+import LockIcon from './lock-icon';
 import styles from './range-cell.scss';
 import RangeTextInput from './range-text-input';
 import { toFixed } from '../utils';
@@ -25,6 +26,7 @@ class BottomSheetRangeCell extends Component {
 	constructor( props ) {
 		super( props );
 		this.onSliderChange = this.onSliderChange.bind( this );
+		this.onCompleteSliderChange = this.onCompleteSliderChange.bind( this );
 		this.onTextInputChange = this.onTextInputChange.bind( this );
 		this.a11yIncrementValue = this.a11yIncrementValue.bind( this );
 		this.a11yDecrementValue = this.a11yDecrementValue.bind( this );
@@ -56,6 +58,14 @@ class BottomSheetRangeCell extends Component {
 			sliderValue: nextValue,
 		} );
 		onChange( nextValue );
+		if ( onComplete ) {
+			onComplete( nextValue );
+		}
+	}
+
+	onCompleteSliderChange( nextValue ) {
+		const { decimalNum, onComplete } = this.props;
+		nextValue = toFixed( nextValue, decimalNum );
 		if ( onComplete ) {
 			onComplete( nextValue );
 		}
@@ -138,7 +148,6 @@ class BottomSheetRangeCell extends Component {
 			thumbTintColor = ! isIOS && '#00669b',
 			preview,
 			cellContainerStyle,
-			onComplete,
 			shouldDisplayTextInput = true,
 			unitLabel = '',
 			settingLabel = 'Value',
@@ -156,7 +165,7 @@ class BottomSheetRangeCell extends Component {
 
 		const getAccessibilityLabel = () => {
 			return sprintf(
-				/* translators: accessibility text. Inform about current value. %1$s: Control label %2$s: setting label (example: width), %3$s: Current value. %4$s: value measurement unit (example: pixels) */
+				/* translators: accessibility text. Inform about current value. 1: Control label. 2: setting label (example: width). 3: Current value. 4: value measurement unit (example: pixels) */
 				__( '%1$s. %2$s is %3$s %4$s.' ),
 				cellProps.label,
 				settingLabel,
@@ -172,7 +181,7 @@ class BottomSheetRangeCell extends Component {
 
 		return (
 			<View
-				accessible={ true }
+				accessible
 				accessibilityRole="adjustable"
 				accessibilityActions={ [
 					{ name: 'increment' },
@@ -210,6 +219,8 @@ class BottomSheetRangeCell extends Component {
 						activeOpacity={ 1 }
 						accessible={ false }
 						valueStyle={ styles.valueStyle }
+						disabled={ disabled }
+						showLockIcon={ false }
 					>
 						<View style={ containerStyle }>
 							{ preview }
@@ -217,7 +228,7 @@ class BottomSheetRangeCell extends Component {
 								testID={ `Slider ${ cellProps.label }` }
 								value={ sliderValue }
 								defaultValue={ defaultValue }
-								disabled={ disabled }
+								disabled={ disabled && ! isIOS }
 								step={ step }
 								minimumValue={ minimumValue }
 								maximumValue={ maximumValue }
@@ -225,7 +236,9 @@ class BottomSheetRangeCell extends Component {
 								maximumTrackTintColor={ maximumTrackTintColor }
 								thumbTintColor={ thumbTintColor }
 								onValueChange={ this.onSliderChange }
-								onSlidingComplete={ onComplete }
+								onSlidingComplete={
+									this.onCompleteSliderChange
+								}
 								ref={ ( slider ) => {
 									this.sliderRef = slider;
 								} }
@@ -249,6 +262,7 @@ class BottomSheetRangeCell extends Component {
 									{ children }
 								</RangeTextInput>
 							) }
+							{ disabled && <LockIcon /> }
 						</View>
 					</Cell>
 				</View>

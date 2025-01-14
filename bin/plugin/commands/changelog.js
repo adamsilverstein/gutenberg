@@ -1,7 +1,6 @@
 /**
  * External dependencies
  */
-const { groupBy, escapeRegExp, uniq } = require( 'lodash' );
 const Octokit = require( '@octokit/rest' );
 const { sprintf } = require( 'sprintf-js' );
 const semver = require( 'semver' );
@@ -18,6 +17,8 @@ const { log, formats } = require( '../lib/logger' );
 const config = require( '../config' );
 // @ts-ignore
 const manifest = require( '../../../package.json' );
+
+const UNKNOWN_FEATURE_FALLBACK_NAME = 'Uncategorized';
 
 /** @typedef {import('@octokit/rest')} GitHub */
 /** @typedef {import('@octokit/rest').IssuesListForRepoResponseItem} IssuesListForRepoResponseItem */
@@ -60,15 +61,7 @@ const manifest = require( '../../../package.json' );
  * @type {Record<string,string>}
  */
 const LABEL_TYPE_MAPPING = {
-	'[Block] Navigation': 'Experiments',
-	'[Block] Post Comments Count': 'Experiments',
-	'[Block] Post Comments Form': 'Experiments',
-	'[Block] Post Comments': 'Experiments',
-	'[Block] Post Hierarchical Terms': 'Experiments',
-	'[Feature] Full Site Editing': 'Experiments',
-	'Global Styles': 'Experiments',
-	'[Feature] Navigation Screen': 'Experiments',
-	'[Package] Dependency Extraction Webpack Plugin': 'Tools',
+	'[Type] Developer Documentation': 'Documentation',
 	'[Package] Jest Puppeteer aXe': 'Tools',
 	'[Package] E2E Tests': 'Tools',
 	'[Package] E2E Test Utils': 'Tools',
@@ -79,17 +72,73 @@ const LABEL_TYPE_MAPPING = {
 	'[Type] Project Management': 'Tools',
 	'[Package] Scripts': 'Tools',
 	'[Type] Build Tooling': 'Tools',
-	'Automated Testing': 'Tools',
+	'[Type] Automated Testing': 'Tools',
+	'[Package] Dependency Extraction Webpack Plugin': 'Tools',
+	'[Type] Code Quality': 'Code Quality',
+	'[Focus] Accessibility (a11y)': 'Accessibility',
+	'[Type] Performance': 'Performance',
+	'[Type] Security': 'Security',
+	'[Feature] Navigation Screen': 'Experiments',
 	'[Type] Experimental': 'Experiments',
 	'[Type] Bug': 'Bug Fixes',
 	'[Type] Regression': 'Bug Fixes',
-	'[Type] Feature': 'Features',
 	'[Type] Enhancement': 'Enhancements',
 	'[Type] New API': 'New APIs',
-	'[Type] Performance': 'Performance',
-	'[Type] Documentation': 'Documentation',
-	'[Type] Code Quality': 'Code Quality',
-	'[Type] Security': 'Security',
+	'[Type] Feature': 'Features',
+};
+
+/**
+ * Mapping of label names to arbitrary features in the release notes.
+ *
+ * Mapping a given label to a feature will guarantee it will be categorised
+ * under that feature name in the changelog within each section.
+ *
+ * @type {Record<string,string>}
+ */
+const LABEL_FEATURE_MAPPING = {
+	'[Feature] Widgets Screen': 'Widgets Editor',
+	'[Feature] Widgets Customizer': 'Widgets Editor',
+	'[Feature] Design Tools': 'Design Tools',
+	'[Feature] UI Components': 'Components',
+	'[Feature] Component System': 'Components',
+	Storybook: 'Components',
+	'[Feature] Template Editing Mode': 'Template Editor',
+	'[Feature] Writing Flow': 'Block Editor',
+	'[Feature] Pattern Directory': 'Patterns',
+	'[Feature] Patterns': 'Patterns',
+	'[Feature] Blocks': 'Block Library',
+	'[Feature] Inserter': 'Block Editor',
+	'[Feature] Interactivity API': 'Interactivity API',
+	'[Feature] Drag and Drop': 'Block Editor',
+	'[Feature] Block Multi Selection': 'Block Editor',
+	'[Feature] Link Editing': 'Block Editor',
+	'[Feature] Raw Handling': 'Block Editor',
+	'[Package] Edit Post': 'Post Editor',
+	'[Package] Icons': 'Icons',
+	'[Package] Block editor': 'Block Editor',
+	'[Package] Block library': 'Block Library',
+	'[Package] Editor': 'Post Editor',
+	'[Package] Edit Site': 'Site Editor',
+	'[Package] Edit Widgets': 'Widgets Editor',
+	'[Package] Widgets Customizer': 'Widgets Editor',
+	'[Package] Components': 'Components',
+	'[Package] Block Library': 'Block Library',
+	'[Package] Rich text': 'Block Editor',
+	'[Package] Data': 'Data Layer',
+	'[Package] Commands': 'Commands',
+	'[Block] Legacy Widget': 'Widgets Editor',
+	'REST API Interaction': 'REST API',
+	'New Block': 'Block Library',
+	'[Package] E2E Tests': 'Testing',
+	'[Package] E2E Test Utils': 'Testing',
+	'[Type] Automated Testing': 'Testing',
+	'CSS Styling': 'CSS & Styling',
+	'developer-docs': 'Documentation',
+	'[Type] Developer Documentation': 'Documentation',
+	'Global Styles': 'Global Styles',
+	'[Type] Build Tooling': 'Build Tooling',
+	'npm Packages': 'npm Packages',
+	'Gutenberg Plugin': 'Plugin',
 };
 
 /**
@@ -103,6 +152,7 @@ const GROUP_TITLE_ORDER = [
 	'Enhancements',
 	'New APIs',
 	'Bug Fixes',
+	`Accessibility`,
 	'Performance',
 	'Experiments',
 	'Documentation',
@@ -135,6 +185,32 @@ const REWORD_TERMS = {
 };
 
 /**
+ * Creates a pipe function. Performs left-to-right function composition, where
+ * each successive invocation is supplied the return value of the previous.
+ *
+ * @param {Function[]} functions Functions to pipe.
+ */
+function pipe( functions ) {
+	return ( /** @type {unknown[]} */ ...args ) => {
+		return functions.reduce(
+			( prev, func ) => [ func( ...prev ) ],
+			args
+		)[ 0 ];
+	};
+}
+
+/**
+ * Escapes the RegExp special characters.
+ *
+ * @param {string} string Input string.
+ *
+ * @return {string} Regex-escaped string.
+ */
+function escapeRegExp( string ) {
+	return string.replace( /[\\^$.*+?()[\]{}|]/g, '\\$&' );
+}
+
+/**
  * Returns candidates based on whether the given labels
  * are part of the allowed list.
  *
@@ -143,13 +219,76 @@ const REWORD_TERMS = {
  * @return {string[]} Type candidates.
  */
 function getTypesByLabels( labels ) {
-	return uniq(
-		labels
-			.filter( ( label ) =>
-				Object.keys( LABEL_TYPE_MAPPING ).includes( label )
-			)
-			.map( ( label ) => LABEL_TYPE_MAPPING[ label ] )
-	);
+	return [
+		...new Set(
+			labels
+				.filter( ( label ) =>
+					Object.keys( LABEL_TYPE_MAPPING )
+						.map( ( currentLabel ) => currentLabel.toLowerCase() )
+						.includes( label.toLowerCase() )
+				)
+				.map( ( label ) => {
+					const lowerCaseLabel =
+						Object.keys( LABEL_TYPE_MAPPING ).find(
+							( key ) => key.toLowerCase() === label.toLowerCase()
+						) || label;
+
+					return LABEL_TYPE_MAPPING[ lowerCaseLabel ];
+				} )
+		),
+	];
+}
+
+/**
+ * Returns candidates by retrieving the appropriate mapping
+ * from the label -> feature lookup.
+ *
+ * @param {string[]} labels Label names.
+ *
+ * @return {string[]} Feature candidates.
+ */
+function mapLabelsToFeatures( labels ) {
+	return [
+		...new Set(
+			labels
+				.filter( ( label ) =>
+					Object.keys( LABEL_FEATURE_MAPPING )
+						.map( ( currentLabel ) => currentLabel.toLowerCase() )
+						.includes( label.toLowerCase() )
+				)
+				.map( ( label ) => {
+					const lowerCaseLabel =
+						Object.keys( LABEL_FEATURE_MAPPING ).find(
+							( key ) => key.toLowerCase() === label.toLowerCase()
+						) || label;
+
+					return LABEL_FEATURE_MAPPING[ lowerCaseLabel ];
+				} )
+		),
+	];
+}
+
+/**
+ * Returns whether not the given labels contain the block specific
+ * label "block library".
+ *
+ * @param {string[]} labels Label names.
+ *
+ * @return {boolean} whether or not the issue's is labeled as block specific
+ */
+function getIsBlockSpecificIssue( labels ) {
+	return !! labels.find( ( label ) => label.startsWith( '[Block] ' ) );
+}
+
+/**
+ * Returns the first feature specific label from the given labels.
+ *
+ * @param {string[]} labels Label names.
+ *
+ * @return {string|undefined} the feature specific label.
+ */
+function getFeatureSpecificLabels( labels ) {
+	return labels.find( ( label ) => label.startsWith( '[Feature] ' ) );
 }
 
 /**
@@ -180,12 +319,68 @@ function getTypesByTitle( title ) {
  */
 function getIssueType( issue ) {
 	const labels = issue.labels.map( ( { name } ) => name );
+
 	const candidates = [
 		...getTypesByLabels( labels ),
 		...getTypesByTitle( issue.title ),
 	];
 
 	return candidates.length ? candidates.sort( sortType )[ 0 ] : 'Various';
+}
+
+/**
+ * Returns the most appropriate feature category for the given issue based
+ * on a basic heuristic.
+ *
+ * @param {IssuesListForRepoResponseItem} issue Issue object.
+ *
+ * @return {string} the feature name.
+ */
+function getIssueFeature( issue ) {
+	const labels = issue.labels.map( ( { name } ) => name );
+
+	const featureCandidates = mapLabelsToFeatures( labels );
+
+	// 1. Prefer explicit mapping of label to feature.
+	if ( featureCandidates.length ) {
+		// Get occurrences of the feature labels.
+		const featureCounts = featureCandidates.reduce(
+			/**
+			 * @param {Record<string,number>} acc     Accumulator
+			 * @param {string}                feature Feature label
+			 */
+			( acc, feature ) => ( {
+				...acc,
+				[ feature ]: ( acc[ feature ] || 0 ) + 1,
+			} ),
+			{}
+		);
+
+		// Check which matching label occurs most often.
+		const rankedFeatures = Object.keys( featureCounts ).sort(
+			( a, b ) => featureCounts[ b ] - featureCounts[ a ]
+		);
+
+		// Return the one that appeared most often.
+		return rankedFeatures[ 0 ];
+	}
+
+	// 2. `[Feature]` labels.
+	const featureSpecificLabel = getFeatureSpecificLabels( labels );
+
+	if ( featureSpecificLabel ) {
+		return removeFeaturePrefix( featureSpecificLabel );
+	}
+
+	// 3. Block specific labels.
+	const blockSpecificLabels = getIsBlockSpecificIssue( labels );
+
+	if ( blockSpecificLabels ) {
+		return 'Block Library';
+	}
+
+	// Fallback - if we couldn't find a good match.
+	return UNKNOWN_FEATURE_FALLBACK_NAME;
 }
 
 /**
@@ -198,7 +393,7 @@ function getIssueType( issue ) {
  */
 function sortType( a, b ) {
 	const [ aIndex, bIndex ] = [ a, b ].map( ( title ) => {
-		return Object.keys( LABEL_TYPE_MAPPING ).indexOf( title );
+		return Object.values( LABEL_TYPE_MAPPING ).indexOf( title );
 	} );
 
 	return aIndex - bIndex;
@@ -300,6 +495,21 @@ const createOmitByLabel = ( labels ) => ( text, issue ) =>
 		: text;
 
 /**
+ * Higher-order function which returns a normalization function to omit by issue
+ * label starting with any of the given prefixes
+ *
+ * @param {string[]} prefixes Label prefixes from which to determine if given entry
+ *                            should be omitted.
+ *
+ * @return {WPChangelogNormalization} Normalization function.
+ */
+const createOmitByLabelPrefix = ( prefixes ) => ( text, issue ) =>
+	issue.labels.some( ( label ) =>
+		prefixes.some( ( prefix ) => label.name.startsWith( prefix ) )
+	)
+		? undefined
+		: text;
+/**
  * Given an issue title and issue, returns the title with redundant grouping
  * type details removed. The prefix is redundant since it would already be clear
  * enough by group assignment that the prefix would be inferred.
@@ -326,13 +536,24 @@ function removeRedundantTypePrefix( title, issue ) {
 }
 
 /**
+ * Removes any `[Feature] ` prefix from a given string.
+ *
+ * @param {string} text The string of text potentially containing a prefix.
+ *
+ * @return {string} the text without the prefix.
+ */
+function removeFeaturePrefix( text ) {
+	return text.replace( '[Feature] ', '' );
+}
+
+/**
  * Array of normalizations applying to title, each returning a new string, or
  * undefined to indicate an entry which should be omitted.
  *
  * @type {Array<WPChangelogNormalization>}
  */
 const TITLE_NORMALIZATIONS = [
-	createOmitByLabel( [ 'Mobile App Android/iOS' ] ),
+	createOmitByLabelPrefix( [ 'Mobile App' ] ),
 	createOmitByTitlePrefix( [ '[rnmobile]', '[mobile]', 'Mobile Release' ] ),
 	removeRedundantTypePrefix,
 	reword,
@@ -363,7 +584,7 @@ function getNormalizedTitle( title, issue ) {
 }
 
 /**
- * Returns a formatted changelog entry for a given issue object, or undefined
+ * Returns a formatted changelog list item entry for a given issue object, or undefined
  * if entry should be omitted.
  *
  * @param {IssuesListForRepoResponseItem} issue Issue object.
@@ -375,7 +596,46 @@ function getEntry( issue ) {
 
 	return title === undefined
 		? title
-		: `- ${ title } ([${ issue.number }](${ issue.html_url }))`;
+		: '- ' +
+				getFormattedItemDescription(
+					title,
+					issue.number,
+					issue.html_url
+				);
+}
+
+/**
+ * Builds a formatted string of the Issue/PR title with a link
+ * to the GitHub URL for that item.
+ *
+ * @param {string} title  the title of the Issue/PR.
+ * @param {number} number the ID/number of the Issue/PR.
+ * @param {string} url    the URL of the GitHub Issue/PR.
+ * @return {string} the formatted item
+ */
+function getFormattedItemDescription( title, number, url ) {
+	return `${ title } ([${ number }](${ url }))`;
+}
+
+/**
+ * Returns a formatted changelog entry for a given issue object and matching feature name, or undefined
+ * if entry should be omitted.
+ *
+ * @param {IssuesListForRepoResponseItem} issue       Issue object.
+ * @param {string}                        featureName Feature name.
+ *
+ * @return {string=} Formatted changelog entry, or undefined to omit.
+ */
+function getFeatureEntry( issue, featureName ) {
+	return getEntry( issue )
+		?.replace(
+			new RegExp( `\\[${ featureName.toLowerCase() } \- `, 'i' ),
+			'['
+		)
+		.replace(
+			new RegExp( `(?<=^- )${ featureName.toLowerCase() }: `, 'i' ),
+			''
+		);
 }
 
 /**
@@ -446,6 +706,7 @@ async function fetchAllPullRequests( octokit, settings ) {
 		: undefined;
 
 	const { number } = milestone;
+
 	const issues = await getIssuesByMilestone(
 		octokit,
 		owner,
@@ -454,23 +715,8 @@ async function fetchAllPullRequests( octokit, settings ) {
 		'closed',
 		latestReleaseInSeries ? latestReleaseInSeries.published_at : undefined
 	);
-	return issues.filter( ( issue ) => issue.pull_request );
-}
 
-/**
- * Returns a promise resolving to the changelog string for given settings.
- *
- * @param {WPChangelogSettings} settings Changelog settings.
- *
- * @return {Promise<string>} Promise resolving to changelog.
- */
-async function getChangelog( settings ) {
-	const octokit = new Octokit( {
-		auth: settings.token,
-	} );
-
-	const pullRequests = await fetchAllPullRequests( octokit, settings );
-	if ( ! pullRequests.length ) {
+	if ( ! issues.length ) {
 		if ( settings.unreleased ) {
 			throw new Error(
 				'There are no unreleased pull requests associated with the milestone.'
@@ -482,10 +728,36 @@ async function getChangelog( settings ) {
 		}
 	}
 
-	let changelog = '';
+	return issues.filter( ( issue ) => issue.pull_request );
+}
 
-	const groupedPullRequests = groupBy( pullRequests, getIssueType );
+/**
+ * Formats the changelog string for a given list of pull requests.
+ *
+ * @param {IssuesListForRepoResponseItem[]} pullRequests List of pull requests.
+ *
+ * @return {string} The formatted changelog string.
+ */
+function getChangelog( pullRequests ) {
+	let changelog = '## Changelog\n\n';
+
+	const groupedPullRequests = skipCreatedByBots( pullRequests ).reduce(
+		(
+			/** @type {Record<string, IssuesListForRepoResponseItem[]>} */ acc,
+			pr
+		) => {
+			const issueType = getIssueType( pr );
+			if ( ! acc[ issueType ] ) {
+				acc[ issueType ] = [];
+			}
+			acc[ issueType ].push( pr );
+			return acc;
+		},
+		{}
+	);
+
 	const sortedGroups = Object.keys( groupedPullRequests ).sort( sortGroup );
+
 	for ( const group of sortedGroups ) {
 		const groupPullRequests = groupedPullRequests[ group ];
 		const groupEntries = groupPullRequests
@@ -496,12 +768,245 @@ async function getChangelog( settings ) {
 			continue;
 		}
 
+		// Start a new section within the changelog.
 		changelog += '### ' + group + '\n\n';
-		groupEntries.forEach( ( entry ) => ( changelog += entry + '\n' ) );
+
+		// Group PRs within this section into "Features".
+		const featureGroups = groupPullRequests.reduce(
+			(
+				/** @type {Record<string, IssuesListForRepoResponseItem[]>} */ acc,
+				pr
+			) => {
+				const issueFeature = getIssueFeature( pr );
+				if ( ! acc[ issueFeature ] ) {
+					acc[ issueFeature ] = [];
+				}
+				acc[ issueFeature ].push( pr );
+				return acc;
+			},
+			{}
+		);
+
+		const featuredGroupNames = sortFeatureGroups( featureGroups );
+
+		// Start output of Features within the section.
+		featuredGroupNames.forEach( ( featureName ) => {
+			const featureGroupPRs = featureGroups[ featureName ];
+
+			const featureGroupEntries = featureGroupPRs
+				.map( ( issue ) => getFeatureEntry( issue, featureName ) )
+				.filter( Boolean )
+				.sort();
+
+			// Don't create feature sections when there are no PRs.
+			if ( ! featureGroupEntries.length ) {
+				return;
+			}
+
+			// Avoids double nesting such as "Documentation" feature under
+			// the "Documentation" section.
+			if (
+				group !== featureName &&
+				featureName !== UNKNOWN_FEATURE_FALLBACK_NAME
+			) {
+				// Start new <ul> for the Feature group.
+				changelog += '#### ' + featureName + '\n';
+			}
+
+			// Add a <li> for each PR in the Feature.
+			featureGroupEntries.forEach( ( entry ) => {
+				// Add a new bullet point to the list.
+				changelog += `${ entry }\n`;
+			} );
+
+			// Close the <ul> for the Feature group.
+			changelog += '\n';
+		} );
+
 		changelog += '\n';
 	}
 
 	return changelog;
+}
+
+/**
+ * Sorts the feature groups by the feature which contains the greatest number of PRs
+ * ready for output into the changelog.
+ *
+ * @param {Object.<string, IssuesListForRepoResponseItem[]>} featureGroups feature specific PRs keyed by feature name.
+ * @return {string[]} sorted list of feature names.
+ */
+function sortFeatureGroups( featureGroups ) {
+	return Object.keys( featureGroups ).sort(
+		( featureAName, featureBName ) => {
+			// Sort "uncategorized" items to *always* be at the top of the section.
+			if ( featureAName === UNKNOWN_FEATURE_FALLBACK_NAME ) {
+				return -1;
+			} else if ( featureBName === UNKNOWN_FEATURE_FALLBACK_NAME ) {
+				return 1;
+			}
+
+			// Sort by greatest number of PRs in the group first.
+			return (
+				featureGroups[ featureBName ].length -
+				featureGroups[ featureAName ].length
+			);
+		}
+	);
+}
+
+/**
+ * Returns a list of PRs created by first time contributors based on the GitHub
+ * label associated with the PR. Also filters out any "bots".
+ *
+ * @param {IssuesListForRepoResponseItem[]} pullRequests List of pull requests.
+ *
+ * @return {IssuesListForRepoResponseItem[]} pullRequests List of first time contributor PRs.
+ */
+function getFirstTimeContributorPRs( pullRequests ) {
+	return pullRequests.filter( ( pr ) => {
+		return pr.labels.find(
+			( { name } ) => name.toLowerCase() === 'first-time contributor'
+		);
+	} );
+}
+
+/**
+ * Creates a set of markdown formatted list items for each first time contributor
+ * and their associated PR.
+ *
+ * @param {IssuesListForRepoResponseItem[]} ftcPRs List of first time contributor PRs.
+ *
+ * @return {string} The formatted markdown list of contributors and their PRs.
+ */
+function getContributorPropsMarkdownList( ftcPRs ) {
+	return ftcPRs.reduce( ( markdownList, pr ) => {
+		const title = getNormalizedTitle( pr.title, pr ) || '';
+
+		const formattedTitle = getFormattedItemDescription(
+			title,
+			pr.number,
+			pr.pull_request.html_url
+		);
+
+		markdownList +=
+			'- ' + '@' + pr.user.login + ': ' + formattedTitle + '\n';
+		return markdownList;
+	}, '' );
+}
+
+/**
+ * Sorts a given Issue/PR by the username of the user who created.
+ *
+ * @param {IssuesListForRepoResponseItem[]} items List of pull requests.
+ * @return {IssuesListForRepoResponseItem[]} The sorted list of pull requests.
+ */
+function sortByUsername( items ) {
+	return [ ...items ].sort( ( a, b ) =>
+		a.user.login.toLowerCase().localeCompare( b.user.login.toLowerCase() )
+	);
+}
+
+/**
+ * Removes duplicate PRs by the username of the user who created.
+ *
+ * @param {IssuesListForRepoResponseItem[]} items List of pull requests.
+ * @return {IssuesListForRepoResponseItem[]} The list of pull requests unique per user.
+ */
+function getUniqueByUsername( items ) {
+	/**
+	 * @type {IssuesListForRepoResponseItem[]} List of pull requests.
+	 */
+	const EMPTY_PR_LIST = [];
+
+	return items.reduce( ( acc, item ) => {
+		if ( ! acc.some( ( i ) => i.user.login === item.user.login ) ) {
+			acc.push( item );
+		}
+		return acc;
+	}, EMPTY_PR_LIST );
+}
+
+/**
+ * Excludes users who should not be included in the changelog.
+ * Typically this is "bot" users.
+ *
+ * @param {IssuesListForRepoResponseItem[]} pullRequests List of pull requests.
+ * @return {IssuesListForRepoResponseItem[]} The list of filtered pull requests.
+ */
+function skipCreatedByBots( pullRequests ) {
+	return pullRequests.filter(
+		( pr ) => pr.user.type.toLowerCase() !== 'bot'
+	);
+}
+
+/**
+ * Produces the formatted markdown for the contributor props section.
+ *
+ * @param {IssuesListForRepoResponseItem[]} pullRequests List of pull requests.
+ *
+ * @return {string} The formatted props section.
+ */
+function getContributorProps( pullRequests ) {
+	const contributorsList = pipe( [
+		skipCreatedByBots,
+		getFirstTimeContributorPRs,
+		getUniqueByUsername,
+		sortByUsername,
+		getContributorPropsMarkdownList,
+	] )( pullRequests );
+
+	if ( ! contributorsList ) {
+		return '';
+	}
+
+	return (
+		'## First-time contributors' +
+		'\n\n' +
+		'The following PRs were merged by first-time contributors:' +
+		'\n\n' +
+		contributorsList
+	);
+}
+
+/**
+ *
+ * @param {IssuesListForRepoResponseItem[]} pullRequests List of first time contributor PRs.
+ * @return {string} The formatted markdown list of contributor usernames.
+ */
+function getContributorsMarkdownList( pullRequests ) {
+	return pullRequests
+		.reduce( ( markdownList = '', pr ) => {
+			markdownList += ` @${ pr.user.login }`;
+			return markdownList;
+		}, '' )
+		.trim();
+}
+
+/**
+ * Produces the formatted markdown for the full time contributors section of
+ * the changelog output.
+ *
+ * @param {IssuesListForRepoResponseItem[]} pullRequests List of pull requests.
+ *
+ * @return {string} The formatted contributors section.
+ */
+function getContributorsList( pullRequests ) {
+	const contributorsList = pipe( [
+		skipCreatedByBots,
+		getUniqueByUsername,
+		sortByUsername,
+		getContributorsMarkdownList,
+	] )( pullRequests );
+
+	return (
+		'\n\n' +
+		'## Contributors' +
+		'\n\n' +
+		'The following contributors merged PRs in this release:' +
+		'\n\n' +
+		contributorsList
+	);
 }
 
 /**
@@ -516,14 +1021,31 @@ async function createChangelog( settings ) {
 		)
 	);
 
-	let changelog;
+	const octokit = new Octokit( {
+		auth: settings.token,
+	} );
+
+	let releaselog = '';
+
 	try {
-		changelog = await getChangelog( settings );
+		const pullRequests = await fetchAllPullRequests( octokit, settings );
+
+		const changelog = getChangelog( pullRequests );
+		const contributorProps = getContributorProps( pullRequests );
+		const contributorsList = getContributorsList( pullRequests );
+
+		releaselog = releaselog.concat(
+			changelog,
+			contributorProps,
+			contributorsList
+		);
 	} catch ( error ) {
-		changelog = formats.error( error.stack );
+		if ( error instanceof Error ) {
+			releaselog = formats.error( error.stack );
+		}
 	}
 
-	log( changelog );
+	log( releaselog );
 }
 
 /**
@@ -553,16 +1075,25 @@ async function getReleaseChangelog( options ) {
 	} );
 }
 
-/** @type {NodeJS.Module} */ ( module ).exports = {
+/** @type {NodeJS.Module} */ module.exports = {
 	reword,
 	capitalizeAfterColonSeparatedPrefix,
 	createOmitByTitlePrefix,
 	createOmitByLabel,
+	createOmitByLabelPrefix,
 	addTrailingPeriod,
 	getNormalizedTitle,
 	getReleaseChangelog,
 	getIssueType,
+	getIssueFeature,
 	sortGroup,
 	getTypesByLabels,
 	getTypesByTitle,
+	getFormattedItemDescription,
+	getContributorProps,
+	getContributorsList,
+	getChangelog,
+	getUniqueByUsername,
+	skipCreatedByBots,
+	mapLabelsToFeatures,
 };

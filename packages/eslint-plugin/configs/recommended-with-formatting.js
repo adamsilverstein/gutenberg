@@ -1,5 +1,7 @@
-module.exports = {
-	parser: 'babel-eslint',
+// Exclude bundled WordPress packages from the list.
+const wpPackagesRegExp = '^@wordpress/(?!(icons|interface|style-engine))';
+
+const config = {
 	extends: [
 		require.resolve( './jsx-a11y.js' ),
 		require.resolve( './custom.js' ),
@@ -14,7 +16,12 @@ module.exports = {
 	globals: {
 		window: true,
 		document: true,
+		SCRIPT_DEBUG: 'readonly',
 		wp: 'readonly',
+	},
+	settings: {
+		'import/internal-regex': wpPackagesRegExp,
+		'import/extensions': [ '.js', '.jsx' ],
 	},
 	rules: {
 		'import/no-extraneous-dependencies': [
@@ -23,20 +30,15 @@ module.exports = {
 				peerDependencies: true,
 			},
 		],
-		'import/no-unresolved': 'error',
+		'import/no-unresolved': [
+			'error',
+			{
+				ignore: [ wpPackagesRegExp ],
+			},
+		],
 		'import/default': 'warn',
 		'import/named': 'warn',
 	},
-	overrides: [
-		{
-			// Unit test files and their helpers only.
-			files: [ '**/@(test|__tests__)/**/*.js', '**/?(*.)test.js' ],
-			extends: [ require.resolve( './test-unit.js' ) ],
-		},
-		{
-			// End-to-end test files and their helpers only.
-			files: [ '**/specs/**/*.js', '**/?(*.)spec.js' ],
-			extends: [ require.resolve( './test-e2e.js' ) ],
-		},
-	],
 };
+
+module.exports = config;

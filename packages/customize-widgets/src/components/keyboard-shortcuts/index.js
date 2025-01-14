@@ -6,36 +6,25 @@ import {
 	useShortcut,
 	store as keyboardShortcutsStore,
 } from '@wordpress/keyboard-shortcuts';
+import { isAppleOS } from '@wordpress/keycodes';
 import { useDispatch } from '@wordpress/data';
 import { __ } from '@wordpress/i18n';
 
 function KeyboardShortcuts( { undo, redo, save } ) {
-	useShortcut(
-		'core/customize-widgets/undo',
-		( event ) => {
-			undo();
-			event.preventDefault();
-		},
-		{ bindGlobal: true }
-	);
+	useShortcut( 'core/customize-widgets/undo', ( event ) => {
+		undo();
+		event.preventDefault();
+	} );
 
-	useShortcut(
-		'core/customize-widgets/redo',
-		( event ) => {
-			redo();
-			event.preventDefault();
-		},
-		{ bindGlobal: true }
-	);
+	useShortcut( 'core/customize-widgets/redo', ( event ) => {
+		redo();
+		event.preventDefault();
+	} );
 
-	useShortcut(
-		'core/customize-widgets/save',
-		( event ) => {
-			event.preventDefault();
-			save();
-		},
-		{ bindGlobal: true }
-	);
+	useShortcut( 'core/customize-widgets/save', ( event ) => {
+		event.preventDefault();
+		save();
+	} );
 
 	return null;
 }
@@ -64,6 +53,18 @@ function KeyboardShortcutsRegister() {
 				modifier: 'primaryShift',
 				character: 'z',
 			},
+			// Disable on Apple OS because it conflicts with the browser's
+			// history shortcut. It's a fine alias for both Windows and Linux.
+			// Since there's no conflict for Ctrl+Shift+Z on both Windows and
+			// Linux, we keep it as the default for consistency.
+			aliases: isAppleOS()
+				? []
+				: [
+						{
+							modifier: 'primary',
+							character: 'y',
+						},
+				  ],
 		} );
 
 		registerShortcut( {

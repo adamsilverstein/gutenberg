@@ -1,321 +1,202 @@
 /**
  * External dependencies
  */
-const { BundleAnalyzerPlugin } = require( 'webpack-bundle-analyzer' );
-const { DefinePlugin } = require( 'webpack' );
 const CopyWebpackPlugin = require( 'copy-webpack-plugin' );
-const TerserPlugin = require( 'terser-webpack-plugin' );
-const postcss = require( 'postcss' );
-const { escapeRegExp, compact } = require( 'lodash' );
-const { join, sep } = require( 'path' );
-const fastGlob = require( 'fast-glob' );
+const MomentTimezoneDataPlugin = require( 'moment-timezone-data-webpack-plugin' );
+const { join } = require( 'path' );
+const { readdirSync } = require( 'node:fs' );
 
 /**
  * WordPress dependencies
  */
-const CustomTemplatedPathPlugin = require( '@wordpress/custom-templated-path-webpack-plugin' );
-const LibraryExportDefaultPlugin = require( '@wordpress/library-export-default-webpack-plugin' );
-const DependencyExtractionWebpackPlugin = require( '@wordpress/dependency-extraction-webpack-plugin' );
-const ReadableJsAssetsWebpackPlugin = require( '@wordpress/readable-js-assets-webpack-plugin' );
 const {
 	camelCaseDash,
 } = require( '@wordpress/dependency-extraction-webpack-plugin/lib/util' );
+const DependencyExtractionWebpackPlugin = require( '@wordpress/dependency-extraction-webpack-plugin' );
 
 /**
  * Internal dependencies
  */
-const { dependencies } = require( '../../package' );
-
-const {
-	NODE_ENV: mode = 'development',
-	WP_DEVTOOL: devtool = mode === 'production' ? false : 'source-map',
-} = process.env;
+const packageDirs = readdirSync(
+	new URL( '../packages', `file://${ __dirname }` ),
+	{
+		withFileTypes: true,
+	}
+).flatMap( ( dirent ) => ( dirent.isDirectory() ? [ dirent.name ] : [] ) );
+const { baseConfig, plugins, stylesTransform } = require( './shared' );
 
 const WORDPRESS_NAMESPACE = '@wordpress/';
-const BUNDLED_PACKAGES = [ '@wordpress/icons', '@wordpress/interface' ];
 
-const gutenbergPackages = Object.keys( dependencies )
-	.filter(
-		( packageName ) =>
-			! BUNDLED_PACKAGES.includes( packageName ) &&
-			packageName.startsWith( WORDPRESS_NAMESPACE ) &&
-			! packageName.startsWith( WORDPRESS_NAMESPACE + 'react-native' )
-	)
-	.map( ( packageName ) => packageName.replace( WORDPRESS_NAMESPACE, '' ) );
+// Experimental or other packages that should be private are bundled when used.
+// That way, we can iterate on these package without making them part of the public API.
+// See: https://github.com/WordPress/gutenberg/pull/19809
+//
+// !!
+// This list must be kept in sync with the matching list in packages/dependency-extraction-webpack-plugin/lib/util.js
+// !!
+const BUNDLED_PACKAGES = [
+	'@wordpress/dataviews',
+	'@wordpress/dataviews/wp',
+	'@wordpress/icons',
+	'@wordpress/interface',
+	'@wordpress/sync',
+	'@wordpress/undo-manager',
+	'@wordpress/upload-media',
+	'@wordpress/fields',
+];
 
-const stylesTransform = ( content ) => {
-	if ( mode === 'production' ) {
-		return postcss( [
-			require( 'cssnano' )( {
-				preset: [
-					'default',
-					{
-						discardComments: {
-							removeAll: true,
-						},
-					},
-				],
-			} ),
-		] )
-			.process( content, {
-				from: 'src/app.css',
-				to: 'dest/app.css',
-			} )
-			.then( ( result ) => result.css );
+// PHP files in packages that have to be copied during build.
+const bundledPackagesPhpConfig = [
+	{
+		from: './packages/style-engine/',
+		to: 'build/style-engine/',
+		replaceClasses: [
+			'WP_Style_Engine_CSS_Declarations',
+			'WP_Style_Engine_CSS_Rules_Store',
+			'WP_Style_Engine_CSS_Rule',
+			'WP_Style_Engine_Processor',
+			'WP_Style_Engine',
+		],
+	},
+].map( ( { from, to, replaceClasses } ) => ( {
+	from: `${ from }/*.php`,
+	to( { absoluteFilename } ) {
+		const [ , filename ] = absoluteFilename.match(
+			/([\w-]+)(\.php){1,1}$/
+		);
+		return join( to, `${ filename }-gutenberg.php` );
+	},
+	transform: ( content ) => {
+		const classSuffix = '_Gutenberg';
+		const functionPrefix = 'gutenberg_';
+		content = content.toString();
+		// Replace class names.
+		content = content.replace(
+			new RegExp( replaceClasses.join( '|' ), 'g' ),
+			( match ) => `${ match }${ classSuffix }`
+		);
+		// Replace function names.
+		content = Array.from(
+			content.matchAll( /^\s*function ([^\(]+)/gm )
+		).reduce( ( result, [ , functionName ] ) => {
+			// Prepend the Gutenberg prefix, substituting any
+			// other core prefix (e.g. "wp_").
+			return result.replace(
+				new RegExp( functionName, 'g' ),
+				( match ) => functionPrefix + match.replace( /^wp_/, '' )
+			);
+		}, content );
+		return content;
+	},
+} ) );
+
+/** @type {Array<string>} */
+const gutenbergScripts = [];
+for ( const packageDir of packageDirs ) {
+	const packageJson = require(
+		`${ WORDPRESS_NAMESPACE }${ packageDir }/package.json`
+	);
+
+	if ( ! packageJson.wpScript ) {
+		continue;
 	}
-	return content;
-};
 
-/*
- * Matches a block's name in paths in the form
- * build-module/<blockName>/view.js
- */
-const blockNameRegex = new RegExp( /(?<=build-module\/).*(?=(\/view))/g );
+	if ( BUNDLED_PACKAGES.includes( packageJson.name ) ) {
+		continue;
+	}
 
-const createEntrypoints = () => {
-	/*
-	 * Returns an array of paths to view.js files within the `@wordpress/block-library` package.
-	 * These paths can be matched by the regex `blockNameRegex` in order to extract
-	 * the block's name.
-	 *
-	 * Returns an empty array if no files were found.
-	 */
-	const blockViewScriptPaths = fastGlob.sync(
-		'./packages/block-library/build-module/**/view.js'
-	);
+	gutenbergScripts.push( packageDir );
+}
 
-	/*
-	 * Go through the paths found above, in order to define webpack entry points for
-	 * each block's view.js file.
-	 */
-	const blockViewScriptEntries = blockViewScriptPaths.reduce(
-		( entries, scriptPath ) => {
-			const [ blockName ] = scriptPath.match( blockNameRegex );
+const exportDefaultPackages = [
+	'api-fetch',
+	'deprecated',
+	'dom-ready',
+	'redux-routine',
+	'token-list',
+	'server-side-render',
+	'shortcode',
+	'warning',
+];
 
-			return {
-				...entries,
-				[ 'blocks/' + blockName ]: scriptPath,
-			};
-		},
-		{}
-	);
-
-	const packageEntries = gutenbergPackages.reduce( ( memo, packageName ) => {
-		return {
-			...memo,
-			[ packageName ]: `./packages/${ packageName }`,
-		};
-	}, {} );
-
-	return { ...packageEntries, ...blockViewScriptEntries };
+const copiedVendors = {
+	'react.js': 'react/umd/react.development.js',
+	'react.min.js': 'react/umd/react.production.min.js',
+	'react-dom.js': 'react-dom/umd/react-dom.development.js',
+	'react-dom.min.js': 'react-dom/umd/react-dom.production.min.js',
 };
 
 module.exports = {
-	optimization: {
-		// Only concatenate modules in production, when not analyzing bundles.
-		concatenateModules:
-			mode === 'production' && ! process.env.WP_BUNDLE_ANALYZER,
-		minimizer: [
-			new TerserPlugin( {
-				cache: true,
-				parallel: true,
-				sourceMap: mode !== 'production',
-				terserOptions: {
-					output: {
-						comments: /translators:/i,
-					},
-					compress: {
-						passes: 2,
-					},
-					mangle: {
-						reserved: [ '__', '_n', '_nx', '_x' ],
-					},
+	...baseConfig,
+	name: 'packages',
+	entry: Object.fromEntries(
+		gutenbergScripts.map( ( packageName ) => [
+			packageName,
+			{
+				import: `./packages/${ packageName }`,
+				library: {
+					name: [ 'wp', camelCaseDash( packageName ) ],
+					type: 'window',
+					export: exportDefaultPackages.includes( packageName )
+						? 'default'
+						: undefined,
 				},
-				extractComments: false,
-			} ),
-		],
-	},
-	mode,
-	entry: createEntrypoints(),
+			},
+		] )
+	),
 	output: {
 		devtoolNamespace: 'wp',
-		filename: ( pathData ) => {
-			const { chunk } = pathData;
-			const { entryModule } = chunk;
-			const { rawRequest, rootModule } = entryModule;
-
-			// When processing ESM files, the requested path
-			// is defined in `entryModule.rootModule.rawRequest`, instead of
-			// being present in `entryModule.rawRequest`.
-			// In the context of frontend view files, they would be processed
-			// as ESM if they use `import` or `export` within it.
-			const request = rootModule?.rawRequest || rawRequest;
-
-			if ( request.includes( '/view.js' ) ) {
-				return `./build/block-library/[name]/view.min.js`;
-			}
-
-			return `./build/[name]/index.min.js`;
-		},
+		filename: './build/[name]/index.min.js',
 		path: join( __dirname, '..', '..' ),
-		library: [ 'wp', '[camelName]' ],
-		libraryTarget: 'window',
+		devtoolModuleFilenameTemplate: ( info ) => {
+			if ( info.resourcePath.includes( '/@wordpress/' ) ) {
+				const resourcePath =
+					info.resourcePath.split( '/@wordpress/' )[ 1 ];
+				return `../../packages/${ resourcePath }`;
+			}
+			return `webpack://${ info.namespace }/${ info.resourcePath }`;
+		},
 	},
 	module: {
-		rules: compact( [
-			mode !== 'production' && {
-				test: /\.js$/,
-				use: require.resolve( 'source-map-loader' ),
-				enforce: 'pre',
+		rules: [
+			...baseConfig.module.rules,
+			{
+				test: /\.wasm$/,
+				type: 'asset/resource',
+				generator: {
+					// FIXME: Do not hardcode path.
+					filename: './build/vips/[name].wasm',
+					publicPath: '',
+				},
 			},
-		] ),
+		],
+	},
+	performance: {
+		hints: false, // disable warnings about package sizes
 	},
 	plugins: [
-		// The WP_BUNDLE_ANALYZER global variable enables a utility that represents bundle
-		// content as a convenient interactive zoomable treemap.
-		process.env.WP_BUNDLE_ANALYZER && new BundleAnalyzerPlugin(),
-		new DefinePlugin( {
-			// Inject the `GUTENBERG_PHASE` global, used for feature flagging.
-			'process.env.GUTENBERG_PHASE': JSON.stringify(
-				parseInt(
-					process.env.npm_package_config_GUTENBERG_PHASE,
-					10
-				) || 1
-			),
-			'process.env.FORCE_REDUCED_MOTION': JSON.stringify(
-				process.env.FORCE_REDUCED_MOTION
-			),
-		} ),
-		new CustomTemplatedPathPlugin( {
-			camelName( path, data ) {
-				return camelCaseDash( data.chunk.name );
-			},
-		} ),
-		new LibraryExportDefaultPlugin( [
-			'api-fetch',
-			'deprecated',
-			'dom-ready',
-			'redux-routine',
-			'token-list',
-			'server-side-render',
-			'shortcode',
-			'warning',
-		] ),
+		...plugins,
+		new DependencyExtractionWebpackPlugin( { injectPolyfill: false } ),
 		new CopyWebpackPlugin( {
-			patterns: [].concat(
-				gutenbergPackages.map( ( packageName ) => ( {
-					from: `./packages/${ packageName }/build-style/*.css`,
-					to: `./build/${ packageName }/`,
-					flatten: true,
+			patterns: gutenbergScripts
+				.map( ( packageName ) => ( {
+					from: '*.css',
+					context: `./packages/${ packageName }/build-style`,
+					to: `./build/${ packageName }`,
 					transform: stylesTransform,
 					noErrorOnMissing: true,
-				} ) ),
-				[
-					'style',
-					'style-rtl',
-					'editor',
-					'editor-rtl',
-					'theme',
-					'theme-rtl',
-				].map( ( filename ) => ( {
-					from: `./packages/block-library/build-style/*/${ filename }.css`,
-					to( { absoluteFilename } ) {
-						const [ , dirname ] = absoluteFilename.match(
-							new RegExp(
-								`([\\w-]+)${ escapeRegExp(
-									sep
-								) }${ filename }\\.css$`
-							)
-						);
-
-						return join(
-							'build/block-library/blocks',
-							dirname,
-							filename + '.css'
-						);
-					},
-					transform: stylesTransform,
-				} ) ),
-				Object.entries( {
-					'./packages/block-library/src/':
-						'build/block-library/blocks/',
-					'./packages/edit-widgets/src/blocks/':
-						'build/edit-widgets/blocks/',
-					'./packages/widgets/src/blocks/': 'build/widgets/blocks/',
-				} ).flatMap( ( [ from, to ] ) => [
-					{
-						from: `${ from }/**/index.php`,
-						to( { absoluteFilename } ) {
-							const [ , dirname ] = absoluteFilename.match(
-								new RegExp(
-									`([\\w-]+)${ escapeRegExp(
-										sep
-									) }index\\.php$`
-								)
-							);
-
-							return join( to, `${ dirname }.php` );
-						},
-						transform: ( content ) => {
-							content = content.toString();
-
-							// Within content, search for any function definitions. For
-							// each, replace every other reference to it in the file.
-							return (
-								content
-									.match( /^function [^\(]+/gm )
-									.reduce( ( result, functionName ) => {
-										// Trim leading "function " prefix from match.
-										functionName = functionName.slice( 9 );
-
-										// Prepend the Gutenberg prefix, substituting any
-										// other core prefix (e.g. "wp_").
-										return result.replace(
-											new RegExp( functionName, 'g' ),
-											( match ) =>
-												'gutenberg_' +
-												match.replace( /^wp_/, '' )
-										);
-									}, content )
-									// The core blocks override procedure takes place in
-									// the init action default priority to ensure that core
-									// blocks would have been registered already. Since the
-									// blocks implementations occur at the default priority
-									// and due to WordPress hooks behavior not considering
-									// mutations to the same priority during another's
-									// callback, the Gutenberg build blocks are modified
-									// to occur at a later priority.
-									.replace(
-										/(add_action\(\s*'init',\s*'gutenberg_register_block_[^']+'(?!,))/,
-										'$1, 20'
-									)
-							);
-						},
-						noErrorOnMissing: true,
-					},
-					{
-						from: `${ from }/*/block.json`,
-						to( { absoluteFilename } ) {
-							const [ , dirname ] = absoluteFilename.match(
-								new RegExp(
-									`([\\w-]+)${ escapeRegExp(
-										sep
-									) }block\\.json$`
-								)
-							);
-
-							return join( to, dirname, 'block.json' );
-						},
-					},
-				] )
-			),
+				} ) )
+				.concat( bundledPackagesPhpConfig )
+				.concat(
+					Object.entries( copiedVendors ).map( ( [ to, from ] ) => ( {
+						from: `node_modules/${ from }`,
+						to: `build/vendors/${ to }`,
+					} ) )
+				),
 		} ),
-		new DependencyExtractionWebpackPlugin( { injectPolyfill: true } ),
-		mode === 'production' && new ReadableJsAssetsWebpackPlugin(),
+		new MomentTimezoneDataPlugin( {
+			startYear: 2000,
+			endYear: 2040,
+		} ),
 	].filter( Boolean ),
-	watchOptions: {
-		ignored: [ '**/node_modules', '**/packages/*/src' ],
-		aggregateTimeout: 500,
-	},
-	devtool,
 };

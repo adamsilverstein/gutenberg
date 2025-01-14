@@ -1,97 +1,86 @@
 /**
  * External dependencies
  */
-import TextareaAutosize from 'react-autosize-textarea';
-import classnames from 'classnames';
-
+import clsx from 'clsx';
 /**
  * WordPress dependencies
  */
 import { __ } from '@wordpress/i18n';
-import { useEffect, useRef, useState } from '@wordpress/element';
+import { forwardRef, useState } from '@wordpress/element';
 import { decodeEntities } from '@wordpress/html-entities';
-import { ENTER } from '@wordpress/keycodes';
 import { useSelect, useDispatch } from '@wordpress/data';
-import { VisuallyHidden } from '@wordpress/components';
-import { useInstanceId } from '@wordpress/compose';
-import { pasteHandler } from '@wordpress/blocks';
 import { store as blockEditorStore } from '@wordpress/block-editor';
+import { ENTER } from '@wordpress/keycodes';
+import { pasteHandler } from '@wordpress/blocks';
+import {
+	__unstableUseRichText as useRichText,
+	create,
+	insert,
+} from '@wordpress/rich-text';
+import { useMergeRefs } from '@wordpress/compose';
+import { __unstableStripHTML as stripHTML } from '@wordpress/dom';
 
 /**
  * Internal dependencies
  */
+import { DEFAULT_CLASSNAMES, REGEXP_NEWLINES } from './constants';
+import usePostTitleFocus from './use-post-title-focus';
+import usePostTitle from './use-post-title';
 import PostTypeSupportCheck from '../post-type-support-check';
-import { store as editorStore } from '../../store';
 
-/**
- * Constants
- */
-const REGEXP_NEWLINES = /[\r\n]+/g;
-
-export default function PostTitle() {
-	const instanceId = useInstanceId( PostTitle );
-	const ref = useRef();
-	const [ isSelected, setIsSelected ] = useState( false );
-	const { editPost } = useDispatch( editorStore );
-	const {
-		insertDefaultBlock,
-		clearSelectedBlock,
-		insertBlocks,
-	} = useDispatch( blockEditorStore );
-	const {
-		isCleanNewPost,
-		title,
-		placeholder,
-		isFocusMode,
-		hasFixedToolbar,
-	} = useSelect( ( select ) => {
-		const {
-			getEditedPostAttribute,
-			isCleanNewPost: _isCleanNewPost,
-		} = select( editorStore );
+const PostTitle = forwardRef( ( _, forwardedRef ) => {
+	const { placeholder } = useSelect( ( select ) => {
 		const { getSettings } = select( blockEditorStore );
-		const {
-			titlePlaceholder,
-			focusMode,
-			hasFixedToolbar: _hasFixedToolbar,
-		} = getSettings();
+		const { titlePlaceholder } = getSettings();
 
 		return {
-			isCleanNewPost: _isCleanNewPost(),
-			title: getEditedPostAttribute( 'title' ),
 			placeholder: titlePlaceholder,
-			isFocusMode: focusMode,
-			hasFixedToolbar: _hasFixedToolbar,
 		};
+	}, [] );
+
+	const [ isSelected, setIsSelected ] = useState( false );
+
+	const { ref: focusRef } = usePostTitleFocus( forwardedRef );
+
+	const { title, setTitle: onUpdate } = usePostTitle();
+
+	const [ selection, setSelection ] = useState( {} );
+
+	const { clearSelectedBlock, insertBlocks, insertDefaultBlock } =
+		useDispatch( blockEditorStore );
+
+	const decodedPlaceholder =
+		decodeEntities( placeholder ) || __( 'Add title' );
+
+	const {
+		value,
+		onChange,
+		ref: richTextRef,
+	} = useRichText( {
+		value: title,
+		onChange( newValue ) {
+			onUpdate( newValue.replace( REGEXP_NEWLINES, ' ' ) );
+		},
+		placeholder: decodedPlaceholder,
+		selectionStart: selection.start,
+		selectionEnd: selection.end,
+		onSelectionChange( newStart, newEnd ) {
+			setSelection( ( sel ) => {
+				const { start, end } = sel;
+				if ( start === newStart && end === newEnd ) {
+					return sel;
+				}
+				return {
+					start: newStart,
+					end: newEnd,
+				};
+			} );
+		},
+		__unstableDisableFormats: false,
 	} );
-
-	useEffect( () => {
-		if ( ! ref.current ) {
-			return;
-		}
-
-		const { ownerDocument } = ref.current;
-		const { activeElement, body } = ownerDocument;
-
-		// Only autofocus the title when the post is entirely empty. This should
-		// only happen for a new post, which means we focus the title on new
-		// post so the author can start typing right away, without needing to
-		// click anything.
-		if ( isCleanNewPost && ( ! activeElement || body === activeElement ) ) {
-			ref.current.focus();
-		}
-	}, [ isCleanNewPost ] );
-
-	function onEnterPress() {
-		insertDefaultBlock( undefined, undefined, 0 );
-	}
 
 	function onInsertBlockAfter( blocks ) {
 		insertBlocks( blocks, 0 );
-	}
-
-	function onUpdate( newTitle ) {
-		editPost( { title: newTitle } );
 	}
 
 	function onSelect() {
@@ -101,10 +90,11 @@ export default function PostTitle() {
 
 	function onUnselect() {
 		setIsSelected( false );
+		setSelection( {} );
 	}
 
-	function onChange( event ) {
-		onUpdate( event.target.value.replace( REGEXP_NEWLINES, ' ' ) );
+	function onEnterPress() {
+		insertDefaultBlock( undefined, undefined, 0 );
 	}
 
 	function onKeyDown( event ) {
@@ -120,21 +110,14 @@ export default function PostTitle() {
 		let plainText = '';
 		let html = '';
 
-		// IE11 only supports `Text` as an argument for `getData` and will
-		// otherwise throw an invalid argument error, so we try the standard
-		// arguments first, then fallback to `Text` if they fail.
 		try {
 			plainText = clipboardData.getData( 'text/plain' );
 			html = clipboardData.getData( 'text/html' );
-		} catch ( error1 ) {
-			try {
-				html = clipboardData.getData( 'Text' );
-			} catch ( error2 ) {
-				// Some browsers like UC Browser paste plain text by default and
-				// don't support clipboardData at all, so allow default
-				// behaviour.
-				return;
-			}
+		} catch ( error ) {
+			// Some browsers like UC Browser paste plain text by default and
+			// don't support clipboardData at all, so allow default
+			// behaviour.
+			return;
 		}
 
 		// Allows us to ask for this information when we get a report.
@@ -146,9 +129,13 @@ export default function PostTitle() {
 			plainText,
 		} );
 
-		if ( typeof content !== 'string' && content.length ) {
-			event.preventDefault();
+		event.preventDefault();
 
+		if ( ! content.length ) {
+			return;
+		}
+
+		if ( typeof content !== 'string' ) {
 			const [ firstBlock ] = content;
 
 			if (
@@ -156,49 +143,60 @@ export default function PostTitle() {
 				( firstBlock.name === 'core/heading' ||
 					firstBlock.name === 'core/paragraph' )
 			) {
-				onUpdate( firstBlock.attributes.content );
+				// Strip HTML to avoid unwanted HTML being added to the title.
+				// In the majority of cases it is assumed that HTML in the title
+				// is undesirable.
+				const contentNoHTML = stripHTML(
+					firstBlock.attributes.content
+				);
+				onUpdate( contentNoHTML );
 				onInsertBlockAfter( content.slice( 1 ) );
 			} else {
 				onInsertBlockAfter( content );
 			}
+		} else {
+			// Strip HTML to avoid unwanted HTML being added to the title.
+			// In the majority of cases it is assumed that HTML in the title
+			// is undesirable.
+			const contentNoHTML = stripHTML( content );
+			onChange( insert( value, create( { html: contentNoHTML } ) ) );
 		}
 	}
 
 	// The wp-block className is important for editor styles.
 	// This same block is used in both the visual and the code editor.
-	const className = classnames(
-		'wp-block editor-post-title editor-post-title__block',
-		{
-			'is-selected': isSelected,
-			'is-focus-mode': isFocusMode,
-			'has-fixed-toolbar': hasFixedToolbar,
-		}
-	);
-	const decodedPlaceholder = decodeEntities( placeholder );
+	const className = clsx( DEFAULT_CLASSNAMES, {
+		'is-selected': isSelected,
+	} );
 
 	return (
-		<PostTypeSupportCheck supportKeys="title">
-			<div className={ className }>
-				<VisuallyHidden
-					as="label"
-					htmlFor={ `post-title-${ instanceId }` }
-				>
-					{ decodedPlaceholder || __( 'Add title' ) }
-				</VisuallyHidden>
-				<TextareaAutosize
-					ref={ ref }
-					id={ `post-title-${ instanceId }` }
-					className="editor-post-title__input"
-					value={ title }
-					onChange={ onChange }
-					placeholder={ decodedPlaceholder || __( 'Add title' ) }
-					onFocus={ onSelect }
-					onBlur={ onUnselect }
-					onKeyDown={ onKeyDown }
-					onKeyPress={ onUnselect }
-					onPaste={ onPaste }
-				/>
-			</div>
-		</PostTypeSupportCheck>
+		/* eslint-disable jsx-a11y/heading-has-content, jsx-a11y/no-noninteractive-element-to-interactive-role */
+		<h1
+			ref={ useMergeRefs( [ richTextRef, focusRef ] ) }
+			contentEditable
+			className={ className }
+			aria-label={ decodedPlaceholder }
+			role="textbox"
+			aria-multiline="true"
+			onFocus={ onSelect }
+			onBlur={ onUnselect }
+			onKeyDown={ onKeyDown }
+			onPaste={ onPaste }
+		/>
+		/* eslint-enable jsx-a11y/heading-has-content, jsx-a11y/no-noninteractive-element-to-interactive-role */
 	);
-}
+} );
+
+/**
+ * Renders the `PostTitle` component.
+ *
+ * @param {Object}  _            Unused parameter.
+ * @param {Element} forwardedRef Forwarded ref for the component.
+ *
+ * @return {React.ReactNode} The rendered PostTitle component.
+ */
+export default forwardRef( ( _, forwardedRef ) => (
+	<PostTypeSupportCheck supportKeys="title">
+		<PostTitle ref={ forwardedRef } />
+	</PostTypeSupportCheck>
+) );

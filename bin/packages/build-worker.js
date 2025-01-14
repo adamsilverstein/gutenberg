@@ -13,22 +13,28 @@ const postcss = require( 'postcss' );
  */
 const getBabelConfig = require( './get-babel-config' );
 
+const isDev = process.env.NODE_ENV === 'development';
+
 /**
  * Path to packages directory.
  *
  * @type {string}
  */
-const PACKAGES_DIR = path.resolve( __dirname, '../../packages' );
+const PACKAGES_DIR = path
+	.resolve( __dirname, '../../packages' )
+	.replace( /\\/g, '/' );
 
 /**
  * Mapping of JavaScript environments to corresponding build output.
  *
  * @type {Object}
  */
-const JS_ENVIRONMENTS = {
-	main: 'build',
-	module: 'build-module',
-};
+const JS_ENVIRONMENTS = isDev
+	? { module: 'build-module' }
+	: {
+			main: 'build',
+			module: 'build-module',
+	  };
 
 /**
  * Promisified fs.readFile.
@@ -92,32 +98,38 @@ async function buildCSS( file ) {
 		makeDir( path.dirname( outputFile ) ),
 		readFile( file, 'utf8' ),
 	] );
+
+	const importLists = [
+		'colors',
+		'breakpoints',
+		'variables',
+		'mixins',
+		'animations',
+		'z-index',
+	]
+		// Editor and component styles should be excluded from the default CSS vars output.
+		.concat(
+			file.includes( 'common.scss' ) ||
+				! (
+					file.includes( 'block-library' ) ||
+					file.includes( 'components' )
+				)
+				? [ 'default-custom-properties' ]
+				: []
+		)
+		.map( ( imported ) => `@import "${ imported }";` )
+		.join( ' ' );
+
 	const builtSass = await renderSass( {
 		file,
 		includePaths: [ path.join( PACKAGES_DIR, 'base-styles' ) ],
-		data:
-			[
-				'colors',
-				'breakpoints',
-				'variables',
-				'mixins',
-				'animations',
-				'z-index',
-			]
-				// Editor styles should be excluded from the default CSS vars output.
-				.concat(
-					file.includes( 'common.scss' ) ||
-						! file.includes( 'block-library' )
-						? [ 'default-custom-properties' ]
-						: []
-				)
-				.map( ( imported ) => `@import "${ imported }";` )
-				.join( ' ' ) + contents,
+		data: ''.concat( '@use "sass:math";', importLists, contents ),
 	} );
 
-	const result = await postcss(
-		require( '@wordpress/postcss-plugins-preset' )
-	).process( builtSass.css, {
+	const result = await postcss( [
+		require( 'postcss-local-keyframes' ),
+		...require( '@wordpress/postcss-plugins-preset' ),
+	] ).process( builtSass.css, {
 		from: 'src/app.css',
 		to: 'dest/app.css',
 	} );

@@ -16,7 +16,7 @@ import RangeCell from '../mobile/bottom-sheet/range-cell';
 import StepperCell from '../mobile/bottom-sheet/stepper-cell';
 import Picker from '../mobile/picker';
 import styles from './style.scss';
-import { CSS_UNITS, hasUnits, parseA11yLabelForUnit } from './utils';
+import { CSS_UNITS, hasUnits, getAccessibleLabelForUnit } from './utils';
 
 /**
  * WordPress dependencies
@@ -47,6 +47,8 @@ function UnitControl( {
 		if ( pickerRef?.current ) {
 			pickerRef.current.presentPicker();
 		}
+		// It would be great if the deps could be addressed in the context of
+		// https://github.com/WordPress/gutenberg/pull/39218
 	}, [ pickerRef?.current ] );
 
 	const currentInputValue = currentInput === null ? value : currentInput;
@@ -74,7 +76,7 @@ function UnitControl( {
 			</View>
 		);
 
-		if ( hasUnits( units ) ) {
+		if ( hasUnits( units ) && units?.length > 1 ) {
 			return (
 				<TouchableWithoutFeedback
 					onPress={ onPickerPresent }
@@ -94,6 +96,7 @@ function UnitControl( {
 		accessibilityHint,
 		unitButtonTextStyle,
 		unit,
+		units,
 	] );
 
 	const getAnchor = useCallback(
@@ -101,6 +104,8 @@ function UnitControl( {
 			anchorNodeRef?.current
 				? findNodeHandle( anchorNodeRef?.current )
 				: undefined,
+		// It would be great if the deps could be addressed in the context of
+		// https://github.com/WordPress/gutenberg/pull/39218
 		[ anchorNodeRef?.current ]
 	);
 
@@ -115,10 +120,15 @@ function UnitControl( {
 	};
 
 	const renderUnitPicker = useCallback( () => {
+		// Keeping for legacy reasons, although `false` should not be a valid
+		// value for the `units` prop anymore.
+		if ( units === false ) {
+			return null;
+		}
 		return (
 			<View style={ styles.unitMenu } ref={ anchorNodeRef }>
 				{ renderUnitButton }
-				{ hasUnits( units ) ? (
+				{ hasUnits( units ) && units?.length > 1 ? (
 					<Picker
 						ref={ pickerRef }
 						options={ units }
@@ -160,7 +170,7 @@ function UnitControl( {
 					shouldDisplayTextInput
 					decimalNum={ decimalNum }
 					openUnitPicker={ onPickerPresent }
-					unitLabel={ parseA11yLabelForUnit( unit ) }
+					unitLabel={ getAccessibleLabelForUnit( unit ) }
 					{ ...props }
 				>
 					{ renderUnitPicker() }
@@ -178,7 +188,7 @@ function UnitControl( {
 					separatorType={ separatorType }
 					decimalNum={ decimalNum }
 					openUnitPicker={ onPickerPresent }
-					unitLabel={ parseA11yLabelForUnit( unit ) }
+					unitLabel={ getAccessibleLabelForUnit( unit ) }
 					{ ...props }
 				>
 					{ renderUnitPicker() }

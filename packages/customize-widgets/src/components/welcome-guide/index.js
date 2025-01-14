@@ -4,16 +4,10 @@
 import { __ } from '@wordpress/i18n';
 import { Button, ExternalLink } from '@wordpress/components';
 import { useDispatch } from '@wordpress/data';
-
-/**
- * Internal dependencies
- */
-import { store as customizeWidgetsStore } from '../../store';
+import { store as preferencesStore } from '@wordpress/preferences';
 
 export default function WelcomeGuide( { sidebar } ) {
-	const { __unstableToggleFeature: toggleFeature } = useDispatch(
-		customizeWidgetsStore
-	);
+	const { toggle } = useDispatch( preferencesStore );
 
 	const isEntirelyBlockWidgets = sidebar
 		.getWidgets()
@@ -49,9 +43,11 @@ export default function WelcomeGuide( { sidebar } ) {
 					  ) }
 			</p>
 			<Button
-				className="customize-widgets-welcome-guide__button"
+				size="compact"
 				variant="primary"
-				onClick={ () => toggleFeature( 'welcomeGuide' ) }
+				onClick={ () =>
+					toggle( 'core/customize-widgets', 'welcomeGuide' )
+				}
 			>
 				{ __( 'Got it' ) }
 			</Button>
@@ -74,7 +70,7 @@ export default function WelcomeGuide( { sidebar } ) {
 				<br />
 				<ExternalLink
 					href={ __(
-						'https://wordpress.org/support/article/wordpress-editor/'
+						'https://wordpress.org/documentation/article/wordpress-block-editor/'
 					) }
 				>
 					{ __( "Here's a detailed guide." ) }

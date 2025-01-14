@@ -1,33 +1,119 @@
 /**
  * External dependencies
  */
-import classnames from 'classnames';
+import clsx from 'clsx';
 
 /**
  * WordPress dependencies
  */
+import { createBlock } from '@wordpress/blocks';
 import {
+	InspectorControls,
 	BlockControls,
 	useBlockProps,
-	store as blockEditorStore,
+	useInnerBlocksProps,
 	getColorClassName,
+	store as blockEditorStore,
+	Warning,
 } from '@wordpress/block-editor';
-import ServerSideRender from '@wordpress/server-side-render';
-import { ToolbarButton } from '@wordpress/components';
-import { __ } from '@wordpress/i18n';
-import { useEffect, useState } from '@wordpress/element';
-import { useSelect } from '@wordpress/data';
-import apiFetch from '@wordpress/api-fetch';
-import { addQueryArgs } from '@wordpress/url';
+import {
+	ToolbarButton,
+	Spinner,
+	Notice,
+	ComboboxControl,
+	Button,
+	__experimentalToolsPanel as ToolsPanel,
+	__experimentalToolsPanelItem as ToolsPanelItem,
+} from '@wordpress/components';
+import { __, sprintf } from '@wordpress/i18n';
+import { useMemo, useState, useEffect, useCallback } from '@wordpress/element';
+import { useEntityRecords } from '@wordpress/core-data';
+import { useSelect, useDispatch } from '@wordpress/data';
 
 /**
  * Internal dependencies
  */
-import ConvertToLinksModal from './convert-to-links-modal';
+import { useConvertToNavigationLinks } from './use-convert-to-navigation-links';
+import {
+	convertDescription,
+	ConvertToLinksModal,
+} from './convert-to-links-modal';
+import { useToolsPanelDropdownMenuProps } from '../utils/hooks';
 
 // We only show the edit option when page count is <= MAX_PAGE_COUNT
 // Performance of Navigation Links is not good past this value.
 const MAX_PAGE_COUNT = 100;
+const NOOP = () => {};
+function BlockContent( {
+	blockProps,
+	innerBlocksProps,
+	hasResolvedPages,
+	blockList,
+	pages,
+	parentPageID,
+} ) {
+	if ( ! hasResolvedPages ) {
+		return (
+			<div { ...blockProps }>
+				<div className="wp-block-page-list__loading-indicator-container">
+					<Spinner className="wp-block-page-list__loading-indicator" />
+				</div>
+			</div>
+		);
+	}
+
+	if ( pages === null ) {
+		return (
+			<div { ...blockProps }>
+				<Notice status="warning" isDismissible={ false }>
+					{ __( 'Page List: Cannot retrieve Pages.' ) }
+				</Notice>
+			</div>
+		);
+	}
+
+	if ( pages.length === 0 ) {
+		return (
+			<div { ...blockProps }>
+				<Notice status="info" isDismissible={ false }>
+					{ __( 'Page List: Cannot retrieve Pages.' ) }
+				</Notice>
+			</div>
+		);
+	}
+
+	if ( blockList.length === 0 ) {
+		const parentPageDetails = pages.find(
+			( page ) => page.id === parentPageID
+		);
+
+		if ( parentPageDetails?.title?.rendered ) {
+			return (
+				<div { ...blockProps }>
+					<Warning>
+						{ sprintf(
+							// translators: %s: Page title.
+							__( 'Page List: "%s" page has no children.' ),
+							parentPageDetails.title.rendered
+						) }
+					</Warning>
+				</div>
+			);
+		}
+
+		return (
+			<div { ...blockProps }>
+				<Notice status="warning" isDismissible={ false }>
+					{ __( 'Page List: Cannot retrieve Pages.' ) }
+				</Notice>
+			</div>
+		);
+	}
+
+	if ( pages.length > 0 ) {
+		return <ul { ...innerBlocksProps }></ul>;
+	}
+}
 
 export default function PageListEdit( {
 	context,
@@ -35,113 +121,286 @@ export default function PageListEdit( {
 	attributes,
 	setAttributes,
 } ) {
-	// Copy context to attributes to make it accessible in the editor's
-	// ServerSideRender
-	useEffect( () => {
-		const {
-			textColor,
-			customTextColor,
-			backgroundColor,
-			customBackgroundColor,
-			overlayTextColor,
-			customOverlayTextColor,
-			overlayBackgroundColor,
-			customOverlayBackgroundColor,
-		} = context;
-		setAttributes( {
-			textColor,
-			customTextColor,
-			backgroundColor,
-			customBackgroundColor,
-			overlayTextColor,
-			customOverlayTextColor,
-			overlayBackgroundColor,
-			customOverlayBackgroundColor,
+	const { parentPageID } = attributes;
+	const [ isOpen, setOpen ] = useState( false );
+	const openModal = useCallback( () => setOpen( true ), [] );
+	const closeModal = () => setOpen( false );
+	const dropdownMenuProps = useToolsPanelDropdownMenuProps();
+
+	const { records: pages, hasResolved: hasResolvedPages } = useEntityRecords(
+		'postType',
+		'page',
+		{
+			per_page: MAX_PAGE_COUNT,
+			_fields: [ 'id', 'link', 'menu_order', 'parent', 'title', 'type' ],
+			// TODO: When https://core.trac.wordpress.org/ticket/39037 REST API support for multiple orderby
+			// values is resolved, update 'orderby' to [ 'menu_order', 'post_title' ] to provide a consistent
+			// sort.
+			orderby: 'menu_order',
+			order: 'asc',
+		}
+	);
+
+	const allowConvertToLinks =
+		'showSubmenuIcon' in context &&
+		pages?.length > 0 &&
+		pages?.length <= MAX_PAGE_COUNT;
+
+	const pagesByParentId = useMemo( () => {
+		if ( pages === null ) {
+			return new Map();
+		}
+
+		// TODO: Once the REST API supports passing multiple values to
+		// 'orderby', this can be removed.
+		// https://core.trac.wordpress.org/ticket/39037
+		const sortedPages = pages.sort( ( a, b ) => {
+			if ( a.menu_order === b.menu_order ) {
+				return a.title.rendered.localeCompare( b.title.rendered );
+			}
+			return a.menu_order - b.menu_order;
 		} );
-	}, [
-		context.textColor,
-		context.customTextColor,
-		context.backgroundColor,
-		context.customBackgroundColor,
-		context.overlayTextColor,
-		context.customOverlayTextColor,
-		context.overlayBackgroundColor,
-		context.customOverlayBackgroundColor,
-	] );
 
-	const { textColor, backgroundColor, showSubmenuIcon, style } =
-		context || {};
-
-	const [ allowConvertToLinks, setAllowConvertToLinks ] = useState( false );
+		return sortedPages.reduce( ( accumulator, page ) => {
+			const { parent } = page;
+			if ( accumulator.has( parent ) ) {
+				accumulator.get( parent ).push( page );
+			} else {
+				accumulator.set( parent, [ page ] );
+			}
+			return accumulator;
+		}, new Map() );
+	}, [ pages ] );
 
 	const blockProps = useBlockProps( {
-		className: classnames( {
-			'has-text-color': !! textColor,
-			[ getColorClassName( 'color', textColor ) ]: !! textColor,
-			'has-background': !! backgroundColor,
+		className: clsx( 'wp-block-page-list', {
+			'has-text-color': !! context.textColor,
+			[ getColorClassName( 'color', context.textColor ) ]:
+				!! context.textColor,
+			'has-background': !! context.backgroundColor,
 			[ getColorClassName(
 				'background-color',
-				backgroundColor
-			) ]: !! backgroundColor,
-			'show-submenu-icons': !! showSubmenuIcon,
+				context.backgroundColor
+			) ]: !! context.backgroundColor,
 		} ),
-		style: { ...style?.color },
+		style: { ...context.style?.color },
 	} );
 
-	const isParentNavigation = useSelect(
+	const pagesTree = useMemo(
+		function makePagesTree( parentId = 0, level = 0 ) {
+			const childPages = pagesByParentId.get( parentId );
+
+			if ( ! childPages?.length ) {
+				return [];
+			}
+
+			return childPages.reduce( ( tree, page ) => {
+				const hasChildren = pagesByParentId.has( page.id );
+				const item = {
+					value: page.id,
+					label: '— '.repeat( level ) + page.title.rendered,
+					rawName: page.title.rendered,
+				};
+				tree.push( item );
+				if ( hasChildren ) {
+					tree.push( ...makePagesTree( page.id, level + 1 ) );
+				}
+				return tree;
+			}, [] );
+		},
+		[ pagesByParentId ]
+	);
+
+	const blockList = useMemo(
+		function getBlockList( parentId = parentPageID ) {
+			const childPages = pagesByParentId.get( parentId );
+
+			if ( ! childPages?.length ) {
+				return [];
+			}
+
+			return childPages.reduce( ( template, page ) => {
+				const hasChildren = pagesByParentId.has( page.id );
+				const pageProps = {
+					id: page.id,
+					label:
+						// translators: displayed when a page has an empty title.
+						page.title?.rendered?.trim() !== ''
+							? page.title?.rendered
+							: __( '(no title)' ),
+					title:
+						// translators: displayed when a page has an empty title.
+						page.title?.rendered?.trim() !== ''
+							? page.title?.rendered
+							: __( '(no title)' ),
+					link: page.url,
+					hasChildren,
+				};
+				let item = null;
+				const children = getBlockList( page.id );
+				item = createBlock(
+					'core/page-list-item',
+					pageProps,
+					children
+				);
+				template.push( item );
+
+				return template;
+			}, [] );
+		},
+		[ pagesByParentId, parentPageID ]
+	);
+
+	const {
+		isNested,
+		hasSelectedChild,
+		parentClientId,
+		hasDraggedChild,
+		isChildOfNavigation,
+	} = useSelect(
 		( select ) => {
-			const { getBlockParentsByBlockName } = select( blockEditorStore );
-			return (
-				getBlockParentsByBlockName( clientId, 'core/navigation' )
-					.length > 0
+			const {
+				getBlockParentsByBlockName,
+				hasSelectedInnerBlock,
+				hasDraggedInnerBlock,
+			} = select( blockEditorStore );
+			const blockParents = getBlockParentsByBlockName(
+				clientId,
+				'core/navigation-submenu',
+				true
 			);
+			const navigationBlockParents = getBlockParentsByBlockName(
+				clientId,
+				'core/navigation',
+				true
+			);
+			return {
+				isNested: blockParents.length > 0,
+				isChildOfNavigation: navigationBlockParents.length > 0,
+				hasSelectedChild: hasSelectedInnerBlock( clientId, true ),
+				hasDraggedChild: hasDraggedInnerBlock( clientId, true ),
+				parentClientId: navigationBlockParents[ 0 ],
+			};
 		},
 		[ clientId ]
 	);
 
-	useEffect( () => {
-		if ( isParentNavigation ) {
-			apiFetch( {
-				path: addQueryArgs( '/wp/v2/pages', {
-					per_page: 1,
-					_fields: [ 'id' ],
-				} ),
-				parse: false,
-			} ).then( ( res ) => {
-				setAllowConvertToLinks(
-					res.headers.get( 'X-WP-Total' ) <= MAX_PAGE_COUNT
-				);
-			} );
-		} else {
-			setAllowConvertToLinks( false );
-		}
-	}, [ isParentNavigation ] );
+	const convertToNavigationLinks = useConvertToNavigationLinks( {
+		clientId,
+		pages,
+		parentClientId,
+		parentPageID,
+	} );
 
-	const [ isOpen, setOpen ] = useState( false );
-	const openModal = () => setOpen( true );
-	const closeModal = () => setOpen( false );
+	const innerBlocksProps = useInnerBlocksProps( blockProps, {
+		renderAppender: false,
+		__unstableDisableDropZone: true,
+		templateLock: isChildOfNavigation ? false : 'all',
+		onInput: NOOP,
+		onChange: NOOP,
+		value: blockList,
+	} );
+
+	const { selectBlock } = useDispatch( blockEditorStore );
+
+	useEffect( () => {
+		if ( hasSelectedChild || hasDraggedChild ) {
+			openModal();
+			selectBlock( parentClientId );
+		}
+	}, [
+		hasSelectedChild,
+		hasDraggedChild,
+		parentClientId,
+		selectBlock,
+		openModal,
+	] );
+
+	useEffect( () => {
+		setAttributes( { isNested } );
+	}, [ isNested, setAttributes ] );
 
 	return (
 		<>
+			<InspectorControls>
+				<ToolsPanel
+					label={ __( 'Settings' ) }
+					resetAll={ () => {
+						setAttributes( { parentPageID: 0 } );
+					} }
+					dropdownMenuProps={ dropdownMenuProps }
+				>
+					{ pagesTree.length > 0 && (
+						<ToolsPanelItem
+							label={ __( 'Parent Page' ) }
+							hasValue={ () => parentPageID !== 0 }
+							onDeselect={ () =>
+								setAttributes( { parentPageID: 0 } )
+							}
+							isShownByDefault
+						>
+							<ComboboxControl
+								__nextHasNoMarginBottom
+								__next40pxDefaultSize
+								className="editor-page-attributes__parent"
+								label={ __( 'Parent' ) }
+								value={ parentPageID }
+								options={ pagesTree }
+								onChange={ ( value ) =>
+									setAttributes( {
+										parentPageID: value ?? 0,
+									} )
+								}
+								help={ __(
+									'Choose a page to show only its subpages.'
+								) }
+							/>
+						</ToolsPanelItem>
+					) }
+
+					{ allowConvertToLinks && (
+						<div style={ { gridColumn: '1 / -1' } }>
+							<p>{ convertDescription }</p>
+							<Button
+								__next40pxDefaultSize
+								variant="primary"
+								accessibleWhenDisabled
+								disabled={ ! hasResolvedPages }
+								onClick={ convertToNavigationLinks }
+							>
+								{ __( 'Edit' ) }
+							</Button>
+						</div>
+					) }
+				</ToolsPanel>
+			</InspectorControls>
 			{ allowConvertToLinks && (
-				<BlockControls group="other">
-					<ToolbarButton title={ __( 'Edit' ) } onClick={ openModal }>
-						{ __( 'Edit' ) }
-					</ToolbarButton>
-				</BlockControls>
+				<>
+					<BlockControls group="other">
+						<ToolbarButton
+							title={ __( 'Edit' ) }
+							onClick={ openModal }
+						>
+							{ __( 'Edit' ) }
+						</ToolbarButton>
+					</BlockControls>
+					{ isOpen && (
+						<ConvertToLinksModal
+							onClick={ convertToNavigationLinks }
+							onClose={ closeModal }
+							disabled={ ! hasResolvedPages }
+						/>
+					) }
+				</>
 			) }
-			{ allowConvertToLinks && isOpen && (
-				<ConvertToLinksModal
-					onClose={ closeModal }
-					clientId={ clientId }
-				/>
-			) }
-			<div { ...blockProps }>
-				<ServerSideRender
-					block="core/page-list"
-					attributes={ attributes }
-				/>
-			</div>
+			<BlockContent
+				blockProps={ blockProps }
+				innerBlocksProps={ innerBlocksProps }
+				hasResolvedPages={ hasResolvedPages }
+				blockList={ blockList }
+				pages={ pages }
+				parentPageID={ parentPageID }
+			/>
 		</>
 	);
 }

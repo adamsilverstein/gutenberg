@@ -10,16 +10,14 @@ import { useNavigation } from '@react-navigation/native';
 import { useState } from '@wordpress/element';
 import { Icon, chevronRight } from '@wordpress/icons';
 import { usePreferredColorSchemeStyle } from '@wordpress/compose';
-import {
-	BottomSheet,
-	PanelBody,
-	FooterMessageControl,
-} from '@wordpress/components';
 
 /**
  * Internal dependencies
  */
 import styles from './styles.scss';
+import BottomSheet from '../bottom-sheet';
+import PanelBody from '../../panel/body';
+import FooterMessageControl from '../../footer-message-control';
 
 const BottomSheetTextControl = ( {
 	initialValue,
@@ -28,6 +26,8 @@ const BottomSheetTextControl = ( {
 	label,
 	icon,
 	footerNote,
+	cellPlaceholder,
+	disabled,
 } ) => {
 	const [ showSubSheet, setShowSubSheet ] = useState( false );
 	const navigation = useNavigation();
@@ -41,8 +41,6 @@ const BottomSheetTextControl = ( {
 		navigation.navigate( BottomSheet.SubSheet.screenName );
 		setShowSubSheet( true );
 	};
-
-	const [ value, onChangeText ] = useState( initialValue );
 
 	const horizontalBorderStyle = usePreferredColorSchemeStyle(
 		styles.horizontalBorder,
@@ -59,32 +57,34 @@ const BottomSheetTextControl = ( {
 			navigationButton={
 				<BottomSheet.Cell
 					icon={ icon }
-					placeholder={ placeholder }
 					label={ label }
 					onPress={ openSubSheet }
 					value={ initialValue || '' }
+					placeholder={ cellPlaceholder || placeholder || '' }
+					disabled={ disabled }
 				>
-					<Icon icon={ chevronRight }></Icon>
+					{ disabled ? null : <Icon icon={ chevronRight } /> }
 				</BottomSheet.Cell>
 			}
 			showSheet={ showSubSheet }
 		>
 			<>
-				<BottomSheet.NavigationHeader
-					screen={ label }
-					leftButtonOnPress={ goBack }
-				/>
+				<BottomSheet.NavBar>
+					<BottomSheet.NavBar.BackButton onPress={ goBack } />
+					<BottomSheet.NavBar.Heading>
+						{ label }
+					</BottomSheet.NavBar.Heading>
+				</BottomSheet.NavBar>
 				<PanelBody style={ horizontalBorderStyle }>
 					<TextInput
 						label={ label }
-						onChangeText={ ( text ) => onChangeText( text ) }
-						onChange={ onChange( value ) }
-						value={ value }
-						multiline={ true }
+						onChangeText={ ( text ) => onChange( text ) }
+						defaultValue={ initialValue }
+						multiline
 						placeholder={ placeholder }
-						placeholderTextColor={ '#87a6bc' }
+						placeholderTextColor="#87a6bc"
 						style={ textEditorStyle }
-						textAlignVertical={ 'top' }
+						textAlignVertical="top"
 					/>
 				</PanelBody>
 			</>

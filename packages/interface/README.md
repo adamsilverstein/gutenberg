@@ -10,7 +10,7 @@ Install the module
 npm install @wordpress/interface --save
 ```
 
-_This package assumes that your code will run in an **ES2015+** environment. If you're using an environment that has limited or no support for ES2015+ such as IE browsers then using [core-js](https://github.com/zloirock/core-js) will add polyfills for these methods._
+_This package assumes that your code will run in an **ES2015+** environment. If you're using an environment that has limited or no support for such language features and APIs, you should include [the polyfill shipped in `@wordpress/babel-preset-default`](https://github.com/WordPress/gutenberg/tree/HEAD/packages/babel-preset-default#polyfill) in your code._
 
 ## API Usage
 
@@ -27,25 +27,25 @@ Below are some examples of how to control the active complementary area using th
 ```js
 wp.data
 	.select( 'core/interface' )
-	.getActiveComplementaryArea( 'core/edit-post' );
+	.getActiveComplementaryArea( 'core' );
 // -> "edit-post/document"
 
 wp.data
 	.dispatch( 'core/interface' )
-	.enableComplementaryArea( 'core/edit-post', 'edit-post/block' );
+	.enableComplementaryArea( 'core', 'edit-post/block' );
 
 wp.data
 	.select( 'core/interface' )
-	.getActiveComplementaryArea( 'core/edit-post' );
+	.getActiveComplementaryArea( 'core' );
 // -> "edit-post/block"
 
 wp.data
 	.dispatch( 'core/interface' )
-	.disableComplementaryArea( 'core/edit-post' );
+	.disableComplementaryArea( 'core' );
 
 wp.data
 	.select( 'core/interface' )
-	.getActiveComplementaryArea( 'core/edit-post' );
+	.getActiveComplementaryArea( 'core' );
 // -> null
 ```
 
@@ -56,17 +56,65 @@ wp.data
 Example usage: `ComplementaryArea` component makes use of `PinnedItems` and automatically adds a pinned item for the complementary areas marked as a favorite.
 
 ```js
-wp.data.select( 'core/interface' ).isItemPinned( 'core/edit-post', 'edit-post-block-patterns/block-patterns-sidebar' );
+wp.data.select( 'core/interface' ).isItemPinned( 'core', 'edit-post-block-patterns/block-patterns-sidebar' );
 // -> false
 
-wp.data.dispatch( 'core/interface' ).pinItem( 'core/edit-post', 'edit-post-block-patterns/block-patterns-sidebar' );
+wp.data.dispatch( 'core/interface' ).pinItem( 'core', 'edit-post-block-patterns/block-patterns-sidebar' );
 
-wp.data.select( 'core/interface' ).isItemPinned( 'core/edit-post', 'edit-post-block-patterns/block-patterns-sidebar' );
+wp.data.select( 'core/interface' ).isItemPinned( 'core', 'edit-post-block-patterns/block-patterns-sidebar' );
 // -> true
 
-wp.data.dispatch( 'core/interface' ).unpinItem( 'core/edit-post', 'edit-post-block-patterns/block-patterns-sidebar' );
+wp.data.dispatch( 'core/interface' ).unpinItem( 'core', 'edit-post-block-patterns/block-patterns-sidebar' );
 
-wp.data.select( 'core/interface' ).isItemPinned( 'core/edit-post', 'edit-post-block-patterns/block-patterns-sidebar' ); -> false
+wp.data.select( 'core/interface' ).isItemPinned( 'core', 'edit-post-block-patterns/block-patterns-sidebar' ); -> false
 ```
 
-<br/><br/><p align="center"><img src="https://s.w.org/style/images/codeispoetry.png?1" alt="Code is Poetry." /></p>
+### Preferences
+
+The interface package provides some helpers for implementing editor preferences.
+
+#### Features
+
+Features are boolean values used for toggling specific editor features on or off.
+
+Set the default values for any features on editor initialization:
+
+```js
+import { dispatch } from '@wordpress/data';
+import { store as interfaceStore } from '@wordpress/interface';
+
+function initialize() {
+	// ...
+
+	dispatch( interfaceStore ).setFeatureDefaults(
+		'namespace/editor-or-plugin-name',
+		{
+			myFeatureName: true,
+		}
+	);
+
+	// ...
+}
+```
+
+Use the `toggleFeature` action and the `isFeatureActive` selector to toggle features within your app:
+
+```js
+wp.data
+	.select( 'core/interface' )
+	.isFeatureActive( 'namespace/editor-or-plugin-name', 'myFeatureName' ); // true
+wp.data
+	.dispatch( 'core/interface' )
+	.toggleFeature( 'namespace/editor-or-plugin-name', 'myFeatureName' );
+wp.data
+	.select( 'core/interface' )
+	.isFeatureActive( 'namespace/editor-or-plugin-name', 'myFeatureName' ); // false
+```
+
+## Contributing to this package
+
+This is an individual package that's part of the Gutenberg project. The project is organized as a monorepo. It's made up of multiple self-contained software packages, each with a specific purpose. The packages in this monorepo are published to [npm](https://www.npmjs.com/) and used by [WordPress](https://make.wordpress.org/core/) as well as other software projects.
+
+To find out more about contributing to this package or Gutenberg as a whole, please read the project's main [contributor guide](https://github.com/WordPress/gutenberg/tree/HEAD/CONTRIBUTING.md).
+
+<br /><br /><p align="center"><img src="https://s.w.org/style/images/codeispoetry.png?1" alt="Code is Poetry." /></p>

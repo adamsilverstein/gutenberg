@@ -43,6 +43,7 @@ export default function FileBlockInspector( {
 				{ href.endsWith( '.pdf' ) && (
 					<PanelBody title={ __( 'PDF settings' ) }>
 						<ToggleControl
+							__nextHasNoMarginBottom
 							label={ __( 'Show inline embed' ) }
 							help={
 								displayPreview
@@ -54,33 +55,39 @@ export default function FileBlockInspector( {
 							checked={ !! displayPreview }
 							onChange={ changeDisplayPreview }
 						/>
-						<RangeControl
-							label={ __( 'Height in pixels' ) }
-							min={ MIN_PREVIEW_HEIGHT }
-							max={ Math.max(
-								MAX_PREVIEW_HEIGHT,
-								previewHeight
-							) }
-							value={ previewHeight }
-							onChange={ changePreviewHeight }
-						/>
+						{ displayPreview && (
+							<RangeControl
+								__nextHasNoMarginBottom
+								__next40pxDefaultSize
+								label={ __( 'Height in pixels' ) }
+								min={ MIN_PREVIEW_HEIGHT }
+								max={ Math.max(
+									MAX_PREVIEW_HEIGHT,
+									previewHeight
+								) }
+								value={ previewHeight }
+								onChange={ changePreviewHeight }
+							/>
+						) }
 					</PanelBody>
 				) }
-				<PanelBody title={ __( 'Text link settings' ) }>
+				<PanelBody title={ __( 'Settings' ) }>
 					<SelectControl
+						__next40pxDefaultSize
+						__nextHasNoMarginBottom
 						label={ __( 'Link to' ) }
 						value={ textLinkHref }
 						options={ linkDestinationOptions }
 						onChange={ changeLinkDestinationOption }
 					/>
 					<ToggleControl
+						__nextHasNoMarginBottom
 						label={ __( 'Open in new tab' ) }
 						checked={ openInNewWindow }
 						onChange={ changeOpenInNewWindow }
 					/>
-				</PanelBody>
-				<PanelBody title={ __( 'Download button settings' ) }>
 					<ToggleControl
+						__nextHasNoMarginBottom
 						label={ __( 'Show download button' ) }
 						checked={ showDownloadButton }
 						onChange={ changeShowDownloadButton }
