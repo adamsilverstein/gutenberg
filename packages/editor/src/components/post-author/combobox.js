@@ -16,25 +16,6 @@ import { useAuthorsQuery } from './hook';
 export default function PostAuthorCombobox() {
 	const [ fieldValue, setFieldValue ] = useState();
 
-	const { authorId, isLoading, authors, postAuthor } = useSelect(
-		( select ) => {
-			const { __unstableGetAuthor, getAuthors, isResolving } =
-				select( coreStore );
-			const { getEditedPostAttribute } = select( editorStore );
-			const author = __unstableGetAuthor(
-				getEditedPostAttribute( 'author' )
-			);
-			const query =
-				! fieldValue || '' === fieldValue ? {} : { search: fieldValue };
-			return {
-				authorId: getEditedPostAttribute( 'author' ),
-				postAuthor: author,
-				authors: getAuthors( query ),
-				isLoading: isResolving( 'getAuthors', [ query ] ),
-			};
-		},
-		[ fieldValue ]
-	);
 	const { editPost } = useDispatch( editorStore );
 	const { authorId, authorOptions } = useAuthorsQuery( fieldValue );
 
@@ -70,6 +51,7 @@ export default function PostAuthorCombobox() {
 			onChange={ handleSelect }
 			allowReset={ false }
 			hideLabelFromVision
+			isLoading={ isResolving( 'getAuthors', [ query ] ) }
 		/>
 	);
 }
