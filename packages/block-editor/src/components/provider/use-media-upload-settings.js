@@ -17,7 +17,6 @@ function useMediaUploadSettings( settings = {} ) {
 			mediaSideload: settings.mediaSideload,
 			maxUploadFileSize: settings.maxUploadFileSize,
 			allowedMimeTypes: settings.allowedMimeTypes,
-			typesNotSupportedByServer: settings.typesNotSupportedByServer,
 		} ),
 		[ settings ]
 	);

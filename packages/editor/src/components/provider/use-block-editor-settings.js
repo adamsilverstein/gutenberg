@@ -48,7 +48,6 @@ const BLOCK_EDITOR_SETTINGS = [
 	'blockInspectorTabs',
 	'maxUploadFileSize',
 	'allowedMimeTypes',
-	'typesNotSupportedByServer',
 	'bodyPlaceholder',
 	'canLockBlocks',
 	'canUpdateBlockBindings',

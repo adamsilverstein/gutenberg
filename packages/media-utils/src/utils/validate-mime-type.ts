@@ -11,15 +11,10 @@ import { UploadError } from './upload-error';
 /**
  * Verifies if the caller (e.g. a block) supports this mime type.
  *
- * @param file                        File object.
- * @param allowedTypes                List of allowed mime types.
- * @param [typesNotSupportedByServer] List of types not supported by the server.
+ * @param file         File object.
+ * @param allowedTypes List of allowed mime types.
  */
-export function validateMimeType(
-	file: File,
-	allowedTypes?: string[],
-	typesNotSupportedByServer?: Record< string, boolean >
-) {
+export function validateMimeType( file: File, allowedTypes?: string[] ) {
 	if ( ! allowedTypes ) {
 		return;
 	}
@@ -40,20 +35,6 @@ export function validateMimeType(
 			message: sprintf(
 				// translators: %s: file name.
 				__( '%s: Sorry, this file type is not supported here.' ),
-				file.name
-			),
-			file,
-		} );
-	}
-
-	if ( typesNotSupportedByServer && typesNotSupportedByServer[ file.type ] ) {
-		throw new UploadError( {
-			code: 'MIME_TYPE_NOT_SUPPORTED',
-			message: sprintf(
-				// translators: %s: file name.
-				__(
-					'%s: The web server cannot generate responsive image sizes for this image. Convert it to JPEG or PNG before uploading.'
-				),
 				file.name
 			),
 			file,

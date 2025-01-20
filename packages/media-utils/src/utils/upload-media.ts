@@ -42,23 +42,20 @@ interface UploadMediaArgs {
 	wpAllowedMimeTypes?: Record< string, string > | null;
 	// Abort signal.
 	signal?: AbortSignal;
-	// List of types not supported by the server.
-	typesNotSupportedByServer?: Record< string, boolean >;
 }
 /**
  * Upload a media file when the file upload button is activated
  * or when adding a file to the editor via drag & drop.
  *
- * @param $0                           Parameters object passed to the function.
- * @param $0.wpAllowedMimeTypes        List of allowed mime types and file extensions.
- * @param $0.allowedTypes              Array with the types of media that can be uploaded, if unset all types are allowed.
- * @param $0.additionalData            Additional data to include in the request.
- * @param $0.filesList                 List of files.
- * @param $0.maxUploadFileSize         Maximum upload size in bytes allowed for the site.
- * @param $0.onError                   Function called when an error happens.
- * @param $0.onFileChange              Function called each time a file or a temporary representation of the file is available.
- * @param $0.signal                    Abort signal.
- * @param $0.typesNotSupportedByServer List of types not supported by the server.
+ * @param $0                    Parameters object passed to the function.
+ * @param $0.wpAllowedMimeTypes List of allowed mime types and file extensions.
+ * @param $0.allowedTypes       Array with the types of media that can be uploaded, if unset all types are allowed.
+ * @param $0.additionalData     Additional data to include in the request.
+ * @param $0.filesList          List of files.
+ * @param $0.maxUploadFileSize  Maximum upload size in bytes allowed for the site.
+ * @param $0.onError            Function called when an error happens.
+ * @param $0.onFileChange       Function called each time a file or a temporary representation of the file is available.
+ * @param $0.signal             Abort signal.
  */
 export function uploadMedia( {
 	wpAllowedMimeTypes,
@@ -69,7 +66,6 @@ export function uploadMedia( {
 	onError,
 	onFileChange,
 	signal,
-	typesNotSupportedByServer,
 }: UploadMediaArgs ) {
 	const validFiles = [];
 
@@ -100,11 +96,7 @@ export function uploadMedia( {
 		// Check if the caller (e.g. a block) supports this mime type.
 		// Defer to the server when type not detected.
 		try {
-			validateMimeType(
-				mediaFile,
-				allowedTypes,
-				typesNotSupportedByServer
-			);
+			validateMimeType( mediaFile, allowedTypes );
 		} catch ( error: unknown ) {
 			onError?.( error as Error );
 			continue;
@@ -141,9 +133,16 @@ export function uploadMedia( {
 			// Reset to empty on failure.
 			setAndUpdateFiles( index, null );
 
-			let message;
-			if ( error instanceof Error ) {
-				message = error.message;
+			let message: string;
+			if (
+				typeof error === 'object' &&
+				error !== null &&
+				'message' in error
+			) {
+				message =
+					typeof error.message === 'string'
+						? error.message
+						: String( error.message );
 			} else {
 				message = sprintf(
 					// translators: %s: file name

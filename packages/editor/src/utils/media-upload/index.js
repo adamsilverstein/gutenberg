@@ -46,8 +46,7 @@ export default function mediaUpload( {
 		unlockPostSaving,
 	} = dispatch( editorStore );
 
-	const { wpAllowedMimeTypes, typesNotSupportedByServer } =
-		getEditorSettings();
+	const { wpAllowedMimeTypes } = getEditorSettings();
 	const lockKey = `image-upload-${ uuid() }`;
 	let imageIsUploading = false;
 	maxUploadFileSize =
@@ -93,6 +92,5 @@ export default function mediaUpload( {
 			onError( message );
 		},
 		wpAllowedMimeTypes,
-		typesNotSupportedByServer,
 	} );
 }
