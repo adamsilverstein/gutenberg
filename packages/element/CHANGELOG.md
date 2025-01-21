@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 6.16.0 (2025-01-15)
+
+## 6.15.0 (2025-01-02)
+
 ## 6.14.0 (2024-12-11)
 
 ## 6.13.0 (2024-11-27)
@@ -247,7 +251,7 @@
 
 ### New Features
 
--   Added `lazy` feautre (see: https://reactjs.org/docs/react-api.html#reactlazy).
+-   Added `lazy` feature (see: https://reactjs.org/docs/react-api.html#reactlazy).
 -   Added `Suspense` component (see: https://reactjs.org/docs/react-api.html#reactsuspense).
 
 ## 2.3.0 (2019-03-06)

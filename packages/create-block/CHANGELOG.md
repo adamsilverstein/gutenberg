@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 4.59.0 (2025-01-15)
+
+## 4.58.0 (2025-01-02)
+
 ### Enhancement
 
 -   Add support for custom `textdomain` property for the scaffolded block ([#57197](https://github.com/WordPress/gutenberg/pull/57197)).
@@ -478,7 +482,7 @@
 
 ### Internal
 
--   Relocated npm packge from `create-wordpress-block` to `@wordpress/create-block` ([#19773](https://github.com/WordPress/gutenberg/pull/19773)).
+-   Relocated npm package from `create-wordpress-block` to `@wordpress/create-block` ([#19773](https://github.com/WordPress/gutenberg/pull/19773)).
 
 ## 0.5.0 (2020-01-08)
 
