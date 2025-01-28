@@ -86,4 +86,9 @@ export type ComboboxControlProps = Pick<
 	 * If passed, the combobox input will show a placeholder string if no values are present.
 	 */
 	placeholder?: string;
+
+	/**
+	 * When loading, combobox will show a spinner
+	 */
+	isLoading?: boolean;
 };

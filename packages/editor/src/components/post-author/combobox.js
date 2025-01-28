@@ -17,7 +17,8 @@ export default function PostAuthorCombobox() {
 	const [ fieldValue, setFieldValue ] = useState();
 
 	const { editPost } = useDispatch( editorStore );
-	const { authorId, authorOptions } = useAuthorsQuery( fieldValue );
+	const { authorId, authorOptions, isLoading } =
+		useAuthorsQuery( fieldValue );
 
 	/**
 	 * Handle author selection.
@@ -44,13 +45,14 @@ export default function PostAuthorCombobox() {
 		<ComboboxControl
 			__nextHasNoMarginBottom
 			__next40pxDefaultSize
-			label={ __( 'Author' ) }
+			label={ __( 'Authorz' ) }
 			options={ authorOptions }
 			value={ authorId }
 			onFilterValueChange={ debounce( handleKeydown, 300 ) }
 			onChange={ handleSelect }
 			allowReset={ false }
 			hideLabelFromVision
+			isLoading={ isLoading }
 		/>
 	);
 }
