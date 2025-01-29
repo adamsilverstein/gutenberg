@@ -77,6 +77,7 @@ export function FormTokenField( props: FormTokenFieldProps ) {
 		__experimentalAutoSelectFirstMatch = false,
 		__nextHasNoMarginBottom = false,
 		tokenizeOnBlur = false,
+		isLoading = false,
 	} = useDeprecated36pxDefaultSizeProp< FormTokenFieldProps >( props );
 
 	if ( ! __nextHasNoMarginBottom ) {
@@ -743,6 +744,7 @@ export function FormTokenField( props: FormTokenFieldProps ) {
 						onHover={ onSuggestionHovered }
 						onSelect={ onSuggestionSelected }
 						__experimentalRenderItem={ __experimentalRenderItem }
+						isLoading={ isLoading }
 					/>
 				) }
 			</div>

@@ -31,6 +31,7 @@ export function SuggestionsList<
 	suggestions = [],
 	displayTransform,
 	instanceId,
+	isLoading,
 	__experimentalRenderItem,
 }: SuggestionsListProps< T > ) {
 	const listRef = useRefEffect< HTMLUListElement >(
@@ -157,7 +158,7 @@ export function SuggestionsList<
 				);
 				/* eslint-enable jsx-a11y/click-events-have-key-events */
 			} ) }
-			{ suggestions.length === 0 && (
+			{ suggestions.length === 0 && ! isLoading && (
 				<li className="components-form-token-field__suggestion is-empty">
 					{ __( 'No items found' ) }
 				</li>
