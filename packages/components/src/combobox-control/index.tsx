@@ -378,7 +378,7 @@ function ComboboxControl( props: ComboboxControlProps ) {
 							/>
 						) }
 					</InputWrapperFlex>
-					{ isExpanded && (
+					{ isExpanded && ! isLoading && (
 						<SuggestionsList
 							instanceId={ instanceId }
 							// The empty string for `value` here is not actually used, but is
