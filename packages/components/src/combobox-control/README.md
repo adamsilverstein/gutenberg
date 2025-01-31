@@ -122,7 +122,7 @@ If passed, the combobox input will show a placeholder string if no values are pr
 
 #### isLoading
 
-If true, the dropdown will show a loading indicator.
+Show a spinner (and hide the suggestions dropdown) while data about the matching suggestions (ie the `options` prop) is loading
 
 -   Type: `Boolean`
 -   Required: No
