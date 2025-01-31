@@ -88,7 +88,8 @@ export type ComboboxControlProps = Pick<
 	placeholder?: string;
 
 	/**
-	 * When loading, combobox will show a spinner
+	 * Show a spinner (and hide the suggestions dropdown) while data
+	 * about the matching suggestions (ie the `options` prop) is loading
 	 */
 	isLoading?: boolean;
 };
