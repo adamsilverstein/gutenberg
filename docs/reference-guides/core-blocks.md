@@ -78,7 +78,7 @@ Display a list of all terms of a given taxonomy. ([Source](https://github.com/Wo
 
 -	**Name:** core/categories
 -	**Category:** widgets
--	**Supports:** align, interactivity (clientNavigation), spacing (margin, padding), typography (fontSize, lineHeight), ~~html~~
+-	**Supports:** align, color (background, gradients, link, text), interactivity (clientNavigation), spacing (margin, padding), typography (fontSize, lineHeight), ~~html~~
 -	**Attributes:** displayAsDropdown, label, showEmpty, showHierarchy, showLabel, showOnlyTopLevel, showPostCounts, taxonomy
 
 ## Code
@@ -255,7 +255,7 @@ Hide and show additional content. ([Source](https://github.com/WordPress/gutenbe
 -	**Name:** core/details
 -	**Category:** text
 -	**Supports:** align (full, wide), anchor, color (background, gradients, link, text), interactivity (clientNavigation), layout (~~allowEditing~~), spacing (blockGap, margin, padding), typography (fontSize, lineHeight), ~~html~~
--	**Attributes:** allowedBlocks, name, showContent, summary
+-	**Attributes:** allowedBlocks, name, placeholder, showContent, summary
 
 ## Embed
 
