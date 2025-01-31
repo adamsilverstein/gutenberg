@@ -45,7 +45,7 @@ export default function PostAuthorCombobox() {
 		<ComboboxControl
 			__nextHasNoMarginBottom
 			__next40pxDefaultSize
-			label={ __( 'Authorz' ) }
+			label={ __( 'Author' ) }
 			options={ authorOptions }
 			value={ authorId }
 			onFilterValueChange={ debounce( handleKeydown, 300 ) }
