@@ -35,7 +35,6 @@ import type { TokenInputProps } from '../form-token-field/types';
 import { useDeprecated36pxDefaultSizeProp } from '../utils/use-deprecated-props';
 import { withIgnoreIMEEvents } from '../utils/with-ignore-ime-events';
 import { maybeWarnDeprecated36pxSize } from '../utils/deprecated-36px-size';
-import Spinner from '../spinner';
 
 const noop = () => {};
 
@@ -127,7 +126,6 @@ function ComboboxControl( props: ComboboxControlProps ) {
 		help,
 		allowReset = true,
 		className,
-		isLoading = false,
 		messages = {
 			selected: __( 'Item selected.' ),
 		},
@@ -364,7 +362,6 @@ function ComboboxControl( props: ComboboxControlProps ) {
 								onChange={ onInputChange }
 							/>
 						</FlexBlock>
-						{ isLoading && <Spinner /> }
 						{ allowReset && (
 							<Button
 								size="small"
@@ -378,7 +375,7 @@ function ComboboxControl( props: ComboboxControlProps ) {
 							/>
 						) }
 					</InputWrapperFlex>
-					{ isExpanded && ! isLoading && (
+					{ isExpanded && (
 						<SuggestionsList
 							instanceId={ instanceId }
 							// The empty string for `value` here is not actually used, but is
