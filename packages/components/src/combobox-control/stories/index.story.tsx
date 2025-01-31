@@ -124,6 +124,7 @@ WithCustomRenderItem.args = {
 			</div>
 		);
 	},
+	isLoading: true,
 };
 
 /**
