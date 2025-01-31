@@ -39,6 +39,7 @@ function MyComboboxControl() {
 			label="Font Size"
 			value={ fontSize }
 			onChange={ setFontSize }
+			isLoading={ isLoading }
 			options={ filteredOptions }
 			onFilterValueChange={ ( inputValue ) =>
 				setFilteredOptions(
@@ -112,11 +113,18 @@ If the control is clicked, the dropdown will expand regardless of this prop.
 -   Required: No
 -   Default: `true`
 
-### placeholder
+#### placeholder
 
 If passed, the combobox input will show a placeholder string if no values are present.
 
 -   Type: `string`
+-   Required: No
+
+#### isLoading
+
+If true, the dropdown will show a loading indicator.
+
+-   Type: `Boolean`
 -   Required: No
 
 #### __experimentalRenderItem
