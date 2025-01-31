@@ -399,7 +399,6 @@ function ComboboxControl( props: ComboboxControlProps ) {
 							__experimentalRenderItem={
 								__experimentalRenderItem
 							}
-							isLoading={ isLoading }
 						/>
 					) }
 				</div>

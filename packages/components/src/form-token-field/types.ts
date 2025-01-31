@@ -190,11 +190,6 @@ export interface FormTokenFieldProps
 	 * @default false
 	 */
 	tokenizeOnBlur?: boolean;
-
-	/**
-	 * Is the component loading data?
-	 */
-	isLoading?: boolean;
 }
 
 /**
@@ -212,7 +207,6 @@ export interface SuggestionsListProps<
 	displayTransform: ( value: T ) => string;
 	instanceId: string | number;
 	__experimentalRenderItem?: ( args: { item: T } ) => ReactNode;
-	isLoading?: boolean;
 }
 
 export interface TokenProps extends TokenItem {
