@@ -20,7 +20,7 @@ describe( 'validateMimeTypeForServer', () => {
 			new UploadError( {
 				code: 'MIME_TYPE_NOT_SUPPORTED_BY_SERVER',
 				message:
-					'test.jpeg: The web server cannot generate responsive image sizes for this image. Convert it to JPEG or PNG before uploading.',
+					'test.avif: The web server cannot generate responsive image sizes for this image. Convert it to JPEG or PNG before uploading.',
 				file: imageFile,
 			} )
 		);
