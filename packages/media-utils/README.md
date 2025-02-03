@@ -75,7 +75,6 @@ _Parameters_
 
 -   _file_ `File`: File object.
 -   _allowedTypes_ `string[]`: List of allowed mime types.
--   _serverUnsupportedTypes_ `[Record< string, boolean >]`: List of image types not supported by the server.
 
 ### validateMimeTypeForUser
 
