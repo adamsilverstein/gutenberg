@@ -48,13 +48,13 @@ Upload a media file when the file upload button is activated or when adding a fi
 _Parameters_
 
 -   _$0_ `UploadMediaArgs`: Parameters object passed to the function.
--   _$0.wpAllowedMimeTypes_ `UploadMediaArgs[ 'wpAllowedMimeTypes' ]`: List of allowed mime types and file extensions.
 -   _$0.allowedTypes_ `UploadMediaArgs[ 'allowedTypes' ]`: Array with the types of media that can be uploaded, if unset all types are allowed.
 -   _$0.additionalData_ `UploadMediaArgs[ 'additionalData' ]`: Additional data to include in the request.
 -   _$0.filesList_ `UploadMediaArgs[ 'filesList' ]`: List of files.
 -   _$0.maxUploadFileSize_ `UploadMediaArgs[ 'maxUploadFileSize' ]`: Maximum upload size in bytes allowed for the site.
 -   _$0.onError_ `UploadMediaArgs[ 'onError' ]`: Function called when an error happens.
 -   _$0.onFileChange_ `UploadMediaArgs[ 'onFileChange' ]`: Function called each time a file or a temporary representation of the file is available.
+-   _$0.wpAllowedMimeTypes_ `UploadMediaArgs[ 'wpAllowedMimeTypes' ]`: List of allowed mime types and file extensions.
 -   _$0.signal_ `UploadMediaArgs[ 'signal' ]`: Abort signal.
 -   _$0.serverUnsupportedTypes_ `UploadMediaArgs[ 'serverUnsupportedTypes' ]`: List of image types not supported by the server.
 
