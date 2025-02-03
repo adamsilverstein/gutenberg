@@ -44,6 +44,7 @@ if ( class_exists( 'WP_REST_Controller' ) ) {
 	// WordPress 6.8 compat.
 	require __DIR__ . '/compat/wordpress-6.8/class-gutenberg-hierarchical-sort.php';
 	require __DIR__ . '/compat/wordpress-6.8/rest-api.php';
+	require __DIR__ . '/compat/wordpress-6.8/block-editor-settings.php';
 
 	// Plugin specific code.
 	require_once __DIR__ . '/class-wp-rest-global-styles-controller-gutenberg.php';
