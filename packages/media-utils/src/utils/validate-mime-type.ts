@@ -13,7 +13,7 @@ import { UploadError } from './upload-error';
  *
  * @param file                     File object.
  * @param allowedTypes             List of allowed mime types.
- * @param [serverUnsupportedTypes] List of types not supported by the server.
+ * @param [serverUnsupportedTypes] List of image types not supported by the server.
  */
 export function validateMimeType(
 	file: File,

@@ -42,7 +42,7 @@ interface UploadMediaArgs {
 	wpAllowedMimeTypes?: Record< string, string > | null;
 	// Abort signal.
 	signal?: AbortSignal;
-	// List of types not supported by the server.
+	// List of image types not supported by the server.
 	serverUnsupportedTypes?: Record< string, boolean >;
 }
 /**
@@ -58,7 +58,7 @@ interface UploadMediaArgs {
  * @param $0.onError                Function called when an error happens.
  * @param $0.onFileChange           Function called each time a file or a temporary representation of the file is available.
  * @param $0.signal                 Abort signal.
- * @param $0.serverUnsupportedTypes List of types not supported by the server.
+ * @param $0.serverUnsupportedTypes List of image types not supported by the server.
  */
 export function uploadMedia( {
 	wpAllowedMimeTypes,
