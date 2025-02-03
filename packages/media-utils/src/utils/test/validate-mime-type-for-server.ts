@@ -2,7 +2,7 @@
  * Internal dependencies
  */
 import { validateMimeTypeForServer } from '../validate-mime-type-for-server';
-import { UploadError } from '../upload-media/src/upload-error';
+import { UploadError } from '../upload-error';
 
 const imageFile = new window.File( [ 'fake_file' ], 'test.avif', {
 	type: 'image/avif',
