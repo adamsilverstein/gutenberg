@@ -16,10 +16,10 @@
 function gutenberg_extend_block_editor_settings_with_image_support( $settings ) {
 	$settings['serverUnsupportedTypes'] = array();
 
-	$image_types_to_check_for_support = array( 'image/webp', 'image/avif', 'image/heic' );
-	foreach ( $image_types_to_check_for_support as $type ) {
-		// Check if image type can be edited
-		if ( ! wp_image_editor_supports( array( 'mime_type' => $type ) ) ) {
+	$all_types = wp_get_mime_types();
+	foreach ( $all_types as $type ) {
+		// Check if image type can be edited, image types start with 'image/'.
+		if ( str_starts_with( $type, 'image/' ) && ! wp_image_editor_supports( array( 'mime_type' => $type ) ) ) {
 			$settings['serverUnsupportedTypes'][] = $type;
 		}
 	}
