@@ -56,7 +56,7 @@ _Parameters_
 -   _$0.onError_ `UploadMediaArgs[ 'onError' ]`: Function called when an error happens.
 -   _$0.onFileChange_ `UploadMediaArgs[ 'onFileChange' ]`: Function called each time a file or a temporary representation of the file is available.
 -   _$0.signal_ `UploadMediaArgs[ 'signal' ]`: Abort signal.
--   _$0.typesNotSupportedByServer_ `UploadMediaArgs[ 'typesNotSupportedByServer' ]`: List of types not supported by the server.
+-   _$0.serverUnsupportedTypes_ `UploadMediaArgs[ 'serverUnsupportedTypes' ]`: List of types not supported by the server.
 
 ### validateFileSize
 
@@ -75,7 +75,7 @@ _Parameters_
 
 -   _file_ `File`: File object.
 -   _allowedTypes_ `string[]`: List of allowed mime types.
--   _typesNotSupportedByServer_ `[Record< string, boolean >]`: List of types not supported by the server.
+-   _serverUnsupportedTypes_ `[Record< string, boolean >]`: List of types not supported by the server.
 
 ### validateMimeTypeForUser
 
