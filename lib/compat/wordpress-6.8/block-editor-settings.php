@@ -20,7 +20,7 @@ function gutenberg_extend_block_editor_settings_with_image_support( $settings ) 
 	foreach ( $image_types_to_check_for_support as $type ) {
 		// Check if image type can be edited
 		if ( ! wp_image_editor_supports( array( 'mime_type' => $type ) ) ) {
-			$settings['typesNotSupportedByServer'][ $type ] = true;
+			$settings['typesNotSupportedByServer'][] = $type;
 		}
 	}
 	return $settings;

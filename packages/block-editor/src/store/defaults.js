@@ -155,7 +155,7 @@ export const SETTINGS_DEFAULTS = {
 	allowedMimeTypes: null,
 
 	// List of types not supported by the server.
-	typesNotSupportedByServer: {},
+	typesNotSupportedByServer: [],
 
 	// Allows to disable block locking interface.
 	canLockBlocks: true,
