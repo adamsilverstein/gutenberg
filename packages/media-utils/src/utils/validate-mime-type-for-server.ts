@@ -21,7 +21,7 @@ export function validateMimeTypeForServer(
 	if (
 		serverUnsupportedTypes &&
 		file.type &&
-		! serverUnsupportedTypes.includes( file.type )
+		serverUnsupportedTypes.includes( file.type )
 	) {
 		throw new UploadError( {
 			code: 'MIME_TYPE_NOT_SUPPORTED_BY_SERVER',
