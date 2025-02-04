@@ -32,15 +32,37 @@ store(
 				if ( isValidLink( ref ) && isValidEvent( event ) ) {
 					event.preventDefault();
 
-					const { actions } = yield import(
-						'@wordpress/interactivity-router'
-					);
-					yield actions.navigate( ref.href );
-					ctx.url = ref.href;
+					// Check if View Transitions API is supported
+					if ( document.startViewTransition ) {
+						const { actions } = yield import(
+							'@wordpress/interactivity-router'
+						);
 
-					// Focus the first anchor of the Query block.
-					const firstAnchor = `.wp-block-post-template a[href]`;
-					queryRef.querySelector( firstAnchor )?.focus();
+						const transition = document.startViewTransition( () => {
+							return Promise.resolve().then( function* () {
+								yield actions.navigate( ref.href );
+								ctx.url = ref.href;
+							} );
+						} );
+
+						// Handle transition completion
+						yield transition.finished;
+
+						// Focus the first anchor of the Query block after transition
+						const firstAnchor = `.wp-block-post-template a[href]`;
+						queryRef.querySelector( firstAnchor )?.focus();
+					} else {
+						// Fallback for browsers that don't support View Transitions API
+						const { actions } = yield import(
+							'@wordpress/interactivity-router'
+						);
+						yield actions.navigate( ref.href );
+						ctx.url = ref.href;
+
+						// Focus the first anchor of the Query block
+						const firstAnchor = `.wp-block-post-template a[href]`;
+						queryRef.querySelector( firstAnchor )?.focus();
+					}
 				}
 			},
 			*prefetch() {

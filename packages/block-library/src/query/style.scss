@@ -1,0 +1,34 @@
+@supports (view-transition-name: query-content) {
+	.wp-block-query {
+		.wp-block-post-template {
+			view-transition-name: query-content;
+		}
+
+		.wp-block-query-pagination {
+			view-transition-name: query-pagination;
+		}
+	}
+}
+
+// Ensure smooth transitions for opacity and transform
+.wp-block-post-template {
+	transition: opacity 0.2s, transform 0.2s;
+}
+
+// Define transition styles for the old and new content
+::view-transition-old(query-content),
+::view-transition-new(query-content) {
+	animation: none;
+	mix-blend-mode: normal;
+	height: 100%;
+}
+
+::view-transition-old(query-content) {
+	opacity: 0;
+	transform: translateX(-10px);
+}
+
+::view-transition-new(query-content) {
+	opacity: 1;
+	transform: translateX(0);
+}
