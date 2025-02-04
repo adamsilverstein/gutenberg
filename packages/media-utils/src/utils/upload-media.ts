@@ -44,7 +44,7 @@ interface UploadMediaArgs {
 	// Abort signal.
 	signal?: AbortSignal;
 	// List of image types not supported by the server.
-	serverUnsupportedTypes?: string[];
+	wpUnsupportedMimeTypes?: string[];
 }
 /**
  * Upload a media file when the file upload button is activated
@@ -59,7 +59,7 @@ interface UploadMediaArgs {
  * @param $0.onFileChange           Function called each time a file or a temporary representation of the file is available.
  * @param $0.wpAllowedMimeTypes     List of allowed mime types and file extensions.
  * @param $0.signal                 Abort signal.
- * @param $0.serverUnsupportedTypes List of image types not supported by the server.
+ * @param $0.wpUnsupportedMimeTypes List of image types not supported by the server.
  */
 export function uploadMedia( {
 	wpAllowedMimeTypes,
@@ -70,7 +70,7 @@ export function uploadMedia( {
 	onError,
 	onFileChange,
 	signal,
-	serverUnsupportedTypes,
+	wpUnsupportedMimeTypes,
 }: UploadMediaArgs ) {
 	const validFiles = [];
 
@@ -100,7 +100,7 @@ export function uploadMedia( {
 
 		// Verify the server is able to process this mime type.
 		try {
-			validateMimeTypeForServer( mediaFile, serverUnsupportedTypes );
+			validateMimeTypeForServer( mediaFile, wpUnsupportedMimeTypes );
 		} catch ( error: unknown ) {
 			onError?.( error as Error );
 			continue;

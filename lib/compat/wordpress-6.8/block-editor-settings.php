@@ -14,13 +14,13 @@
  * @return array Modified settings.
  */
 function gutenberg_extend_block_editor_settings_with_image_support( $settings ) {
-	$settings['serverUnsupportedTypes'] = array();
+	$settings['wpUnsupportedMimeTypes'] = array();
 
 	$all_types = wp_get_mime_types();
 	foreach ( $all_types as $type ) {
 		// Check if image type can be edited, image types start with 'image/'.
 		if ( str_starts_with( $type, 'image/' ) && ! wp_image_editor_supports( array( 'mime_type' => $type ) ) ) {
-			$settings['serverUnsupportedTypes'][] = $type;
+			$settings['wpUnsupportedMimeTypes'][] = $type;
 		}
 	}
 	return $settings;

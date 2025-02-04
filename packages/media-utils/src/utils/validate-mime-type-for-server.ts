@@ -12,16 +12,16 @@ import { UploadError } from './upload-error';
  * Verifies if the mime type is allowed on the server.
  *
  * @param file                   File object.
- * @param serverUnsupportedTypes List of allowed mime types and file extensions.
+ * @param wpUnsupportedMimeTypes List of allowed mime types and file extensions.
  */
 export function validateMimeTypeForServer(
 	file: File,
-	serverUnsupportedTypes?: string[]
+	wpUnsupportedMimeTypes?: string[]
 ) {
 	if (
-		serverUnsupportedTypes &&
+		wpUnsupportedMimeTypes &&
 		file.type &&
-		serverUnsupportedTypes.includes( file.type )
+		wpUnsupportedMimeTypes.includes( file.type )
 	) {
 		throw new UploadError( {
 			code: 'MIME_TYPE_NOT_SUPPORTED_BY_SERVER',

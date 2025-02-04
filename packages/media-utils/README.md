@@ -56,7 +56,7 @@ _Parameters_
 -   _$0.onFileChange_ `UploadMediaArgs[ 'onFileChange' ]`: Function called each time a file or a temporary representation of the file is available.
 -   _$0.wpAllowedMimeTypes_ `UploadMediaArgs[ 'wpAllowedMimeTypes' ]`: List of allowed mime types and file extensions.
 -   _$0.signal_ `UploadMediaArgs[ 'signal' ]`: Abort signal.
--   _$0.serverUnsupportedTypes_ `UploadMediaArgs[ 'serverUnsupportedTypes' ]`: List of image types not supported by the server.
+-   _$0.wpUnsupportedMimeTypes_ `UploadMediaArgs[ 'wpUnsupportedMimeTypes' ]`: List of image types not supported by the server.
 
 ### validateFileSize
 

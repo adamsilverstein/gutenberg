@@ -48,7 +48,7 @@ const BLOCK_EDITOR_SETTINGS = [
 	'blockInspectorTabs',
 	'maxUploadFileSize',
 	'allowedMimeTypes',
-	'serverUnsupportedTypes',
+	'wpUnsupportedMimeTypes',
 	'bodyPlaceholder',
 	'canLockBlocks',
 	'canUpdateBlockBindings',

@@ -155,7 +155,7 @@ export const SETTINGS_DEFAULTS = {
 	allowedMimeTypes: null,
 
 	// List of image types not supported by the server.
-	serverUnsupportedTypes: [],
+	wpUnsupportedMimeTypes: [],
 
 	// Allows to disable block locking interface.
 	canLockBlocks: true,
