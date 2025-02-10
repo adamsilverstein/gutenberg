@@ -134,16 +134,9 @@ export function uploadMedia( {
 			// Reset to empty on failure.
 			setAndUpdateFiles( index, null );
 
-			let message: string;
-			if (
-				typeof error === 'object' &&
-				error !== null &&
-				'message' in error
-			) {
-				message =
-					typeof error.message === 'string'
-						? error.message
-						: String( error.message );
+			let message;
+			if ( error instanceof Error ) {
+				message = error.message;
 			} else {
 				message = sprintf(
 					// translators: %s: file name
