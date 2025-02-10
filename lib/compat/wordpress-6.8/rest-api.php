@@ -114,3 +114,61 @@ function gutenberg_modify_post_collection_query( $args, WP_REST_Request $request
 	return $args;
 }
 add_filter( 'rest_post_query', 'gutenberg_modify_post_collection_query', 10, 2 );
+
+/**
+ * Validates specific image mime types before upload processing.
+ *
+ * @param mixed           $response Response to replace the requested version with.
+ * @param WP_REST_Server  $server   Server instance.
+ * @param WP_REST_Request $request  Request used to generate the response.
+ * @return mixed
+ */
+function gutenberg_validate_image_mime_type( $response, $server, $request ) {
+	// Only handle media creation requests
+	if ( 'POST' !== $request->get_method() || '/wp/v2/media' !== $request->get_route() ) {
+		return $response;
+	}
+
+	$files = $request->get_file_params();
+	if ( empty( $files ) ) {
+		return $response;
+	}
+
+	$file = reset( $files );
+	if ( empty( $file['type'] ) ) {
+		return $response;
+	}
+
+	$unsupported_message = __( 'The web server cannot generate responsive image sizes for this image. Convert it to JPEG or PNG before uploading.', 'gutenberg' );
+
+	// Check if WebP images can be edited.
+	if ( 'image/webp' === $file['type'] && ! wp_image_editor_supports( array( 'mime_type' => 'image/webp' ) ) ) {
+		return new WP_Error(
+			'rest_upload_image_type_not_supported',
+			$unsupported_message,
+			array( 'status' => 400 )
+		);
+	}
+
+	// Check if AVIF images can be edited.
+	if ( 'image/avif' === $file['type'] && ! wp_image_editor_supports( array( 'mime_type' => 'image/avif' ) ) ) {
+		return new WP_Error(
+			'rest_upload_image_type_not_supported',
+			$unsupported_message,
+			array( 'status' => 400 )
+		);
+	}
+
+	// Check if HEIC images can be edited.
+	if ( 'image/heic' === $file['type'] && ! wp_image_editor_supports( array( 'mime_type' => 'image/heic' ) ) ) {
+		return new WP_Error(
+			'rest_upload_image_type_not_supported',
+			$unsupported_message,
+			array( 'status' => 400 )
+		);
+	}
+
+	return $response;
+}
+
+add_filter( 'rest_pre_dispatch', 'gutenberg_validate_image_mime_type', 10, 3 );
