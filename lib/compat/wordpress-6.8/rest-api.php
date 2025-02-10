@@ -116,7 +116,7 @@ function gutenberg_modify_post_collection_query( $args, WP_REST_Request $request
 add_filter( 'rest_post_query', 'gutenberg_modify_post_collection_query', 10, 2 );
 
 /**
- * Validates specific image mime types before upload processing.
+ * Validates image mime types before upload processing.
  *
  * @param mixed           $response Response to replace the requested version with.
  * @param WP_REST_Server  $server   Server instance.
@@ -139,31 +139,16 @@ function gutenberg_validate_image_mime_type( $response, $server, $request ) {
 		return $response;
 	}
 
-	$unsupported_message = __( 'The web server cannot generate responsive image sizes for this image. Convert it to JPEG or PNG before uploading.', 'gutenberg' );
-
-	// Check if WebP images can be edited.
-	if ( 'image/webp' === $file['type'] && ! wp_image_editor_supports( array( 'mime_type' => 'image/webp' ) ) ) {
-		return new WP_Error(
-			'rest_upload_image_type_not_supported',
-			$unsupported_message,
-			array( 'status' => 400 )
-		);
+	// Only check images where the fle type starts with `image/`.
+	if ( ! str_starts_with( $file['type'], 'image/' ) ) {
+		return $response;
 	}
 
-	// Check if AVIF images can be edited.
-	if ( 'image/avif' === $file['type'] && ! wp_image_editor_supports( array( 'mime_type' => 'image/avif' ) ) ) {
+	// Check if the image editor supports the type.
+	if ( ! wp_image_editor_supports( array( 'mime_type' => $file['type'] ) ) ) {
 		return new WP_Error(
 			'rest_upload_image_type_not_supported',
-			$unsupported_message,
-			array( 'status' => 400 )
-		);
-	}
-
-	// Check if HEIC images can be edited.
-	if ( 'image/heic' === $file['type'] && ! wp_image_editor_supports( array( 'mime_type' => 'image/heic' ) ) ) {
-		return new WP_Error(
-			'rest_upload_image_type_not_supported',
-			$unsupported_message,
+			__( 'The web server cannot generate responsive image sizes for this image. Convert it to JPEG or PNG before uploading.', 'gutenberg' ),
 			array( 'status' => 400 )
 		);
 	}
