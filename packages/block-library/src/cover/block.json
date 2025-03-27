@@ -81,6 +81,10 @@
 		},
 		"sizeSlug": {
 			"type": "string"
+		},
+		"enableScrollEffect": {
+			"type": "boolean",
+			"default": false
 		}
 	},
 	"usesContext": [ "postId", "postType" ],

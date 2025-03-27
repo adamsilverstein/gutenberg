@@ -31,6 +31,7 @@ export default function save( { attributes } ) {
 		linkTarget,
 		sizeSlug,
 		title,
+		enableScrollEffect,
 	} = attributes;
 
 	const newRel = ! rel ? undefined : rel;
@@ -47,6 +48,7 @@ export default function save( { attributes } ) {
 			!! borderProps.className ||
 			( borderProps.style &&
 				Object.keys( borderProps.style ).length > 0 ),
+		'has-scroll-effect': enableScrollEffect,
 	} );
 
 	const imageClasses = clsx( borderProps.className, {

@@ -246,7 +246,7 @@ Add an image or video with a text overlay. ([Source](https://github.com/WordPres
 -	**Name:** core/cover
 -	**Category:** media
 -	**Supports:** align, anchor, color (heading, text, ~~background~~, ~~enableContrastChecker~~), dimensions (aspectRatio), filter (duotone), interactivity (clientNavigation), layout (~~allowJustification~~), shadow, spacing (blockGap, margin, padding), typography (fontSize, lineHeight), ~~html~~
--	**Attributes:** allowedBlocks, alt, backgroundType, contentPosition, customGradient, customOverlayColor, dimRatio, focalPoint, gradient, hasParallax, id, isDark, isRepeated, isUserOverlayColor, minHeight, minHeightUnit, overlayColor, sizeSlug, tagName, templateLock, url, useFeaturedImage
+-	**Attributes:** allowedBlocks, alt, backgroundType, contentPosition, customGradient, customOverlayColor, dimRatio, enableScrollEffect, focalPoint, gradient, hasParallax, id, isDark, isRepeated, isUserOverlayColor, minHeight, minHeightUnit, overlayColor, sizeSlug, tagName, templateLock, url, useFeaturedImage
 
 ## Details
 
@@ -388,7 +388,7 @@ Insert an image to make a visual statement. ([Source](https://github.com/WordPre
 -	**Name:** core/image
 -	**Category:** media
 -	**Supports:** align (center, full, left, right, wide), anchor, color (~~background~~, ~~text~~), filter (duotone), interactivity, shadow (), spacing (margin)
--	**Attributes:** alt, aspectRatio, blob, caption, height, href, id, lightbox, linkClass, linkDestination, linkTarget, rel, scale, sizeSlug, title, url, width
+-	**Attributes:** alt, aspectRatio, blob, caption, enableScrollEffect, height, href, id, lightbox, linkClass, linkDestination, linkTarget, rel, scale, sizeSlug, title, url, width
 
 ## Latest Comments
 

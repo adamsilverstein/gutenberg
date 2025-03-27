@@ -46,6 +46,7 @@ export default function save( { attributes } ) {
 		minHeightUnit,
 		tagName: Tag,
 		sizeSlug,
+		enableScrollEffect,
 	} = attributes;
 	const overlayColorClass = getColorClassName(
 		'background-color',
@@ -88,6 +89,7 @@ export default function save( { attributes } ) {
 			'is-repeated': isRepeated,
 			'has-custom-content-position':
 				! isContentPositionCenter( contentPosition ),
+			'has-scroll-effect': enableScrollEffect,
 		},
 		getPositionClassName( contentPosition )
 	);

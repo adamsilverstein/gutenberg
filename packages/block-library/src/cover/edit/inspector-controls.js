@@ -110,6 +110,7 @@ export default function CoverInspectorControls( {
 		minHeightUnit,
 		alt,
 		tagName,
+		enableScrollEffect,
 	} = attributes;
 	const {
 		isVideoBackground,
@@ -316,6 +317,32 @@ export default function CoverInspectorControls( {
 								defaultValue={ DEFAULT_MEDIA_SIZE_SLUG }
 							/>
 						) }
+						<ToolsPanelItem
+							label={ __( 'Scroll Effect' ) }
+							isShownByDefault
+							hasValue={ () => enableScrollEffect }
+							onDeselect={ () =>
+								setAttributes( {
+									enableScrollEffect: false,
+								} )
+							}
+						>
+							<ToggleControl
+								__nextHasNoMarginBottom
+								label={ __(
+									'Transform to fixed header on scroll'
+								) }
+								checked={ enableScrollEffect }
+								onChange={ ( value ) =>
+									setAttributes( {
+										enableScrollEffect: value,
+									} )
+								}
+								help={ __(
+									'Animates the cover block to become a fixed header as the page scrolls.'
+								) }
+							/>
+						</ToolsPanelItem>
 					</ToolsPanel>
 				) }
 			</InspectorControls>

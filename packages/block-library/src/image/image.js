@@ -18,6 +18,7 @@ import {
 	ToolbarItem,
 	DropdownMenu,
 	Popover,
+	ToggleControl,
 } from '@wordpress/components';
 import {
 	useMergeRefs,
@@ -283,6 +284,7 @@ export default function Image( {
 		sizeSlug,
 		lightbox,
 		metadata,
+		enableScrollEffect,
 	} = attributes;
 	const [ imageElement, setImageElement ] = useState();
 	const [ resizeDelta, setResizeDelta ] = useState( null );
@@ -593,6 +595,7 @@ export default function Image( {
 			scale: undefined,
 			aspectRatio: undefined,
 			lightbox: undefined,
+			enableScrollEffect: false,
 		} );
 	};
 
@@ -604,6 +607,30 @@ export default function Image( {
 				dropdownMenuProps={ dropdownMenuProps }
 			>
 				{ dimensionsControl }
+				<ToolsPanelItem
+					label={ __( 'Scroll Effect' ) }
+					isShownByDefault
+					hasValue={ () => enableScrollEffect }
+					onDeselect={ () =>
+						setAttributes( {
+							enableScrollEffect: false,
+						} )
+					}
+				>
+					<ToggleControl
+						__nextHasNoMarginBottom
+						label={ __( 'Transform to fixed header on scroll' ) }
+						checked={ enableScrollEffect }
+						onChange={ ( value ) =>
+							setAttributes( {
+								enableScrollEffect: value,
+							} )
+						}
+						help={ __(
+							'Animates the image block to become a fixed header as the page scrolls.'
+						) }
+					/>
+				</ToolsPanelItem>
 			</ToolsPanel>
 		</InspectorControls>
 	);

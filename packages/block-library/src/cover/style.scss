@@ -326,3 +326,30 @@ body:not(.editor-styles-wrapper) .wp-block-cover:not(
 		}
 	}
 }
+
+// Scroll-driven animation: Image block becomes fixed header
+@supports ( animation-range: 0 90vh ) {
+	@keyframes sticky-parallax-header-move-and-size {
+		from {
+			background-position: 50% 0;
+			background-color: transparent;
+			height: 100vh;
+			font-size: 1em;
+		}
+		to {
+			background-position: 50% 100%;
+			background-color: #0b1584;
+			height: 10vh;
+			font-size: 2em;
+		}
+	}
+
+	.wp-block-cover.has-scroll-effect {
+		position: fixed;
+		top: 0;
+
+		animation: sticky-parallax-header-move-and-size linear forwards;
+		animation-timeline: scroll();
+		animation-range: 0 90vh;
+	}
+}
