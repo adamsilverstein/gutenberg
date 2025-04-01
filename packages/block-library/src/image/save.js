@@ -31,6 +31,7 @@ export default function save( { attributes } ) {
 		linkTarget,
 		sizeSlug,
 		title,
+		scrollAnimationType, // Get the new attribute
 	} = attributes;
 
 	const newRel = ! rel ? undefined : rel;
@@ -47,12 +48,11 @@ export default function save( { attributes } ) {
 			!! borderProps.className ||
 			( borderProps.style &&
 				Object.keys( borderProps.style ).length > 0 ),
-		[ `wp-block-image-animation-${ attributes.animation }` ]:
-			attributes.animation && attributes.animation !== '',
 	} );
 
 	const imageClasses = clsx( borderProps.className, {
 		[ `wp-image-${ id }` ]: !! id,
+		'wp-scroll-animation-target': !! scrollAnimationType, // Add target class if animation is set
 	} );
 
 	const image = (

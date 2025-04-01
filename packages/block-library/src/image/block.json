@@ -16,9 +16,8 @@
 	"keywords": [ "img", "photo", "picture" ],
 	"textdomain": "default",
 	"attributes": {
-		"animation": {
-			"type": "string",
-			"default": ""
+		"scrollAnimationType": {
+			"type": "string"
 		},
 		"blob": {
 			"type": "string",
@@ -133,7 +132,8 @@
 		},
 		"shadow": {
 			"__experimentalSkipSerialization": true
-		}
+		},
+		"scrollAnimations": true
 	},
 	"selectors": {
 		"border": ".wp-block-image img, .wp-block-image .wp-block-image__crop-area, .wp-block-image .components-placeholder",

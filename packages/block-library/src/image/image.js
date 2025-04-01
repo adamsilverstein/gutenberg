@@ -1,11 +1,15 @@
 /**
+ * External dependencies
+ */
+import clsx from 'clsx';
+
+/**
  * WordPress dependencies
  */
 import { isBlobURL } from '@wordpress/blob';
 import {
 	ExternalLink,
 	ResizableBox,
-	SelectControl,
 	Spinner,
 	TextareaControl,
 	TextControl,
@@ -41,6 +45,7 @@ import {
 } from '@wordpress/block-editor';
 import { useCallback, useEffect, useMemo, useState } from '@wordpress/element';
 import { __, _x, sprintf, isRTL } from '@wordpress/i18n';
+import ScrollAnimationControl from '@wordpress/block-editor/src/components/scroll-animations/control'; // Revert to direct path for now
 import { getFilename } from '@wordpress/url';
 import { getBlockBindingsSource, switchToBlockType } from '@wordpress/blocks';
 import { crop, overlayText, upload, chevronDown } from '@wordpress/icons';
@@ -349,6 +354,7 @@ export default function Image( {
 	const [ hasImageErrored, setHasImageErrored ] = useState( false );
 	const hasNonContentControls = blockEditingMode === 'default';
 	const isContentOnlyMode = blockEditingMode === 'contentOnly';
+	const { scrollAnimationType } = attributes; // Get the new attribute
 	const isResizable =
 		allowResize &&
 		hasNonContentControls &&
@@ -584,37 +590,10 @@ export default function Image( {
 				scaleOptions={ scaleOptions }
 				unitsOptions={ dimensionsUnitsOptions }
 			/>
-		) );
-
-	const animationControl = isSingleSelected && (
-		<ToolsPanelItem
-			label={ __( 'Animation' ) }
-			isShownByDefault
-			hasValue={ () => attributes.animation !== '' }
-			onDeselect={ () => setAttributes( { animation: '' } ) }
-		>
-			<SelectControl
-				label={ __( 'Animation' ) }
-				value={ attributes.animation || '' }
-				options={ [
-					{ label: __( 'None' ), value: '' },
-					{
-						label: __( 'Fade in' ),
-						value: 'fade-in',
-					},
-				] }
-				onChange={ ( value ) => {
-					setAttributes( { animation: value } );
-				} }
-				__nextHasNoMarginBottom
-				__nextHasNoMarginTop
-				__next40pxDefaultSize
-			/>
-		</ToolsPanelItem>
-	);
-
+		) ); // Add the missing closing parenthesis and semicolon for the ternary expression assignment
 	const resetAll = () => {
 		setAttributes( {
+			scrollAnimationType: undefined, // Reset the new attribute
 			alt: undefined,
 			width: undefined,
 			height: undefined,
@@ -860,7 +839,14 @@ export default function Image( {
 							/>
 						</ToolsPanelItem>
 					) }
-					{ animationControl }
+					{ /* Use the new ScrollAnimationControl */ }
+					<ScrollAnimationControl
+						value={ scrollAnimationType }
+						onChange={ ( value ) =>
+							setAttributes( { scrollAnimationType: value } )
+						}
+						isShownByDefault={ false } // Or true if desired
+					/>
 					{ dimensionsControl }
 					{ !! imageSizeOptions.length && (
 						<ResolutionTool
@@ -943,7 +929,9 @@ export default function Image( {
 					onError={ onImageError }
 					onLoad={ onImageLoad }
 					ref={ setRefs }
-					className={ borderProps.className }
+					className={ clsx( borderProps.className, {
+						'wp-scroll-animation-target': !! scrollAnimationType,
+					} ) }
 					width={ naturalWidth }
 					height={ naturalHeight }
 					style={ {
