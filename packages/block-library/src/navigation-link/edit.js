@@ -26,6 +26,7 @@ import {
 	store as blockEditorStore,
 	getColorClassName,
 	useInnerBlocksProps,
+	useBlockEditingMode,
 } from '@wordpress/block-editor';
 import { isURL, prependHTTP, safeDecodeURI } from '@wordpress/url';
 import { useState, useEffect, useRef } from '@wordpress/element';
@@ -43,6 +44,10 @@ import { updateAttributes } from './update-attributes';
 import { getColors } from '../navigation/edit/utils';
 
 const DEFAULT_BLOCK = { name: 'core/navigation-link' };
+const NESTING_BLOCK_NAMES = [
+	'core/navigation-link',
+	'core/navigation-submenu',
+];
 
 /**
  * A React hook to determine if it's dragging within the target element.
@@ -95,19 +100,29 @@ const useIsDraggingWithin = ( elementRef ) => {
 	return isDraggingWithin;
 };
 
-const useIsInvalidLink = ( kind, type, id ) => {
+const useIsInvalidLink = ( kind, type, id, enabled ) => {
 	const isPostType =
 		kind === 'post-type' || type === 'post' || type === 'page';
 	const hasId = Number.isInteger( id );
+	const blockEditingMode = useBlockEditingMode();
+
 	const postStatus = useSelect(
 		( select ) => {
 			if ( ! isPostType ) {
 				return null;
 			}
+
+			// Fetching the posts status is an "expensive" operation. Especially for sites with large navigations.
+			// When the block is rendered in a template or other disabled contexts we can skip this check in order
+			// to avoid all these additional requests that don't really add any value in that mode.
+			if ( blockEditingMode === 'disabled' || ! enabled ) {
+				return null;
+			}
+
 			const { getEntityRecord } = select( coreStore );
 			return getEntityRecord( 'postType', type, id )?.status;
 		},
-		[ isPostType, type, id ]
+		[ isPostType, blockEditingMode, enabled, type, id ]
 	);
 
 	// Check Navigation Link validity if:
@@ -280,8 +295,6 @@ export default function NavigationLinkEdit( {
 	clientId,
 } ) {
 	const { id, label, type, url, description, kind } = attributes;
-
-	const [ isInvalid, isDraft ] = useIsInvalidLink( kind, type, id );
 	const { maxNestingLevel } = context;
 
 	const {
@@ -313,6 +326,7 @@ export default function NavigationLinkEdit( {
 		isTopLevelLink,
 		isParentOfSelectedBlock,
 		hasChildren,
+		validateLinkStatus,
 	} = useSelect(
 		( select ) => {
 			const {
@@ -321,27 +335,47 @@ export default function NavigationLinkEdit( {
 				getBlockRootClientId,
 				hasSelectedInnerBlock,
 				getBlockParentsByBlockName,
+				getSelectedBlockClientId,
 			} = select( blockEditorStore );
+			const rootClientId = getBlockRootClientId( clientId );
+			const isTopLevel =
+				getBlockName( rootClientId ) === 'core/navigation';
+			const selectedBlockClientId = getSelectedBlockClientId();
+			const rootNavigationClientId = isTopLevel
+				? rootClientId
+				: getBlockParentsByBlockName(
+						clientId,
+						'core/navigation'
+				  )[ 0 ];
+
+			// Enable when the root Navigation block is selected or any of its inner blocks.
+			const enableLinkStatusValidation =
+				selectedBlockClientId === rootNavigationClientId ||
+				hasSelectedInnerBlock( rootNavigationClientId, true );
 
 			return {
 				isAtMaxNesting:
-					getBlockParentsByBlockName( clientId, [
-						'core/navigation-link',
-						'core/navigation-submenu',
-					] ).length >= maxNestingLevel,
-				isTopLevelLink:
-					getBlockName( getBlockRootClientId( clientId ) ) ===
-					'core/navigation',
+					getBlockParentsByBlockName( clientId, NESTING_BLOCK_NAMES )
+						.length >= maxNestingLevel,
+				isTopLevelLink: isTopLevel,
 				isParentOfSelectedBlock: hasSelectedInnerBlock(
 					clientId,
 					true
 				),
 				hasChildren: !! getBlockCount( clientId ),
+				validateLinkStatus: enableLinkStatusValidation,
 			};
 		},
 		[ clientId, maxNestingLevel ]
 	);
 	const { getBlocks } = useSelect( blockEditorStore );
+
+	const [ isInvalid, isDraft ] = useIsInvalidLink(
+		kind,
+		type,
+		id,
+		validateLinkStatus
+	);
 
 	/**
 	 * Transform to submenu block.
