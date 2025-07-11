@@ -170,3 +170,16 @@ export async function vipsResizeImage(
 export async function vipsCancelOperations( id: QueueItemId ) {
 	return vipsWorker.cancelOperations( id );
 }
+
+/**
+ *
+ * @param type Helper to extract the extension from a MIME type string.
+ * @return The extension or null if the type is not a string or is empty.
+ */
+export function getExtension( type: string ) {
+	if ( typeof type !== 'string' ) {
+		return null;
+	}
+	type = type?.split?.( ';' )[ 0 ];
+	return ( type && type.trim().toLowerCase() ) ?? null;
+}

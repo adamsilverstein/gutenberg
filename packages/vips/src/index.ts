@@ -25,7 +25,6 @@ let cleanup: () => void;
 
 let vipsInstance: typeof VipsInstance;
 
-
 /**
  * Instantiates and returns a new vips instance.
  *
@@ -36,8 +35,11 @@ async function getVips(): Promise< typeof Vips > {
 		return vipsInstance;
 	}
 
-	const VIPS_CDN_URL = "https://cdn.jsdelivr.net/npm/wasm-vips@latest/lib";
+	const VIPS_CDN_URL = 'https://cdn.jsdelivr.net/npm/wasm-vips@latest/lib';
 
+	if ( 'undefined' === typeof fetch ) {
+		return Vips;
+	}
 
 	const mainBlobUrl = URL.createObjectURL(
 		await ( await fetch( `${ VIPS_CDN_URL }/vips.js` ) ).blob()

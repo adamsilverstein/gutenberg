@@ -85,6 +85,6 @@ export function getFileBasename( name: string ): string {
  * @param url File URL.
  * @return File name.
  */
-export function getFileNameFromUrl( url:string ) {
+export function getFileNameFromUrl( url: string ): string {
 	return getFilename( url ) || _x( 'unnamed', 'file name' );
 }

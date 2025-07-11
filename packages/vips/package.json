@@ -28,6 +28,8 @@
 	"wpScript": true,
 	"types": "build-types",
 	"dependencies": {
+		"@types/node-fetch": "2.6.12",
+		"node-fetch": "2.7.0",
 		"wasm-vips": "^0.0.13"
 	},
 	"publishConfig": {

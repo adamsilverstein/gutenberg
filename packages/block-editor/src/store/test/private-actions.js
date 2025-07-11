@@ -46,8 +46,11 @@ describe( 'private actions', () => {
 			...stableSettings,
 		};
 
+		const dispatch = jest.fn();
+
 		it( 'should dispatch provided settings by default', () => {
-			expect( __experimentalUpdateSettings( settings ) ).toEqual( {
+			__experimentalUpdateSettings( settings )( { dispatch } );
+			expect( dispatch ).toHaveBeenCalledWith( {
 				type: 'UPDATE_SETTINGS',
 				settings,
 				reset: false,
@@ -55,12 +58,12 @@ describe( 'private actions', () => {
 		} );
 
 		it( 'should dispatch provided settings with reset flag when `reset` argument is truthy', () => {
-			expect(
-				__experimentalUpdateSettings( settings, {
-					stripExperimentalSettings: false,
-					reset: true,
-				} )
-			).toEqual( {
+			__experimentalUpdateSettings( settings, {
+				stripExperimentalSettings: false,
+				reset: true,
+			} )( { dispatch } );
+
+			expect( dispatch ).toHaveBeenCalledWith( {
 				type: 'UPDATE_SETTINGS',
 				settings,
 				reset: true,
@@ -68,11 +71,11 @@ describe( 'private actions', () => {
 		} );
 
 		it( 'should strip experimental settings from a given settings object when `stripExperimentalSettings` argument is truthy', () => {
-			expect(
-				__experimentalUpdateSettings( settings, {
-					stripExperimentalSettings: true,
-				} )
-			).toEqual( {
+			__experimentalUpdateSettings( settings, {
+				stripExperimentalSettings: true,
+			} )( { dispatch } );
+
+			expect( dispatch ).toHaveBeenCalledWith( {
 				type: 'UPDATE_SETTINGS',
 				settings: {
 					foo: 'foo',
