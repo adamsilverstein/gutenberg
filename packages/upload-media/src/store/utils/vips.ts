@@ -8,7 +8,8 @@ import type { ImageSizeCrop, QueueItemId } from '../types';
 
 // Create worker factory pointing to our vips worker
 const createVipsWorker = createWorkerFactory(
-	new URL( '../../workers/vips-worker.ts', import.meta.url ).href
+	// Use a relative path that will work in the built environment
+	'./workers/vips-worker.js'
 );
 const vipsWorker = createVipsWorker();
 
