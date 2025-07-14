@@ -50,8 +50,6 @@ type ActionCreators = {
 	removeItem: typeof removeItem;
 	processItem: typeof processItem;
 	cancelItem: typeof cancelItem;
-	rejectApproval: typeof rejectApproval;
-	grantApproval: typeof grantApproval;
 	optimizeExistingItem: typeof optimizeExistingItem;
 	revokeBlobUrls: typeof revokeBlobUrls;
 	< T = Record< string, unknown > >( args: T ): void;
@@ -125,6 +123,18 @@ export function addItems( {
 }: AddItemsArgs ) {
 	return async ( { dispatch }: { dispatch: ActionCreators } ) => {
 		const batchId = uuidv4();
+
+		console.log( '[VIPS Debug] addItems called', {
+			files,
+			batchId,
+			onChange,
+			onSuccess,
+			onError,
+			additionalData,
+			allowedTypes,
+			maxUploadFileSize,
+		} );
+
 		for ( const file of files ) {
 			/*
 			 Check if the caller (e.g. a block) supports this mime type.
@@ -218,137 +228,6 @@ interface OptimizeExistingItemArgs {
 	onError?: OnErrorHandler;
 	additionalData?: AdditionalData;
 	generatedPosterId?: number;
-}
-
-/**
- * Adds a new item to the upload queue for optimizing (compressing) an existing item.
- *
- * @todo Rename id to sourceAttachmentId for consistency
- *
- * @param $0
- * @param $0.id                  Attachment ID.
- * @param $0.url                 URL.
- * @param [$0.fileName]          File name.
- * @param [$0.poster]            Poster URL.
- * @param [$0.batchId]           Batch ID.
- * @param [$0.onChange]          Function called each time a file or a temporary representation of the file is available.
- * @param [$0.onSuccess]         Function called after the file is uploaded.
- * @param [$0.onBatchSuccess]    Function called after a batch of files is uploaded.
- * @param [$0.onError]           Function called when an error happens.
- * @param [$0.additionalData]    Additional data to include in the request.
- * @param [$0.generatedPosterId] Attachment ID of the generated poster image, if it exists.
- */
-export function optimizeExistingItem( {
-	id,
-	url,
-	fileName,
-	poster,
-	batchId,
-	onChange,
-	onSuccess,
-	onBatchSuccess,
-	onError,
-	additionalData = {} as AdditionalData,
-	generatedPosterId,
-}: OptimizeExistingItemArgs ) {
-	return async ( { dispatch }: ThunkArgs ) => {
-		fileName = fileName || getFileNameFromUrl( url );
-		const baseName = getFileBasename( fileName );
-		const newFileName = fileName.replace(
-			baseName,
-			`${ baseName }-optimized`
-		);
-
-		// TODO: Same considerations apply as for muteExistingVideo.
-
-		const abortController = new AbortController();
-
-		const itemId = uuidv4();
-
-		dispatch< AddAction >( {
-			type: Type.Add,
-			item: {
-				id: itemId,
-				batchId,
-				status: ItemStatus.Processing,
-				sourceFile: new StubFile(),
-				file: new StubFile(),
-				attachment: {
-					url,
-					poster,
-				},
-				additionalData: {
-					generate_sub_sizes: false,
-					...additionalData,
-				},
-				onChange,
-				onSuccess,
-				onBatchSuccess,
-				onError,
-				sourceUrl: url,
-				sourceAttachmentId: id,
-				operations: [
-					[
-						OperationType.FetchRemoteFile,
-						{ url, fileName, newFileName },
-					],
-					OperationType.Compress,
-					OperationType.Upload,
-					OperationType.ThumbnailGeneration,
-				],
-				generatedPosterId,
-				abortController,
-			},
-		} );
-
-		dispatch.processItem( itemId );
-	};
-}
-
-/**
- * Rejects a proposed optimized/converted version of a file
- * by essentially cancelling its further processing.
- *
- * @param id Item ID.
- */
-export function rejectApproval( id: number ) {
-	return async ( { select, dispatch }: ThunkArgs ) => {
-		const item = select.getItemByAttachmentId( id );
-		if ( ! item ) {
-			return;
-		}
-
-		dispatch.cancelItem(
-			item.id,
-			new MediaError( {
-				code: 'UPLOAD_CANCELLED',
-				message: 'File upload was cancelled',
-				file: item.file,
-			} )
-		);
-	};
-}
-
-/**
- * Approves a proposed optimized/converted version of a file
- * so it can continue being processed and uploaded.
- *
- * @param id Item ID.
- */
-export function grantApproval( id: number ) {
-	return async ( { select, dispatch }: ThunkArgs ) => {
-		const item = select.getItemByAttachmentId( id );
-		if ( ! item ) {
-			return;
-		}
-
-		dispatch< ApproveUploadAction >( {
-			type: Type.ApproveUpload,
-			id: item.id,
-		} );
-
-		dispatch.processItem( item.id );
-	};
 }
 
 /**

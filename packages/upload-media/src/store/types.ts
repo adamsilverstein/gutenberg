@@ -45,7 +45,6 @@ export enum Type {
 	ResumeItem = 'RESUME_ITEM',
 	PauseQueue = 'PAUSE_QUEUE',
 	ResumeQueue = 'RESUME_QUEUE',
-	ApproveUpload = 'APPROVE_UPLOAD',
 	OperationStart = 'OPERATION_START',
 	OperationFinish = 'OPERATION_FINISH',
 	AddOperations = 'ADD_OPERATIONS',
@@ -81,10 +80,7 @@ export type AddOperationsAction = Action<
 	Type.AddOperations,
 	{ id: QueueItemId; operations: Operation[] }
 >;
-export type ApproveUploadAction = Action<
-	Type.ApproveUpload,
-	{ id: QueueItemId }
->;
+
 export type CancelAction = Action<
 	Type.Cancel,
 	{ id: QueueItemId; error: Error }
@@ -174,7 +170,6 @@ export type OnBatchSuccessHandler = () => void;
 export enum ItemStatus {
 	Processing = 'PROCESSING',
 	Paused = 'PAUSED',
-	PendingApproval = 'PENDING_APPROVAL',
 }
 
 export enum OperationType {
@@ -183,8 +178,6 @@ export enum OperationType {
 	UploadOriginal = 'UPLOAD_ORIGINAL',
 	ThumbnailGeneration = 'THUMBNAIL_GENERATION',
 	ResizeCrop = 'RESIZE_CROP',
-	TranscodeVideo = 'TRANSCODE_VIDEO',
-	TranscodeImage = 'TRANSCODE_IMAGE',
 	MuteVideo = 'TRANSCODE_MUTE_VIDEO',
 	Compress = 'TRANSCODE_COMPRESS',
 	FetchRemoteFile = 'FETCH_REMOTE_FILE',
@@ -199,13 +192,7 @@ export type OperationArgs = {
 		newFileName?: string;
 		skipAttachment?: boolean;
 	};
-	[ OperationType.TranscodeImage ]: {
-		outputFormat?: ImageFormat;
-		outputQuality?: number;
-		interlaced?: boolean;
-	};
 	[ OperationType.ResizeCrop ]: { resize?: ImageSizeCrop };
-	[ OperationType.TranscodeVideo ]: { continueOnError?: true };
 };
 
 type OperationWithArgs< T extends keyof OperationArgs = keyof OperationArgs > =
