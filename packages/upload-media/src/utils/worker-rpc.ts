@@ -25,6 +25,8 @@ export class WorkerRpc {
 		this.worker = worker;
 		this.worker.onmessage = this.handleMessage.bind( this );
 		this.worker.onerror = this.handleError.bind( this );
+
+		console.log('[WorkerRPC Debug] WorkerRpc instance created');
 	}
 
 	/**
@@ -37,9 +39,16 @@ export class WorkerRpc {
 	async call( method: string, ...args: any[] ): Promise< any > {
 		const id = ( ++this.messageId ).toString();
 
+		console.log('[WorkerRPC Debug] Calling method:', method, 'with ID:', id);
+		console.log('[WorkerRPC Debug] Arguments:', args.map(arg =>
+			arg instanceof ArrayBuffer ? `ArrayBuffer(${arg.byteLength} bytes)` : arg
+		));
+
 		// Extract transferable objects from arguments
 		const transferList: Transferable[] = [];
 		this.extractTransferables( args, transferList );
+
+		console.log('[WorkerRPC Debug] Transferable objects found:', transferList.length);
 
 		const message: WorkerRpcMessage = {
 			id,
@@ -51,10 +60,18 @@ export class WorkerRpc {
 		return new Promise( ( resolve, reject ) => {
 			this.pendingCalls.set( id, { resolve, reject } );
 
-			if ( transferList.length > 0 ) {
-				this.worker.postMessage( message, transferList );
-			} else {
-				this.worker.postMessage( message );
+			try {
+				if ( transferList.length > 0 ) {
+					console.log('[WorkerRPC Debug] Posting message with transferables');
+					this.worker.postMessage( message, transferList );
+				} else {
+					console.log('[WorkerRPC Debug] Posting message without transferables');
+					this.worker.postMessage( message );
+				}
+			} catch (error) {
+				console.error('[WorkerRPC Debug] Failed to post message:', error);
+				this.pendingCalls.delete( id );
+				reject(error);
 			}
 		} );
 	}
@@ -74,17 +91,25 @@ export class WorkerRpc {
 	private handleMessage( event: MessageEvent< WorkerRpcMessage > ): void {
 		const { id, type, result, error } = event.data;
 
+		console.log('[WorkerRPC Debug] Received message:', { id, type, hasResult: !!result, error });
+
 		if ( type === 'response' ) {
 			const pending = this.pendingCalls.get( id );
 			if ( pending ) {
+				console.log('[WorkerRPC Debug] Resolving pending call:', id);
 				this.pendingCalls.delete( id );
 				pending.resolve( result );
+			} else {
+				console.warn('[WorkerRPC Debug] No pending call found for response ID:', id);
 			}
 		} else if ( type === 'error' ) {
 			const pending = this.pendingCalls.get( id );
 			if ( pending ) {
+				console.error('[WorkerRPC Debug] Rejecting pending call:', id, 'Error:', error);
 				this.pendingCalls.delete( id );
 				pending.reject( new Error( error ) );
+			} else {
+				console.warn('[WorkerRPC Debug] No pending call found for error ID:', id);
 			}
 		}
 	}
@@ -134,6 +159,7 @@ export class WorkerRpcHandler {
 
 	constructor() {
 		self.onmessage = this.handleMessage.bind( this );
+		console.log('[WorkerRPC Debug] WorkerRpcHandler initialized in worker');
 	}
 
 	/**
@@ -162,20 +188,27 @@ export class WorkerRpcHandler {
 	): Promise< void > {
 		const { id, type, method, args } = event.data;
 
+		console.log('[WorkerRPC Debug] Worker received message:', { id, type, method, argsLength: args?.length });
+
 		if ( type !== 'call' || ! method ) {
+			console.log('[WorkerRPC Debug] Ignoring non-call message or message without method');
 			return;
 		}
 
 		const handler = this.methods.get( method );
 		if ( ! handler ) {
+			console.error('[WorkerRPC Debug] Method not found:', method, 'Available methods:', Array.from(this.methods.keys()));
 			this.sendError( id, `Method '${ method }' not found` );
 			return;
 		}
 
 		try {
+			console.log('[WorkerRPC Debug] Calling handler for method:', method);
 			const result = await handler( ...( args || [] ) );
+			console.log('[WorkerRPC Debug] Handler completed successfully for method:', method);
 			this.sendResponse( id, result );
 		} catch ( error ) {
+			console.error('[WorkerRPC Debug] Handler failed for method:', method, 'Error:', error);
 			this.sendError(
 				id,
 				error instanceof Error ? error.message : String( error )

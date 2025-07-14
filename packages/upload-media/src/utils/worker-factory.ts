@@ -4,11 +4,6 @@
  */
 
 /**
- * Internal dependencies
- */
-import { WorkerRpc } from './worker-rpc';
-
-/**
  * Interface for worker proxy that matches the original vips functions
  */
 export interface VipsWorkerProxy {
@@ -48,14 +43,43 @@ export interface VipsWorkerProxy {
 
 /**
  * Creates a worker factory function similar to @shopify/web-worker's createWorkerFactory
+ * Uses inline worker script to avoid Cross-Origin-Embedder-Policy issues
  *
- * @param {string} workerScript - The path to the worker script file
  * @return {Function} A function that creates worker instances
  */
-export function createWorkerFactory( workerScript: string ) {
+export function createWorkerFactory(): () => VipsWorkerProxy {
 	return function createWorker(): VipsWorkerProxy {
-		// Create the worker
-		const worker = new Worker( workerScript );
+		// Create the worker from inline script to avoid CORS issues.
+		const workerCode = `
+			console.log('[VIPS Worker Debug] Worker script starting...');
+			console.log('[VIPS Worker Debug] If you see this, the worker is running.');
+
+			// Worker message handler will be added here
+			self.addEventListener('message', function(e) {
+				console.log('[VIPS Worker Debug] Received message:', e.data);
+				// Echo back for now - actual implementation will be added later
+				self.postMessage({
+					id: e.data.id,
+					result: 'Worker received: ' + JSON.stringify(e.data)
+				});
+			});
+		`;
+
+		// Create blob URL from worker code
+		const blob = new Blob([workerCode], { type: 'application/javascript' });
+		const workerUrl = URL.createObjectURL(blob);
+
+		// Create the worker from the blob URL
+		const worker = new Worker( workerUrl );
+
+		// Clean up the blob URL after worker is created
+		// We can't do this immediately as the worker might not have loaded yet
+		// So we'll clean it up when the worker is terminated
+		const originalTerminate = worker.terminate.bind(worker);
+		worker.terminate = () => {
+			URL.revokeObjectURL(workerUrl);
+			originalTerminate();
+		};
 
 		// Create RPC wrapper
 		const rpc = new WorkerRpc( worker );
@@ -97,7 +121,10 @@ export function createWorkerFactory( workerScript: string ) {
 		};
 
 		// Add terminate method to the proxy (similar to @shopify/web-worker)
-		( workerProxy as any ).terminate = () => rpc.terminate();
+		( workerProxy as any ).terminate = () => {
+			rpc.terminate();
+			worker.terminate(); // This will also clean up the blob URL
+		};
 
 		return workerProxy;
 	};
