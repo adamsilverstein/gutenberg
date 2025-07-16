@@ -45,15 +45,6 @@ export const settings = {
 			},
 		],
 	},
-	__experimentalImage( attributes, { context } ) {
-		if (
-			attributes.backgroundType === 'image' &&
-			context === 'list-view' &&
-			attributes?.url
-		) {
-			return attributes?.url;
-		}
-	},
 	transforms,
 	save,
 	edit,

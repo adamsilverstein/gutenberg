@@ -187,6 +187,7 @@ function Controls( { attributes, setAttributes, setIsLabelFieldFocused } ) {
 					url: '',
 					description: '',
 					rel: '',
+					opensInNewTab: false,
 				} );
 			} }
 			dropdownMenuProps={ dropdownMenuProps }

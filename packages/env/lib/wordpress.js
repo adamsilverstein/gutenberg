@@ -87,7 +87,8 @@ async function configureWordPress( environment, config, spinner ) {
 	}
 
 	// Create a project-specific wp-cli configuration, important for the `rewrite` command.
-	const cliConfigCommand = `(
+	// Don't overwrite existing configuration.
+	const cliConfigCommand = `[ -f /var/www/html/wp-cli.yml ] || (
 		exec > /var/www/html/wp-cli.yml
 		echo "apache_modules:"
 		echo "  - mod_rewrite"

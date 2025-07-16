@@ -2,12 +2,22 @@
 	z-index: z-index(".block-editor-block-lock-modal");
 }
 
+.block-editor-block-lock-modal__options {
+	// Reset `fieldset` browser defaults.
+	border: 0;
+	padding: 0;
+	margin: 0;
+}
+
 .block-editor-block-lock-modal__options legend {
 	margin-bottom: $grid-unit-20;
 	padding: 0;
 }
 
 .block-editor-block-lock-modal__checklist {
+	// Reset `ul` browser defaults.
+	list-style: none;
+	padding: 0;
 	margin: 0;
 }
 

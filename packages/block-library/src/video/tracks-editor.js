@@ -24,9 +24,8 @@ import {
 	MediaUploadCheck,
 	store as blockEditorStore,
 } from '@wordpress/block-editor';
-import { store as noticesStore } from '@wordpress/notices';
 import { upload, media } from '@wordpress/icons';
-import { useSelect, useDispatch } from '@wordpress/data';
+import { useSelect } from '@wordpress/data';
 import { useState, useRef, useEffect } from '@wordpress/element';
 import { getFilename } from '@wordpress/url';
 
@@ -61,7 +60,7 @@ function TrackList( { tracks, onEditPress } ) {
 	const content = tracks.map( ( track, index ) => {
 		return (
 			<HStack
-				key={ track.src }
+				key={ track.id ?? track.src }
 				className="block-library-video-tracks-editor__track-list-track"
 			>
 				<span>{ track.label }</span>
@@ -201,28 +200,35 @@ function SingleTrackEditor( {
 }
 
 export default function TracksEditor( { tracks = [], onChange } ) {
-	const { createNotice } = useDispatch( noticesStore );
 	const mediaUpload = useSelect( ( select ) => {
 		return select( blockEditorStore ).getSettings().mediaUpload;
 	}, [] );
 	const [ trackBeingEdited, setTrackBeingEdited ] = useState( null );
 	const dropdownPopoverRef = useRef();
 
-	const handleTrackSelect = ( { title, url } ) => {
-		if ( tracks.some( ( track ) => track.src === url ) ) {
-			createNotice( 'error', __( 'This track already exists.' ), {
-				isDismissible: true,
-				type: 'snackbar',
-			} );
+	const handleTrackSelect = ( selectedTracks = [], appendTracks = false ) => {
+		const existingTracksMap = new Map(
+			tracks.map( ( track ) => [ track.id, track ] )
+		);
+		const tracksToAdd = selectedTracks.map( ( { id, title, url } ) => {
+			// Reuse existing tracks to preserve user-configured metadata.
+			if ( existingTracksMap.has( id ) ) {
+				return existingTracksMap.get( id );
+			}
+
+			return {
+				...DEFAULT_TRACK,
+				id,
+				label: title || '',
+				src: url,
+			};
+		} );
+
+		if ( tracksToAdd.length === 0 ) {
 			return;
 		}
 
-		const trackIndex = tracks.length;
-		onChange( [
-			...tracks,
-			{ ...DEFAULT_TRACK, label: title || '', src: url },
-		] );
-		setTrackBeingEdited( trackIndex );
+		onChange( [ ...( appendTracks ? tracks : [] ), ...tracksToAdd ] );
 	};
 
 	function uploadFiles( event ) {
@@ -230,13 +236,20 @@ export default function TracksEditor( { tracks = [], onChange } ) {
 		mediaUpload( {
 			allowedTypes: ALLOWED_TYPES,
 			filesList: files,
-			onFileChange: ( [ track ] ) => {
-				// Wait until the track has been uploaded.
-				if ( ! track?.id ) {
+			onFileChange: ( selectedTracks ) => {
+				if ( ! Array.isArray( selectedTracks ) ) {
 					return;
 				}
 
-				handleTrackSelect( track );
+				// Wait until the track has been uploaded.
+				const uploadedTracks = selectedTracks.filter(
+					( track ) => !! track?.id
+				);
+
+				if ( ! uploadedTracks.length ) {
+					return;
+				}
+				handleTrackSelect( uploadedTracks, true );
 			},
 		} );
 	}
@@ -332,6 +345,8 @@ export default function TracksEditor( { tracks = [], onChange } ) {
 									<MediaUpload
 										onSelect={ handleTrackSelect }
 										allowedTypes={ ALLOWED_TYPES }
+										value={ tracks.map( ( { id } ) => id ) }
+										multiple
 										render={ ( { open } ) => (
 											<MenuItem
 												icon={ media }
@@ -344,6 +359,7 @@ export default function TracksEditor( { tracks = [], onChange } ) {
 									<FormFileUpload
 										onChange={ uploadFiles }
 										accept=".vtt,text/vtt"
+										multiple
 										render={ ( { openFileDialog } ) => {
 											return (
 												<MenuItem
