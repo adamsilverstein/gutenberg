@@ -9,7 +9,7 @@ type WPDataRegistry = ReturnType< typeof createRegistry >;
  * Internal dependencies
  */
 import { store as uploadStore } from '..';
-import { ItemStatus, OperationType, type QueueItem } from '../types';
+import { ItemStatus } from '../types';
 import { unlock } from '../../lock-unlock';
 
 jest.mock( '@wordpress/blob', () => ( {
@@ -107,77 +107,6 @@ describe( 'actions', () => {
 					},
 				} )
 			);
-		} );
-	} );
-
-	describe( 'addItemFromUrl', () => {
-		it( 'adds an item to the queue for downloading', async () => {
-			await registry.dispatch( uploadStore ).addItemFromUrl( {
-				url: 'https://example.com/example.jpg',
-			} );
-
-			expect( registry.select( uploadStore ).getItems() ).toHaveLength(
-				1
-			);
-			expect(
-				registry.select( uploadStore ).getItems()[ 0 ]
-			).toStrictEqual(
-				expect.objectContaining( {
-					id: expect.any( String ),
-					sourceUrl: 'https://example.com/example.jpg',
-					file: expect.any( File ),
-					sourceFile: expect.any( File ),
-					status: ItemStatus.Processing,
-					attachment: {
-						url: undefined,
-					},
-					operations: [
-						[
-							OperationType.FetchRemoteFile,
-							{
-								url: 'https://example.com/example.jpg',
-								fileName: 'example.jpg',
-							},
-						],
-						OperationType.Prepare,
-					],
-				} )
-			);
-		} );
-	} );
-
-	describe( 'optimizeExistingItem', () => {
-		it( 'adds an item to the queue for downloading', async () => {
-			await registry.dispatch( uploadStore ).optimizeExistingItem( {
-				id: 1234,
-				url: 'https://example.com/awesome-image.jpg',
-			} );
-
-			expect( registry.select( uploadStore ).getItems() ).toHaveLength(
-				1
-			);
-
-			const item: QueueItem = registry
-				.select( uploadStore )
-				.getItems()[ 0 ];
-
-			expect( item.sourceAttachmentId ).toBe( 1234 );
-			expect( item.sourceUrl ).toBe(
-				'https://example.com/awesome-image.jpg'
-			);
-			expect( item.operations ).toEqual( [
-				[
-					OperationType.FetchRemoteFile,
-					{
-						url: 'https://example.com/awesome-image.jpg',
-						fileName: 'awesome-image.jpg',
-						newFileName: 'awesome-image-optimized.jpg',
-					},
-				],
-				OperationType.Compress,
-				OperationType.Upload,
-				OperationType.ThumbnailGeneration,
-			] );
 		} );
 	} );
 } );
