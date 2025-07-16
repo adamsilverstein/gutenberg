@@ -177,6 +177,7 @@ export enum OperationType {
 	AddPoster = 'ADD_POSTER',
 	UploadOriginal = 'UPLOAD_ORIGINAL',
 	ThumbnailGeneration = 'THUMBNAIL_GENERATION',
+	TranscodeImage = 'TRANSCODE_IMAGE',
 	ResizeCrop = 'RESIZE_CROP',
 	MuteVideo = 'TRANSCODE_MUTE_VIDEO',
 	Compress = 'TRANSCODE_COMPRESS',
@@ -191,6 +192,11 @@ export type OperationArgs = {
 		fileName: string;
 		newFileName?: string;
 		skipAttachment?: boolean;
+	};
+	[ OperationType.TranscodeImage ]: {
+		outputFormat?: ImageFormat;
+		outputQuality?: number;
+		interlaced?: boolean;
 	};
 	[ OperationType.ResizeCrop ]: { resize?: ImageSizeCrop };
 };
