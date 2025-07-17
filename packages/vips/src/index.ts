@@ -42,7 +42,7 @@ async function getVips(): Promise< typeof Vips > {
 	}
 
 	const mainBlobUrl = URL.createObjectURL(
-		await ( await fetch( `${ VIPS_CDN_URL }/vips.js` ) ).blob()
+		await ( await window.fetch( `${ VIPS_CDN_URL }/vips.js` ) ).blob()
 	);
 
 	vipsInstance = await Vips( {
