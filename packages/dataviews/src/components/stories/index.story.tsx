@@ -266,6 +266,27 @@ export const DateTime = ( {
 	);
 };
 
+export const Date = ( {
+	type,
+	labelPosition,
+}: {
+	type: 'default' | 'regular' | 'panel';
+	labelPosition: 'default' | 'top' | 'side' | 'none';
+} ) => {
+	const dateFields = useMemo(
+		() => fields.filter( ( field ) => field.type === 'date' ),
+		[]
+	);
+
+	return (
+		<FieldTypeStory
+			fields={ dateFields }
+			type={ type }
+			labelPosition={ labelPosition }
+		/>
+	);
+};
+
 export const Email = ( {
 	type,
 	labelPosition,

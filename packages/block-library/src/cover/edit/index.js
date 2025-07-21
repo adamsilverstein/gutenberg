@@ -324,7 +324,7 @@ function CoverEdit( {
 	const [ resizeListener, { height, width } ] = useResizeObserver();
 	const resizableBoxDimensions = useMemo( () => {
 		return {
-			height: minHeightUnit === 'px' ? minHeight : 'auto',
+			height: minHeightUnit === 'px' && minHeight ? minHeight : 'auto',
 			width: 'auto',
 		};
 	}, [ minHeight, minHeightUnit ] );

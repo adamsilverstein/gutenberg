@@ -9,12 +9,12 @@
 
 ### Features
 
+- Add support for grouping items by a field in the `grid` layout by introducing a `groupByField` prop in the View object.
 - Add support for free composition in the `DataViews` component by exporting subcomponents: `<DataViews.ViewConfig />`, `<DataViews.Search />`, `<DataViews.Pagination />`, `<DataViews.LayoutSwitcher />`, `<DataViews.Layout />`, `<DataViews.FiltersToggle />`, `<DataViews.Filters />`, `<DataViews.BulkActionToolbar />`.
 - `select`, `text`, `email` controls: add `help` support from the field `description` prop.
 - `text`, `email` Edit control: add `help` support from the field `description` prop.
-
 - Add new Edit controls: `checkbox`, `toggleGroup`. In the `toggleGroup`, if the field elements (options) have a `description`, then the selected option's description will be also rendered.
-- Add new `media`, `boolean`, `email` and `array` field type definitions.
+- Add new `media`, `boolean`, `email`, `array` and `date` field type definitions.
 - Field type definitions are now able to define a default `enableSorting` and `render` function.
 - Pin the actions column on the table view when the width is insufficient.
 - Enhance filter component styles.

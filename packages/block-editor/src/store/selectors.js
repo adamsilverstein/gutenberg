@@ -2912,11 +2912,17 @@ export function isBlockVisible( state, clientId ) {
 /**
  * Returns the currently hovered block.
  *
- * @param {Object} state Global application state.
- * @return {Object} Client Id of the hovered block.
+ * @deprecated
  */
-export function getHoveredBlockClientId( state ) {
-	return state.hoveredBlockClientId;
+export function getHoveredBlockClientId() {
+	deprecated(
+		"wp.data.select( 'core/block-editor' ).getHoveredBlockClientId",
+		{
+			since: '6.9',
+			version: '7.1',
+		}
+	);
+	return undefined;
 }
 
 /**
