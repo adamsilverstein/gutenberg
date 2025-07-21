@@ -73,6 +73,7 @@ module.exports = {
 	entry: Object.fromEntries( gutenbergScriptModules.entries() ),
 	experiments: {
 		outputModule: true,
+		asyncWebAssembly: true,
 	},
 	output: {
 		devtoolNamespace: 'wp',

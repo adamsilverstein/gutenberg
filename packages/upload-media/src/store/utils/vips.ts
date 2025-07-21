@@ -1,18 +1,11 @@
 /**
- * External dependencies
- */
-import { createWorkerFactory } from '@shopify/web-worker'; // @TODO: remove - this has been deprecated
-
-/**
  * Internal dependencies
  */
 import { ImageFile } from '../../imageFile';
 import { getFileBasename } from '../../utils';
+import { createVipsWorker } from '../../utils/worker-factory';
 import type { ImageSizeCrop, QueueItemId } from '../types';
 
-const createVipsWorker = createWorkerFactory(
-	() => import( /* webpackChunkName: 'wp-vips' */ '@wordpress/vips' )
-);
 const vipsWorker = createVipsWorker();
 
 export async function vipsConvertImageFormat(
