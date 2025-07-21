@@ -173,6 +173,10 @@ module.exports = {
 				test: /vips-es6\.js$/,
 				type: 'asset/source',
 			},
+			{
+				test: /\/wasm-vips\/.*\.js$/,
+				type: 'javascript/auto',
+			},
 		],
 	},
 	performance: {
