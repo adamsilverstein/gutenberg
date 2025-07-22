@@ -24,7 +24,7 @@ export class WorkerRpc {
 	constructor( worker: Worker ) {
 		this.worker = worker;
 		this.worker.onmessage = this.handleMessage.bind( this );
-		this.worker.onerror = this.handleError.bind( this );
+		this.worker.onerror   = this.handleError.bind( this );
 
 		console.log('[WorkerRPC Debug] WorkerRpc instance created');
 	}

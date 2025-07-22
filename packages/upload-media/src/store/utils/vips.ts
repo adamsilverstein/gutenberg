@@ -6,16 +6,16 @@ import { getFileBasename } from '../../utils';
 import { createWorkerFactory } from '../../utils/worker-factory';
 import type { ImageSizeCrop, QueueItemId } from '../types';
 
-// Create worker factory with inline script (no path needed)
+// Create worker factory with inline script (no path needed).
 let vipsWorker: any = null;
 let workerError: Error | null = null;
 
 function getVipsWorker() {
-	if (vipsWorker) {
+	if ( vipsWorker ) {
 		return vipsWorker;
 	}
 
-	if (workerError) {
+	if ( workerError ) {
 		throw workerError;
 	}
 
@@ -24,11 +24,11 @@ function getVipsWorker() {
 
 		// No path needed - worker factory now uses inline script
 		const createVipsWorker = createWorkerFactory();
-		vipsWorker = createVipsWorker();
+		vipsWorker             = createVipsWorker();
 
 		console.log('[VIPS Debug] VIPS worker created successfully');
 		return vipsWorker;
-	} catch (error) {
+	} catch ( error ) {
 		console.error('[VIPS Debug] Failed to create VIPS worker:', error);
 		workerError = error as Error;
 		throw error;

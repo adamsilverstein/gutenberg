@@ -102,6 +102,7 @@ export function createWorkerFactory(): () => VipsWorkerProxy {
 				}
 
 				sendResponse(id, result) {
+					console.log('[WorkerRPC Debug] Sending response for id:', id, 'Result:', result);
 					const transferList = [];
 					this.extractTransferables(result, transferList);
 
