@@ -591,6 +591,7 @@ export function prepareItem( id: QueueItemId ) {
 
 			default:
 				operations.push( OperationType.Upload );
+
 				break;
 		}
 
