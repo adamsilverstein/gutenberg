@@ -400,6 +400,10 @@ export function processItem( id: QueueItemId ) {
 				);
 				break;
 
+			case OperationType.TranscodeImage:
+				dispatch.optimizeImageItem( item.id );
+				break;
+
 			// TODO: Right now only handles images, but should support other types too.
 			case OperationType.Compress:
 				dispatch.optimizeImageItem( item.id );
