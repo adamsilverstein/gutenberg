@@ -183,7 +183,7 @@ export function addItem( {
 					url: blobUrl,
 				},
 				additionalData: {
-					generate_sub_sizes: true,
+					generate_sub_sizes: false,
 					...additionalData,
 				},
 				onChange,
