@@ -75,17 +75,23 @@ export function __experimentalUpdateSettings(
 			 Make the upload queue aware of the functions for uploading to the server.
 			*/
 			const uploadSettings = {};
-			if ( '__experimentalAvailableImageSizes' in cleanSettings ) {
-				uploadSettings.imageSizes =
-					cleanSettings.__experimentalAvailableImageSizes;
-			}
-			if ( '__experimentalBigImageSizeThreshold' in cleanSettings ) {
-				uploadSettings.imageSizeThreshold =
-					cleanSettings.__experimentalBigImageSizeThreshold;
-			}
 			if ( '__experimentalMediaSideload' in cleanSettings ) {
 				uploadSettings.mediaSideload =
 					cleanSettings.__experimentalMediaSideload;
+			}
+
+			// Initialize media settings from REST API when experimental media processing is enabled
+			const siteData = registry
+				.select( 'core' )
+				.getEntityRecord( 'root', '__unstableBase' );
+			if ( siteData ) {
+				if ( siteData.image_sizes ) {
+					uploadSettings.imageSizes = siteData.image_sizes;
+				}
+				if ( siteData.image_size_threshold ) {
+					uploadSettings.imageSizeThreshold =
+						siteData.image_size_threshold;
+				}
 			}
 
 			/**

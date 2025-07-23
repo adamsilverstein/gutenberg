@@ -86,8 +86,6 @@ const BLOCK_EDITOR_SETTINGS = [
 	'__unstableHasCustomAppender',
 	'__unstableResolvedAssets',
 	'__unstableIsBlockBasedTheme',
-	'__experimentalAvailableImageSizes',
-	'__experimentalBigImageSizeThreshold',
 ];
 
 const {

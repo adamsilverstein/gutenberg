@@ -360,28 +360,3 @@ function gutenberg_override_media_templates(): void {
 }
 
 add_action( 'wp_enqueue_media', 'gutenberg_override_media_templates' );
-
-/**
- * Adds media-related settings to the block editor.
- *
- * @since X.X.X
- *
- * @param array $settings Existing block editor settings.
- *
- * @return array New block editor settings.
- */
-function gutenberg_block_editor_settings_media_processing( $settings ) {
-	if ( ! gutenberg_is_experiment_enabled( 'gutenberg-media-processing' ) ) {
-		return $settings;
-	}
-
-	/** This filter is documented in wp-admin/includes/images.php */
-	$image_size_threshold = (int) apply_filters( 'big_image_size_threshold', 2560, array( 0, 0 ), '', 0 ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
-
-	$settings['__experimentalAvailableImageSizes']   = gutenberg_get_all_image_sizes();
-	$settings['__experimentalBigImageSizeThreshold'] = $image_size_threshold;
-
-	return $settings;
-}
-
-add_filter( 'block_editor_settings_all', 'gutenberg_block_editor_settings_media_processing' );

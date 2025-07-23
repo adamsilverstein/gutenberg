@@ -11,19 +11,8 @@ const postcss = require( 'postcss' );
  */
 const ReadableJsAssetsWebpackPlugin = require( '@wordpress/readable-js-assets-webpack-plugin' );
 
-const { NODE_ENV: mode = 'development', WP_DEVTOOL } = process.env;
-
-// Handle devtool configuration
-let devtool;
-if ( WP_DEVTOOL ) {
-	if ( 'false' === WP_DEVTOOL ) {
-		devtool = undefined; // Disable source maps
-	} else {
-		devtool = WP_DEVTOOL;
-	}
-} else {
-	devtool = mode === 'development' ? 'source-map' : undefined;
-}
+const { NODE_ENV: mode = 'development', WP_DEVTOOL: devtool = 'source-map' } =
+	process.env;
 
 const baseConfig = {
 	target: 'browserslist',

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 5.0.0 (2025-07-23)
+
 ### Bug Fixes
 
 - Fix `filterSortAndPaginate` to handle undefined values for the `is` filter.
