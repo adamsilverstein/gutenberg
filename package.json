@@ -44,7 +44,6 @@
 		"@react-native/babel-preset": "0.73.10",
 		"@react-native/metro-babel-transformer": "0.73.10",
 		"@react-native/metro-config": "0.73.4",
-		"@shopify/web-worker": "6.4.0",
 		"@storybook/addon-a11y": "8.4.7",
 		"@storybook/addon-actions": "8.4.7",
 		"@storybook/addon-controls": "8.4.7",
