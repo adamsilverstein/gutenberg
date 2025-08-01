@@ -28,7 +28,7 @@ import {
 	vipsCompressImage,
 	vipsConvertImageFormat,
 	vipsResizeImage,
-} from './utils/vips';
+} from './utils/vips-utils';
 import type {
 	AddAction,
 	AdditionalData,
