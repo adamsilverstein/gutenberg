@@ -35,7 +35,7 @@ import type {
 import { validateMimeType } from '../validate-mime-type';
 import { validateMimeTypeForUser } from '../validate-mime-type-for-user';
 import { validateFileSize } from '../validate-file-size';
-import { vipsCancelOperations } from './utils/vips';
+import { vipsCancelOperations } from './utils/vips-utils';
 
 type ActionCreators = {
 	addItem: typeof addItem;

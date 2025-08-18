@@ -144,6 +144,7 @@ module.exports = {
 		'plugin:eslint-comments/recommended',
 		'plugin:storybook/recommended',
 	],
+	ignorePatterns: [ 'packages/vips/**' ],
 	plugins: [ 'react-compiler' ],
 	globals: {
 		wp: 'off',

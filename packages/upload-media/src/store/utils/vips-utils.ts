@@ -1,9 +1,9 @@
 /**
  * Internal dependencies
  */
-import { createVipsWorker } from '../../utils/worker';
 import { ImageFile } from '../../imageFile';
 import { getFileBasename } from '../../utils';
+import { createVipsWorker } from '../../utils/worker-factory';
 import type { ImageSizeCrop, QueueItemId } from '../types';
 
 const vipsWorker = createVipsWorker();
