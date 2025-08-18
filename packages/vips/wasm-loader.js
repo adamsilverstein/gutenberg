@@ -1,54 +1,36 @@
 /**
- * Webpack loader that converts WASM and JS files to Base64 data URLs
- * This allows inlining binary files to avoid server configuration issues
+ * Webpack loader for converting WASM and JS files to Base64 data URLs.
+ * This eliminates CDN dependencies by bundling VIPS files directly.
  */
 
-const fs = require( 'fs' );
-const path = require( 'path' );
-
-module.exports = function wasmLoader( content ) {
+module.exports = function wasmLoader(source) {
+	// This loader is synchronous
 	const callback = this.async();
-	const resourcePath = this.resourcePath;
-
-	// Debug: log when loader is called
-	console.log( 'WASM Loader called for:', resourcePath );
-
-	// Add the file as a dependency so webpack watches it for changes
-	this.addDependency( resourcePath );
 
 	try {
-		// Read the file as a buffer
-		const buffer = fs.readFileSync( resourcePath );
-
-		// Convert to base64
-		const base64 = buffer.toString( 'base64' );
+		// Convert the source buffer to Base64
+		const base64 = source.toString('base64');
 
 		// Determine MIME type based on file extension
-		let mimeType;
-		const ext = path.extname( resourcePath ).toLowerCase();
+		const filePath = this.resourcePath;
+		let mimeType = 'application/octet-stream';
 
-		switch ( ext ) {
-			case '.wasm':
-				mimeType = 'application/wasm';
-				break;
-			case '.js':
-				mimeType = 'application/javascript';
-				break;
-			default:
-				mimeType = 'application/octet-stream';
+		if (filePath.endsWith('.wasm')) {
+			mimeType = 'application/wasm';
+		} else if (filePath.endsWith('.js')) {
+			mimeType = 'application/javascript';
+		} else if (filePath.endsWith('.mjs')) {
+			mimeType = 'application/javascript';
 		}
 
 		// Create data URL
-		const dataUrl = `data:${ mimeType };base64,${ base64 }`;
+		const dataUrl = `data:${mimeType};base64,${base64}`;
 
-		// Export as ES6 module
-		const output = `export default ${ JSON.stringify( dataUrl ) };`;
+		// Export as ES module
+		const code = `export default ${JSON.stringify(dataUrl)};`;
 
-		callback( null, output );
-	} catch ( error ) {
-		callback( error );
+		callback(null, code);
+	} catch (error) {
+		callback(error);
 	}
 };
-
-// Tell webpack this loader works with binary files
-module.exports.raw = true;

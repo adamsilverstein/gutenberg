@@ -1,13 +1,8 @@
 /**
  * External dependencies
  */
-import Vips from 'wasm-vips';
+import VipsFactory from 'wasm-vips';
 import type VipsInstance from 'wasm-vips';
-
-/**
- * Local VIPS library files as Base64 data URLs
- */
-import { vipsWasmDataUrl, vipsJsDataUrl } from './lib-data';
 
 /**
  * Internal dependencies
@@ -20,6 +15,8 @@ import type {
 	ThumbnailOptions,
 } from './types';
 import { supportsAnimation, supportsInterlace, supportsQuality } from './utils';
+import vipsJsDataUrl from './lib/vips-js';
+import vipsWasmDataUrl from './lib/vips-wasm';
 
 interface EmscriptenModule {
 	setAutoDeleteLater: ( autoDelete: boolean ) => void;
@@ -35,32 +32,37 @@ let vipsInstance: typeof VipsInstance;
  *
  * Reuses any existing instance.
  */
-async function getVips(): Promise< typeof Vips > {
+async function getVips(): Promise< typeof VipsInstance > {
 	if ( vipsInstance ) {
 		return vipsInstance;
 	}
 
-	if ( 'undefined' === typeof fetch ) {
-		return Vips;
-	}
-
 	try {
-		// Use local VIPS files processed by webpack as Base64 data URLs
-		// Convert Base64 data URL to blob URL for the main script
-		const vipsJsResponse = await fetch( vipsJsDataUrl );
-		const vipsJsBlob = await vipsJsResponse.blob();
-		const mainBlobUrl = URL.createObjectURL( vipsJsBlob );
+		// Create a script element to load the VIPS JavaScript
+		const script = document.createElement( 'script' );
+		script.src = vipsJsDataUrl;
+		script.type = 'text/javascript';
 
-		vipsInstance = await Vips( {
+		// Wait for the script to load
+		await new Promise( ( resolve, reject ) => {
+			script.onload = resolve;
+			script.onerror = reject;
+			document.head.appendChild( script );
+		} );
+
+		// Configure VIPS with local WASM file
+		const factory = typeof VipsFactory === 'function' ? VipsFactory : (VipsFactory as any).default;
+		if ( typeof factory !== 'function' ) {
+			throw new Error( 'VipsFactory is not a function' );
+		}
+
+		vipsInstance = await factory( {
 			locateFile: ( fileName: string ) => {
-				// Return the appropriate data URL based on the file name
-				if ( fileName === 'vips.wasm' ) {
+				if ( fileName.endsWith( '.wasm' ) ) {
 					return vipsWasmDataUrl;
 				}
-				// Fallback for any other files (though we shouldn't need them)
 				return fileName;
 			},
-			mainScriptUrlOrBlob: mainBlobUrl,
 			preRun: ( module: EmscriptenModule ) => {
 				// https://github.com/kleisauke/wasm-vips/issues/13#issuecomment-1073246828
 				module.setAutoDeleteLater( true );
@@ -82,7 +84,13 @@ async function getVips(): Promise< typeof Vips > {
 			await ( await window.fetch( `${ VIPS_CDN_URL }/vips.js` ) ).blob()
 		);
 
-		vipsInstance = await Vips( {
+		// Handle different module export patterns
+		const factory = typeof VipsFactory === 'function' ? VipsFactory : (VipsFactory as any).default;
+		if ( typeof factory !== 'function' ) {
+			throw new Error( 'VipsFactory is not a function' );
+		}
+
+		vipsInstance = await factory( {
 			locateFile: ( fileName: string ) =>
 				`${ VIPS_CDN_URL }/${ fileName }`,
 			mainScriptUrlOrBlob: mainBlobUrl,
@@ -201,181 +209,4 @@ export async function compressImage(
 	type: string,
 	quality = 0.82,
 	interlaced = false
-): Promise< ArrayBuffer | ArrayBufferLike > {
-	return convertImageFormat( id, buffer, type, type, quality, interlaced );
-}
-
-/**
- * Resizes an image using vips.
- *
- * @param id        Item ID.
- * @param buffer    Original file buffer.
- * @param type      Mime type.
- * @param resize    Resize options.
- * @param smartCrop Whether to use smart cropping (i.e. saliency-aware).
- * @return Processed file data plus the old and new dimensions.
- */
-export async function resizeImage(
-	id: ItemId,
-	buffer: ArrayBuffer,
-	type: string,
-	resize: ImageSizeCrop,
-	smartCrop = false
-): Promise< {
-	buffer: ArrayBuffer | ArrayBufferLike;
-	width: number;
-	height: number;
-	originalWidth: number;
-	originalHeight: number;
-} > {
-	const ext = type.split( '/' )[ 1 ];
-
-	inProgressOperations.add( id );
-
-	const vips = await getVips();
-	const thumbnailOptions: ThumbnailOptions = {
-		size: 'down',
-	};
-
-	let strOptions = '';
-	const loadOptions: LoadOptions< typeof type > = {};
-
-	// To ensure all frames are loaded in case the image is animated.
-	// But only if we're not cropping.
-	if ( supportsAnimation( type ) && ! resize.crop ) {
-		strOptions = '[n=-1]';
-		thumbnailOptions.option_string = strOptions;
-		( loadOptions as LoadOptions< typeof type > ).n = -1;
-	}
-
-	// TODO: Report progress, see https://github.com/swissspidy/media-experiments/issues/327.
-	const onProgress = () => {
-		if ( ! inProgressOperations.has( id ) ) {
-			image.kill = true;
-		}
-	};
-
-	let image = vips.Image.newFromBuffer( buffer ); //  buffer, strOptions, loadOptions );
-
-	image.onProgress = onProgress;
-
-	const { width, pageHeight } = image;
-
-	// If resize.height is zero.
-	resize.height = resize.height || ( pageHeight / width ) * resize.width;
-
-	let resizeWidth = resize.width;
-	thumbnailOptions.height = resize.height;
-
-	if ( ! resize.crop ) {
-		image = vips.Image.thumbnailBuffer(
-			buffer,
-			resizeWidth,
-			thumbnailOptions
-		);
-
-		image.onProgress = onProgress;
-	} else if ( true === resize.crop ) {
-		thumbnailOptions.crop = smartCrop ? 'attention' : 'centre';
-
-		image = vips.Image.thumbnailBuffer(
-			buffer,
-			resizeWidth,
-			thumbnailOptions
-		);
-
-		image.onProgress = onProgress;
-	} else {
-		// First resize, then do the cropping.
-		// This allows operating on the second bitmap with the correct dimensions.
-
-		if ( width < pageHeight ) {
-			resizeWidth =
-				resize.width >= resize.height
-					? resize.width
-					: ( width / pageHeight ) * resize.height;
-			thumbnailOptions.height =
-				resize.width >= resize.height
-					? ( pageHeight / width ) * resizeWidth
-					: resize.height;
-		} else {
-			resizeWidth =
-				resize.width >= resize.height
-					? ( width / pageHeight ) * resize.height
-					: resize.width;
-			thumbnailOptions.height =
-				resize.width >= resize.height
-					? resize.height
-					: ( pageHeight / width ) * resizeWidth;
-		}
-
-		image = vips.Image.thumbnailBuffer(
-			buffer,
-			resizeWidth,
-			thumbnailOptions
-		);
-
-		image.onProgress = onProgress;
-
-		let left = 0;
-		if ( 'center' === resize.crop[ 0 ] ) {
-			left = ( image.width - resize.width ) / 2;
-		} else if ( 'right' === resize.crop[ 0 ] ) {
-			left = image.width - resize.width;
-		}
-
-		let top = 0;
-		if ( 'center' === resize.crop[ 1 ] ) {
-			top = ( image.height - resize.height ) / 2;
-		} else if ( 'bottom' === resize.crop[ 1 ] ) {
-			top = image.height - resize.height;
-		}
-
-		// Address rounding errors where `left` or `top` become negative integers
-		// and `resize.width` / `resize.height` are bigger than the actual dimensions.
-		// Downside: one side could be 1px smaller than the requested size.
-		left = Math.max( 0, left );
-		top = Math.max( 0, top );
-		resize.width = Math.min( image.width, resize.width );
-		resize.height = Math.min( image.height, resize.height );
-
-		image = image.crop( left, top, resize.width, resize.height );
-
-		image.onProgress = onProgress;
-	}
-
-	// TODO: Allow passing quality?
-	const saveOptions: SaveOptions< typeof type > = {};
-	const outBuffer = image.writeToBuffer( `.${ ext }`, saveOptions );
-
-	const result = {
-		buffer: outBuffer.buffer,
-		width: image.width,
-		height: image.pageHeight,
-		originalWidth: width,
-		originalHeight: pageHeight,
-	};
-
-	// Only call after `image` is no longer being used.
-	cleanup?.();
-
-	return result;
-}
-
-/**
- * Determines whether an image has an alpha channel.
- *
- * @param buffer Original file object.
- * @return Whether the image has an alpha channel.
- */
-export async function hasTransparency(
-	buffer: ArrayBuffer
-): Promise< boolean > {
-	const vips = await getVips();
-	const image = vips.Image.newFromBuffer( buffer );
-	const hasAlpha = image.hasAlpha();
-
-	cleanup?.();
-
-	return hasAlpha;
-}
+): Promise< ArrayBuffer | ArrayBufferLike
