@@ -1,7 +1,7 @@
 /**
  * External dependencies
  */
-import { createWorkerFactory } from '@shopify/web-worker'; // @TODO: remove - this has been deprecated
+import * as Comlink from 'comlink';
 
 /**
  * Internal dependencies
@@ -9,11 +9,74 @@ import { createWorkerFactory } from '@shopify/web-worker'; // @TODO: remove - th
 import { ImageFile } from '../../imageFile';
 import { getFileBasename } from '../../utils';
 import type { ImageSizeCrop, QueueItemId } from '../types';
+import type { VipsWorkerAPI } from '../../vips.worker';
 
-const createVipsWorker = createWorkerFactory(
-	() => import( /* webpackChunkName: 'wp-vips' */ '@wordpress/vips' )
-);
-const vipsWorker = createVipsWorker();
+// Create the worker and wrap it with Comlink
+let vipsWorker: Comlink.Remote< VipsWorkerAPI >;
+
+// Check if we're in a browser environment with worker support
+const isWorkerSupported =
+	typeof Worker !== 'undefined' && typeof window !== 'undefined';
+
+// Initialize worker with fallback for test environments
+if ( isWorkerSupported ) {
+	try {
+		// Use dynamic import to avoid import.meta issues in Jest
+		const workerUrl = new URL(
+			'../../vips.worker.ts',
+			( globalThis as any ).location?.href || 'file://'
+		);
+		const worker = new Worker( workerUrl, { type: 'module' } );
+		vipsWorker = Comlink.wrap< VipsWorkerAPI >( worker );
+	} catch ( error ) {
+		// Fallback if worker creation fails
+		vipsWorker = createFallbackWorker();
+	}
+} else {
+	// Fallback for test environments - create a mock that directly imports vips
+	vipsWorker = createFallbackWorker();
+}
+
+function createFallbackWorker(): Comlink.Remote< VipsWorkerAPI > {
+	return {
+		async convertImageFormat(
+			id,
+			buffer,
+			inputType,
+			outputType,
+			quality,
+			interlaced
+		) {
+			const vips = await import( '@wordpress/vips' );
+			return vips.convertImageFormat(
+				id,
+				buffer,
+				inputType,
+				outputType,
+				quality,
+				interlaced
+			);
+		},
+		async compressImage( id, buffer, inputType, quality, interlaced ) {
+			const vips = await import( '@wordpress/vips' );
+			return vips.compressImage(
+				id,
+				buffer,
+				inputType,
+				quality,
+				interlaced
+			);
+		},
+		async resizeImage( id, buffer, inputType, resize, smartCrop ) {
+			const vips = await import( '@wordpress/vips' );
+			return vips.resizeImage( id, buffer, inputType, resize, smartCrop );
+		},
+		async cancelOperations( id ) {
+			const vips = await import( '@wordpress/vips' );
+			return vips.cancelOperations( id );
+		},
+	} as Comlink.Remote< VipsWorkerAPI >;
+}
 
 export async function vipsConvertImageFormat(
 	id: QueueItemId,
@@ -30,7 +93,8 @@ export async function vipsConvertImageFormat(
 		quality,
 		interlaced
 	);
-	const ext = getExtension( type );
+	type = type?.split?.( ';' )[ 0 ];
+	const ext = ( type && type.trim().toLowerCase() ) ?? null;
 	const fileName = `${ getFileBasename( file.name ) }.${ ext }`;
 	return new File( [ new Blob( [ buffer as ArrayBuffer ] ) ], fileName, {
 		type,
