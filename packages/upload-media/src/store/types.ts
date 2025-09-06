@@ -45,7 +45,6 @@ export enum Type {
 	ResumeItem = 'RESUME_ITEM',
 	PauseQueue = 'PAUSE_QUEUE',
 	ResumeQueue = 'RESUME_QUEUE',
-	ApproveUpload = 'APPROVE_UPLOAD',
 	OperationStart = 'OPERATION_START',
 	OperationFinish = 'OPERATION_FINISH',
 	AddOperations = 'ADD_OPERATIONS',
@@ -171,7 +170,6 @@ export type OnBatchSuccessHandler = () => void;
 export enum ItemStatus {
 	Processing = 'PROCESSING',
 	Paused = 'PAUSED',
-	PendingApproval = 'PENDING_APPROVAL',
 }
 
 export enum OperationType {
@@ -179,9 +177,8 @@ export enum OperationType {
 	AddPoster = 'ADD_POSTER',
 	UploadOriginal = 'UPLOAD_ORIGINAL',
 	ThumbnailGeneration = 'THUMBNAIL_GENERATION',
-	ResizeCrop = 'RESIZE_CROP',
-	TranscodeVideo = 'TRANSCODE_VIDEO',
 	TranscodeImage = 'TRANSCODE_IMAGE',
+	ResizeCrop = 'RESIZE_CROP',
 	MuteVideo = 'TRANSCODE_MUTE_VIDEO',
 	Compress = 'TRANSCODE_COMPRESS',
 	FetchRemoteFile = 'FETCH_REMOTE_FILE',
@@ -202,7 +199,6 @@ export type OperationArgs = {
 		interlaced?: boolean;
 	};
 	[ OperationType.ResizeCrop ]: { resize?: ImageSizeCrop };
-	[ OperationType.TranscodeVideo ]: { continueOnError?: true };
 };
 
 type OperationWithArgs< T extends keyof OperationArgs = keyof OperationArgs > =

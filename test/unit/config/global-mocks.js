@@ -49,3 +49,52 @@ if ( ! global.TextEncoder ) {
 // Override jsdom built-ins with native node implementation.
 global.Blob = BlobPolyfill;
 global.File = FilePolyfill;
+
+/**
+ * Mock Worker for upload-media package tests
+ * The upload-media package uses Web Workers which are not available in Node.js test environment
+ */
+global.Worker = class MockWorker {
+	constructor( scriptURL ) {
+		this.scriptURL = scriptURL;
+		this.onmessage = null;
+		this.onerror = null;
+		this.onmessageerror = null;
+	}
+
+	postMessage( message ) {
+		// Mock implementation - in real tests, this would simulate worker responses
+		setTimeout( () => {
+			if ( this.onmessage ) {
+				this.onmessage( { data: { id: message.id, result: null } } );
+			}
+		}, 0 );
+	}
+
+	terminate() {
+		// Mock implementation
+	}
+
+	addEventListener( type, listener ) {
+		if ( type === 'message' ) {
+			this.onmessage = listener;
+		} else if ( type === 'error' ) {
+			this.onerror = listener;
+		} else if ( type === 'messageerror' ) {
+			this.onmessageerror = listener;
+		}
+	}
+
+	removeEventListener( type, listener ) {
+		if ( type === 'message' && this.onmessage === listener ) {
+			this.onmessage = null;
+		} else if ( type === 'error' && this.onerror === listener ) {
+			this.onerror = null;
+		} else if (
+			type === 'messageerror' &&
+			this.onmessageerror === listener
+		) {
+			this.onmessageerror = null;
+		}
+	}
+};

@@ -115,6 +115,18 @@ export function addItems( {
 }: AddItemsArgs ) {
 	return async ( { dispatch }: { dispatch: ActionCreators } ) => {
 		const batchId = uuidv4();
+
+		console.log( '[VIPS Debug] addItems called', {
+			files,
+			batchId,
+			onChange,
+			onSuccess,
+			onError,
+			additionalData,
+			allowedTypes,
+			maxUploadFileSize,
+		} );
+
 		for ( const file of files ) {
 			/*
 			 Check if the caller (e.g. a block) supports this mime type.

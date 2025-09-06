@@ -148,6 +148,19 @@ export function addItem( {
 
 		let blobUrl;
 
+		console.log( '[VIPS Debug] addItem called', {
+			file,
+			batchId,
+			onChange,
+			onSuccess,
+			onError,
+			additionalData,
+			sourceUrl,
+			sourceAttachmentId,
+			abortController,
+			operations,
+		} );
+
 		// StubFile could be coming from addItemFromUrl().
 		if ( ! ( file instanceof StubFile ) ) {
 			blobUrl = createBlobURL( file );
@@ -185,6 +198,8 @@ export function addItem( {
 					: [ OperationType.Prepare ],
 			},
 		} );
+
+		console.debug( 'Dispatch processItem for ID:', itemId );
 
 		dispatch.processItem( itemId );
 	};
@@ -242,6 +257,8 @@ export function addSideloadItem( {
 			},
 		} );
 
+		console.debug( 'Dispatch processItem for ID:', itemId );
+
 		dispatch.processItem( itemId );
 	};
 }
@@ -261,7 +278,10 @@ export function processItem( id: QueueItemId ) {
 
 		const item = select.getItem( id ) as QueueItem;
 
-		if ( item.status === ItemStatus.PendingApproval ) {
+		console.log( 'process item called with item:', item, item.id, item.batchId, item.operations );
+
+		if ( ! item ) {
+			console.warn( `[VIPS Debug] No item found for ID: ${ id }` );
 			return;
 		}
 
@@ -421,6 +441,9 @@ export function resumeItem( postOrAttachmentId: number ) {
 				type: Type.ResumeItem,
 				id: item.id,
 			} );
+
+			console.debug( 'Dispatch processItem for ID:', item.id );
+
 			dispatch.processItem( item.id );
 		}
 	};
@@ -452,6 +475,8 @@ export function resumeQueue() {
 		} );
 
 		for ( const item of select.getAllItems() ) {
+			console.debug( 'resume queue Dispatch processItem for ID:', item.id );
+
 			dispatch.processItem( item.id );
 		}
 	};
@@ -492,6 +517,7 @@ export function finishOperation(
 			id,
 			item: updates,
 		} );
+		console.debug( 'Dispatch processItem for ID:', id );
 
 		dispatch.processItem( id );
 	};
@@ -513,7 +539,12 @@ export function finishOperation(
  */
 export function prepareItem( id: QueueItemId ) {
 	return async ( { select, dispatch, registry }: ThunkArgs ) => {
+
+		console.log( '[VIPS Debug] prepareItem called', { id } );
+
 		const item = select.getItem( id ) as QueueItem;
+
+		console.log( '[VIPS Debug] prepareItem item:', item, item.id, item.batchId, item.operations );
 
 		const { file } = item;
 
@@ -564,6 +595,8 @@ export function prepareItem( id: QueueItemId ) {
 				break;
 		}
 
+		console.log( 'prepareItem operations:', operations );
+
 		dispatch< AddOperationsAction >( {
 			type: Type.AddOperations,
 			id,
@@ -584,6 +617,12 @@ export function generateThumbnails( id: QueueItemId ) {
 		const item = select.getItem( id ) as QueueItem;
 
 		const attachment: Attachment = item.attachment as Attachment;
+
+		console.log( '[VIPS Debug] generateThumbnails called', {
+				item,
+				attachment
+			}, attachment.missing_image_sizes
+		);
 
 		if ( ! item.parentId && attachment.missing_image_sizes ) {
 			const file = attachment.filename
