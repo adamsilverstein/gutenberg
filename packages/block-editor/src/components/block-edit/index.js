@@ -59,11 +59,7 @@ export default function BlockEdit( {
 
 	const ref = useRef( 'comment-anchor-' + blockCommentId );
 
-	useEffect( () => {
-		if ( blockCommentId && ref && setAttributes ) {
-			setAttributes( { commentPopoverRef: ref } );
-		}
-	}, [ blockCommentId, ref, setAttributes ] );
+	props.attributes.commentPopoverRef = ref;
 
 	return (
 		<BlockEditContextProvider
