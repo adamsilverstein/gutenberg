@@ -291,7 +291,7 @@ export default function CollabSidebar() {
 		id: postId,
 	} );
 
-	const { getAllRefs } = useCommentRefs();
+	const { getRefsForIds } = useCommentRefs();
 
 	// Process comments to build the tree structure.
 	const { resultComments, unresolvedSortedThreads, commentToBlockMapping } =
@@ -330,16 +330,13 @@ export default function CollabSidebar() {
 			const blockCommentIds = getCommentIdsFromBlocks( blocks );
 
 			// Create comment to block mapping using refs from context
-			const commentRefs = getAllRefs();
+			const commentRefs = getRefsForIds( blockCommentIds );
 			const mappingData = [];
-			blockCommentIds.forEach( ( commentId ) => {
-				const ref = commentRefs.get( commentId );
-				if ( ref ) {
-					mappingData.push( {
-						blockCommentId: commentId,
-						commentPopoverRef: ref,
-					} );
-				}
+			commentRefs.forEach( ( ref, commentId ) => {
+				mappingData.push( {
+					blockCommentId: commentId,
+					commentPopoverRef: ref,
+				} );
 			} );
 
 			const threadIdMap = new Map(
@@ -359,7 +356,7 @@ export default function CollabSidebar() {
 				unresolvedSortedThreads: unresolvedSortedComments,
 				commentToBlockMapping: mappingData,
 			};
-		}, [ threads, blocks, getAllRefs ] );
+		}, [ threads, blocks, getRefsForIds ] );
 
 	// Get the global styles to set the background color of the sidebar.
 	const { merged: GlobalStyles } = useGlobalStylesContext();

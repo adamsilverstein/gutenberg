@@ -19,7 +19,7 @@ import {
 } from './context';
 import { MultipleUsageWarning } from './multiple-usage-warning';
 import { PrivateBlockContext } from '../block-list/private-block-context';
-import { useCommentRefs } from './comment-refs-context';
+import { BlockRefs } from '../provider/block-refs-provider';
 
 /**
  * The `useBlockEditContext` hook provides information about the block this hook is being used in.
@@ -30,7 +30,29 @@ import { useCommentRefs } from './comment-refs-context';
  * @return {Object} Block edit context
  */
 export { useBlockEditContext };
-export { useCommentRefs } from './comment-refs-context';
+
+/**
+ * Hook to access comment popover refs stored in the BlockRefs context.
+ *
+ * @return {Object} Object with methods to interact with comment refs
+ */
+export function useCommentRefs() {
+	const { refsMap } = useContext( BlockRefs );
+
+	return {
+		getRef: ( commentId ) => refsMap.get( `comment-${ commentId }` ),
+		getRefsForIds: ( commentIds ) => {
+			const commentRefs = new Map();
+			commentIds.forEach( ( commentId ) => {
+				const ref = refsMap.get( `comment-${ commentId }` );
+				if ( ref ) {
+					commentRefs.set( commentId, ref );
+				}
+			} );
+			return commentRefs;
+		},
+	};
+}
 
 export default function BlockEdit( {
 	mayDisplayControls,
@@ -57,16 +79,17 @@ export default function BlockEdit( {
 	const { originalBlockClientId } = useContext( PrivateBlockContext );
 
 	const blockCommentId = props.attributes?.blockCommentId;
-	const { registerRef, unregisterRef } = useCommentRefs();
+	const { refsMap } = useContext( BlockRefs );
 
 	const ref = useRef( 'comment-anchor-' + blockCommentId );
 
 	useEffect( () => {
 		if ( blockCommentId ) {
-			registerRef( blockCommentId, ref );
-			return () => unregisterRef( blockCommentId );
+			const commentRefKey = `comment-${ blockCommentId }`;
+			refsMap.set( commentRefKey, ref );
+			return () => refsMap.delete( commentRefKey );
 		}
-	}, [ blockCommentId, registerRef, unregisterRef, ref ] );
+	}, [ blockCommentId, refsMap, ref ] );
 
 	return (
 		<BlockEditContextProvider
