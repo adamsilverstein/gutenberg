@@ -59,6 +59,7 @@ export default function BlockEdit( {
 
 	const ref = useRef( 'comment-anchor-' + blockCommentId );
 
+	// Don't do this, it is an antipattern.
 	props.attributes.commentPopoverRef = ref;
 
 	return (
