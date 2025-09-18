@@ -137,6 +137,7 @@ export function Comments( {
 							className="editor-collab-sidebar-panel__comment-popover"
 							resize={ false }
 							shift={ false }
+							flip={ false }
 							focusOnMount={ false }
 						>
 							<VStack

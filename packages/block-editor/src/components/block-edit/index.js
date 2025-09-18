@@ -3,7 +3,6 @@
  */
 import { useMemo, useContext, useRef, useEffect } from '@wordpress/element';
 import { hasBlockSupport } from '@wordpress/blocks';
-import { Popover } from '@wordpress/components';
 
 /**
  * Internal dependencies
@@ -102,10 +101,10 @@ export default function BlockEdit( {
 			) }
 		>
 			{ blockCommentId && (
-				<Popover.Slot
+				<div
 					name={ 'block-comment-popover-slot-' + blockCommentId }
 					ref={ ref }
-				/>
+				></div>
 			) }
 			<Edit { ...props } />
 			{ originalBlockClientId && (
