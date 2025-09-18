@@ -17,7 +17,10 @@ import {
 	useEntityBlockEditor,
 	useEntityRecords,
 } from '@wordpress/core-data';
-import { store as blockEditorStore } from '@wordpress/block-editor';
+import {
+	store as blockEditorStore,
+	useCommentRefs,
+} from '@wordpress/block-editor';
 import { store as interfaceStore } from '@wordpress/interface';
 
 /**
@@ -31,7 +34,7 @@ import { store as editorStore } from '../../store';
 import AddCommentButton from './comment-button';
 import CommentAvatarIndicator from './comment-indicator-toolbar';
 import { useGlobalStylesContext } from '../global-styles-provider';
-import { getCommentIdsFromBlocks, getcommentToBlockMapping } from './utils';
+import { getCommentIdsFromBlocks } from './utils';
 
 const modifyBlockCommentAttributes = ( settings ) => {
 	if ( ! settings.attributes.blockCommentId ) {
@@ -288,6 +291,8 @@ export default function CollabSidebar() {
 		id: postId,
 	} );
 
+	const { getAllRefs } = useCommentRefs();
+
 	// Process comments to build the tree structure.
 	const { resultComments, unresolvedSortedThreads, commentToBlockMapping } =
 		useMemo( () => {
@@ -323,7 +328,20 @@ export default function CollabSidebar() {
 			} ) );
 
 			const blockCommentIds = getCommentIdsFromBlocks( blocks );
-			const mappingData = getcommentToBlockMapping( blocks );
+
+			// Create comment to block mapping using refs from context
+			const commentRefs = getAllRefs();
+			const mappingData = [];
+			blockCommentIds.forEach( ( commentId ) => {
+				const ref = commentRefs.get( commentId );
+				if ( ref ) {
+					mappingData.push( {
+						blockCommentId: commentId,
+						commentPopoverRef: ref,
+					} );
+				}
+			} );
+
 			const threadIdMap = new Map(
 				updatedResult.map( ( thread ) => [ thread.id, thread ] )
 			);
@@ -341,7 +359,7 @@ export default function CollabSidebar() {
 				unresolvedSortedThreads: unresolvedSortedComments,
 				commentToBlockMapping: mappingData,
 			};
-		}, [ threads, blocks ] );
+		}, [ threads, blocks, getAllRefs ] );
 
 	// Get the global styles to set the background color of the sidebar.
 	const { merged: GlobalStyles } = useGlobalStylesContext();

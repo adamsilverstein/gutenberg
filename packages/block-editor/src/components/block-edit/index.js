@@ -19,6 +19,7 @@ import {
 } from './context';
 import { MultipleUsageWarning } from './multiple-usage-warning';
 import { PrivateBlockContext } from '../block-list/private-block-context';
+import { useCommentRefs } from './comment-refs-context';
 
 /**
  * The `useBlockEditContext` hook provides information about the block this hook is being used in.
@@ -29,6 +30,7 @@ import { PrivateBlockContext } from '../block-list/private-block-context';
  * @return {Object} Block edit context
  */
 export { useBlockEditContext };
+export { useCommentRefs } from './comment-refs-context';
 
 export default function BlockEdit( {
 	mayDisplayControls,
@@ -55,12 +57,16 @@ export default function BlockEdit( {
 	const { originalBlockClientId } = useContext( PrivateBlockContext );
 
 	const blockCommentId = props.attributes?.blockCommentId;
-	const { setAttributes } = props;
+	const { registerRef, unregisterRef } = useCommentRefs();
 
 	const ref = useRef( 'comment-anchor-' + blockCommentId );
 
-	// Don't do this, it is an antipattern.
-	props.attributes.commentPopoverRef = ref;
+	useEffect( () => {
+		if ( blockCommentId ) {
+			registerRef( blockCommentId, ref );
+			return () => unregisterRef( blockCommentId );
+		}
+	}, [ blockCommentId, registerRef, unregisterRef, ref ] );
 
 	return (
 		<BlockEditContextProvider

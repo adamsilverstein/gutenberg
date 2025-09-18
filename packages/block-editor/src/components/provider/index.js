@@ -16,6 +16,7 @@ import withRegistryProvider from './with-registry-provider';
 import useBlockSync from './use-block-sync';
 import { store as blockEditorStore } from '../../store';
 import { BlockRefsProvider } from './block-refs-provider';
+import { CommentRefsProvider } from '../block-edit/comment-refs-context';
 import { unlock } from '../../lock-unlock';
 import KeyboardShortcuts from '../keyboard-shortcuts';
 import useMediaUploadSettings from './use-media-upload-settings';
@@ -110,7 +111,9 @@ export const ExperimentalBlockEditorProvider = withRegistryProvider(
 		const children = (
 			<SlotFillProvider passthrough>
 				{ ! settings?.isPreviewMode && <KeyboardShortcuts.Register /> }
-				<BlockRefsProvider>{ props.children }</BlockRefsProvider>
+				<BlockRefsProvider>
+					<CommentRefsProvider>{ props.children }</CommentRefsProvider>
+				</BlockRefsProvider>
 			</SlotFillProvider>
 		);
 

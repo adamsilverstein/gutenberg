@@ -22,7 +22,7 @@ export {
 	BlockFormatControls,
 } from './block-controls';
 export { default as BlockColorsStyleSelector } from './color-style-selector';
-export { default as BlockEdit, useBlockEditContext } from './block-edit';
+export { default as BlockEdit, useBlockEditContext, useCommentRefs } from './block-edit';
 export { default as BlockIcon } from './block-icon';
 export { default as BlockNavigationDropdown } from './block-navigation/dropdown';
 export { default as BlockStyles } from './block-styles';
