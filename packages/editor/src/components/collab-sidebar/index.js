@@ -329,7 +329,7 @@ export default function CollabSidebar() {
 
 			const blockCommentIds = getCommentIdsFromBlocks( blocks );
 
-			// Create comment to block mapping using refs from context
+			// Create comment to block mapping using refs from context.
 			const commentRefs = getRefsForIds( blockCommentIds );
 			const mappingData = [];
 			commentRefs.forEach( ( ref, commentId ) => {

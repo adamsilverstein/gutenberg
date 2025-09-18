@@ -126,12 +126,7 @@ export default function BlockEdit( {
 				]
 			) }
 		>
-			{ blockCommentId && (
-				<div
-					name={ 'block-comment-popover-slot-' + blockCommentId }
-					ref={ ref }
-				></div>
-			) }
+			{ blockCommentId && <div ref={ ref }></div> }
 			<Edit { ...props } />
 			{ originalBlockClientId && (
 				<MultipleUsageWarning

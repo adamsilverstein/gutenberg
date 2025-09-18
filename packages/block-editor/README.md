@@ -1043,6 +1043,14 @@ _Returns_
 
 -   `any`: value
 
+### useCommentRefs
+
+Hook to access comment popover refs stored in the BlockRefs context.
+
+_Returns_
+
+-   `Object`: Object with methods to interact with comment refs
+
 ### useHasRecursion
 
 A React hook for keeping track of blocks previously rendered up in the block tree. Blocks susceptible to recursion can use this hook in their `Edit` function to prevent said recursion.
