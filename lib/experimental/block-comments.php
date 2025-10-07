@@ -27,6 +27,25 @@ function gutenberg_block_comment_add_post_type_support() {
 add_action( 'init', 'gutenberg_block_comment_add_post_type_support' );
 
 /**
+ * Register comment meta for resolution events.
+ *
+ * @return void
+ */
+function gutenberg_register_block_comment_resolution_meta() {
+	register_meta(
+		'comment',
+		'_resolution_event',
+		array(
+			'type'         => 'string',
+			'description'  => 'Resolution event type (resolved or reopened)',
+			'single'       => true,
+			'show_in_rest' => true,
+		)
+	);
+}
+add_action( 'init', 'gutenberg_register_block_comment_resolution_meta' );
+
+/**
  * Updates the comment type for avatars in the WordPress REST API.
  *
  * This function adds the 'block_comment' type to the list of comment types
@@ -108,10 +127,13 @@ function gutenberg_bypass_rest_validation_for_resolution_comments( $result, $ser
 		return $result;
 	}
 
-	// Check if this is a resolution or reopen comment.
+	// Check if this is a block_comment with resolution event meta.
 	$comment_type = $request->get_param( 'comment_type' );
+	$meta = $request->get_param( 'meta' );
+	$has_resolution_event = isset( $meta['_resolution_event'] ) &&
+		( 'resolved' === $meta['_resolution_event'] || 'reopened' === $meta['_resolution_event'] );
 
-	if ( 'block_comment_resol' === $comment_type || 'block_comment_ropen' === $comment_type ) {
+	if ( 'block_comment' === $comment_type && $has_resolution_event ) {
 		// Temporarily bypass both empty content and duplicate validation for resolution comments.
 		add_filter( 'allow_empty_comment', '__return_true', 50 );
 		add_filter( 'duplicate_comment_id', '__return_false', 50 );
@@ -129,11 +151,11 @@ add_filter( 'rest_pre_dispatch', 'gutenberg_bypass_rest_validation_for_resolutio
  * @return int|false Modified duplicate check result.
  */
 function gutenberg_disable_duplicate_detection_for_resolution_comments( $duplicate_id, $commentdata ) {
-	if ( isset( $commentdata['comment_type'] ) &&
-		( 'block_comment_resol' === $commentdata['comment_type'] || 'block_comment_ropen' === $commentdata['comment_type'] )
-	) {
-		// Return false to indicate this is not a duplicate.
-		return false;
+	// Check if this is a block_comment with resolution event meta.
+	if ( isset( $commentdata['comment_type'] ) && 'block_comment' === $commentdata['comment_type'] ) {
+		// For block comments, we need to check if there's a resolution event in the current request.
+		// This is handled by the REST API bypass filter above.
+		// The duplicate check is disabled in rest_pre_dispatch for resolution events.
 	}
 
 	return $duplicate_id;

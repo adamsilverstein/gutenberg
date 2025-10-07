@@ -6,120 +6,66 @@
  */
 
 /**
- * Unit tests for the gutenberg_allow_empty_block_comments function.
+ * Unit tests for block comments with resolution meta.
  *
- * @covers gutenberg_allow_empty_block_comments
+ * @covers gutenberg_register_block_comment_resolution_meta
  */
-class Gutenberg_Allow_Empty_Block_Comments_Test extends WP_UnitTestCase {
+class Gutenberg_Block_Comments_Resolution_Meta_Test extends WP_UnitTestCase {
 
 	/**
-	 * Tests that the filter is properly added for the function.
+	 * Tests that the resolution meta is properly registered.
 	 */
-	public function test_filter_is_added() {
-		$this->assertTrue( has_filter( 'allow_empty_comment' ) );
-		$this->assertEquals( 10, has_filter( 'allow_empty_comment', 'gutenberg_allow_empty_block_comments' ) );
+	public function test_resolution_meta_is_registered() {
+		global $wp_meta_keys;
+
+		// Trigger the init hook to ensure meta is registered.
+		do_action( 'init' );
+
+		// Check if the meta key is registered for comments.
+		$registered = registered_meta_key_exists( 'comment', '_resolution_event' );
+
+		$this->assertTrue( $registered, 'Resolution event meta should be registered for comments' );
 	}
 
 	/**
-	 * Data provider for comment types that should allow empty comments.
-	 *
-	 * @return array
+	 * Tests that resolution meta can be set and retrieved.
 	 */
-	public function data_provider_resolution_comment_types() {
-		return array(
-			'reopen comment type'     => array( 'block_comment_ropen' ),
-			'resolution comment type' => array( 'block_comment_resol' ),
-		);
-	}
-
-	/**
-	 * Tests that empty comments are allowed for resolution comment types.
-	 *
-	 * @dataProvider data_provider_resolution_comment_types
-	 *
-	 * @param string $comment_type The comment type to test.
-	 */
-	public function test_allows_empty_comment_for_resolution_types( $comment_type ) {
-		$prepared_comment = array(
-			'comment_type' => $comment_type,
+	public function test_can_set_and_get_resolution_meta() {
+		$post_id = self::factory()->post->create();
+		$comment_id = self::factory()->comment->create(
+			array(
+				'comment_post_ID' => $post_id,
+				'comment_type'    => 'block_comment',
+			)
 		);
 
-		$result = gutenberg_allow_empty_block_comments( false, $prepared_comment );
+		// Set resolution meta.
+		update_comment_meta( $comment_id, '_resolution_event', 'resolved' );
 
-		$this->assertTrue( $result );
+		// Retrieve resolution meta.
+		$meta_value = get_comment_meta( $comment_id, '_resolution_event', true );
+
+		$this->assertEquals( 'resolved', $meta_value );
 	}
 
 	/**
-	 * Data provider for comment types that should not allow empty comments.
-	 *
-	 * @return array
+	 * Tests that reopened meta can be set and retrieved.
 	 */
-	public function data_provider_non_resolution_comment_types() {
-		return array(
-			'empty comment type'   => array( '' ),
-			'default comment type' => array( 'comment' ),
-			'block comment type'   => array( 'block_comment' ),
-			'trackback type'       => array( 'trackback' ),
-			'pingback type'        => array( 'pingback' ),
-			'custom type'          => array( 'some_custom_type' ),
-		);
-	}
-
-	/**
-	 * Tests that empty comments are not allowed for non-resolution comment types.
-	 *
-	 * @dataProvider data_provider_non_resolution_comment_types
-	 *
-	 * @param string $comment_type The comment type to test.
-	 */
-	public function test_does_not_allow_empty_comment_for_non_resolution_types( $comment_type ) {
-		$prepared_comment = array(
-			'comment_type' => $comment_type,
+	public function test_can_set_and_get_reopened_meta() {
+		$post_id = self::factory()->post->create();
+		$comment_id = self::factory()->comment->create(
+			array(
+				'comment_post_ID' => $post_id,
+				'comment_type'    => 'block_comment',
+			)
 		);
 
-		$result = gutenberg_allow_empty_block_comments( false, $prepared_comment );
+		// Set reopened meta.
+		update_comment_meta( $comment_id, '_resolution_event', 'reopened' );
 
-		$this->assertFalse( $result, "Empty comments should not be allowed for comment type: {$comment_type}" );
-	}
+		// Retrieve reopened meta.
+		$meta_value = get_comment_meta( $comment_id, '_resolution_event', true );
 
-	/**
-	 * Data provider for testing preservation of original true values.
-	 *
-	 * @return array
-	 */
-	public function data_provider_preserve_true_value_scenarios() {
-		return array(
-			'resolution comment type' => array( 'block_comment_ropen' ),
-			'reopen comment type'     => array( 'block_comment_resol' ),
-			'regular comment type'    => array( 'regular_comment' ),
-		);
-	}
-
-	/**
-	 * Tests that the function preserves the original allow value when true.
-	 *
-	 * @dataProvider data_provider_preserve_true_value_scenarios
-	 *
-	 * @param string $comment_type The comment type to test.
-	 */
-	public function test_preserves_original_true_value( $comment_type ) {
-		$prepared_comment = array(
-			'comment_type' => $comment_type,
-		);
-
-		$result = gutenberg_allow_empty_block_comments( true, $prepared_comment );
-
-		$this->assertTrue( $result );
-	}
-
-	/**
-	 * Tests behavior with missing comment_type key.
-	 */
-	public function test_handles_missing_comment_type() {
-		$prepared_comment = array();
-
-		$result = gutenberg_allow_empty_block_comments( false, $prepared_comment );
-
-		$this->assertFalse( $result );
+		$this->assertEquals( 'reopened', $meta_value );
 	}
 }

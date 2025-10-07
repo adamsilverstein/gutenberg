@@ -225,31 +225,38 @@ function Thread( {
 				status={ thread.status }
 			/>
 			{ isSelected &&
-				allReplies.map( ( reply ) => (
-					<VStack
-						key={ reply.id }
-						className="editor-collab-sidebar-panel__child-thread"
-						id={ reply.id }
-						spacing="2"
-					>
-						<CommentBoard
-							thread={ reply }
-							onEdit={
-								'approved' !== thread.status &&
-								( reply.type === 'block_comment' ||
-									reply.type === 'block_comment_ropen' )
-									? onEditComment
-									: undefined
-							}
-							onDelete={
-								'approved' !== thread.status &&
-								reply.type === 'block_comment'
-									? onCommentDelete
-									: undefined
-							}
-						/>
-					</VStack>
-				) ) }
+				allReplies.map( ( reply ) => {
+					const isResolutionEvent =
+						reply?.meta?._resolution_event === 'resolved' ||
+						reply?.meta?._resolution_event === 'reopened';
+					const isReopenEvent =
+						reply?.meta?._resolution_event === 'reopened';
+
+					return (
+						<VStack
+							key={ reply.id }
+							className="editor-collab-sidebar-panel__child-thread"
+							id={ reply.id }
+							spacing="2"
+						>
+							<CommentBoard
+								thread={ reply }
+								onEdit={
+									'approved' !== thread.status &&
+									( ! isResolutionEvent || isReopenEvent )
+										? onEditComment
+										: undefined
+								}
+								onDelete={
+									'approved' !== thread.status &&
+									! isResolutionEvent
+										? onCommentDelete
+										: undefined
+								}
+							/>
+						</VStack>
+					);
+				} ) }
 			{ ! isSelected && restReplies.length > 0 && (
 				<HStack className="editor-collab-sidebar-panel__more-reply-separator">
 					<Button
@@ -276,24 +283,33 @@ function Thread( {
 					</Button>
 				</HStack>
 			) }
-			{ ! isSelected && lastReply && (
-				<CommentBoard
-					thread={ lastReply }
-					onEdit={
-						'approved' !== thread.status &&
-						( lastReply.type === 'block_comment' ||
-							lastReply.type === 'block_comment_ropen' )
-							? onEditComment
-							: undefined
-					}
-					onDelete={
-						'approved' !== thread.status &&
-						lastReply.type === 'block_comment'
-							? onCommentDelete
-							: undefined
-					}
-				/>
-			) }
+			{ ! isSelected &&
+				lastReply &&
+				( () => {
+					const isResolutionEvent =
+						lastReply?.meta?._resolution_event === 'resolved' ||
+						lastReply?.meta?._resolution_event === 'reopened';
+					const isReopenEvent =
+						lastReply?.meta?._resolution_event === 'reopened';
+
+					return (
+						<CommentBoard
+							thread={ lastReply }
+							onEdit={
+								'approved' !== thread.status &&
+								( ! isResolutionEvent || isReopenEvent )
+									? onEditComment
+									: undefined
+							}
+							onDelete={
+								'approved' !== thread.status &&
+								! isResolutionEvent
+									? onCommentDelete
+									: undefined
+							}
+						/>
+					);
+				} )() }
 			{ isSelected && (
 				<VStack
 					className="editor-collab-sidebar-panel__child-thread"
@@ -365,12 +381,12 @@ const CommentBoard = ( { thread, onEdit, onDelete, status } ) => {
 
 	// Check if this is a resolution comment.
 	const isResolutionComment =
-		thread.type === 'block_comment_resol' ||
-		thread.type === 'block_comment_ropen';
+		thread?.meta?._resolution_event === 'resolved' ||
+		thread?.meta?._resolution_event === 'reopened';
 
 	// Check if this is a reopen comment with content that should be editable.
 	const isEditableReopenComment =
-		thread.type === 'block_comment_ropen' &&
+		thread?.meta?._resolution_event === 'reopened' &&
 		thread?.content?.raw &&
 		thread.content.raw.trim() !== '';
 
@@ -502,7 +518,8 @@ const CommentBoard = ( { thread, onEdit, onDelete, status } ) => {
 					{ isResolutionComment
 						? ( () => {
 								const actionText =
-									thread.type === 'block_comment_resol'
+									thread?.meta?._resolution_event ===
+									'resolved'
 										? __( 'Marked as resolved' )
 										: __( 'Reopened' );
 								const content = thread?.content?.raw;

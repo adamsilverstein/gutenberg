@@ -111,12 +111,10 @@ function CollabSidebarContent( {
 		};
 
 		try {
-			// Handle resolution/reopening by creating new comments.
+			// Handle resolution/reopening by creating new comments with meta.
 			if ( status === 'approved' || status === 'hold' ) {
-				const commentType =
-					status === 'approved'
-						? 'block_comment_resol'
-						: 'block_comment_ropen';
+				const resolutionEvent =
+					status === 'approved' ? 'resolved' : 'reopened';
 				const approvalStatus =
 					status === 'approved' ? 'approved' : 'hold';
 
@@ -125,10 +123,13 @@ function CollabSidebarContent( {
 					'comment',
 					{
 						post: currentPostId,
-						comment_type: commentType,
+						comment_type: 'block_comment',
 						comment_approved: 0,
 						parent: id,
 						content: content || '',
+						meta: {
+							_resolution_event: resolutionEvent,
+						},
 					},
 					{ throwOnError: true }
 				);

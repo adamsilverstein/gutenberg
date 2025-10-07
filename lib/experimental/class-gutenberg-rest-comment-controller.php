@@ -11,8 +11,6 @@ class Gutenberg_REST_Comment_Controller extends WP_REST_Comments_Controller {
 
 	const ALLOWED_COMMENT_TYPES = array(
 		'block_comment',
-		'block_comment_ropen',
-		'block_comment_resol',
 	);
 
 	public function create_item_permissions_check( $request ) {
@@ -549,15 +547,6 @@ class Gutenberg_REST_Comment_Controller extends WP_REST_Comments_Controller {
 		$allow_empty = apply_filters( 'allow_empty_comment', false, $check );
 
 		if ( $allow_empty ) {
-			return true;
-		}
-
-		// [backport].
-		if (
-			isset( $prepared_comment['comment_type'] ) &&
-			'block_comment_ropen' === $prepared_comment['comment_type'] ||
-			'block_comment_resol' === $prepared_comment['comment_type']
-		) {
 			return true;
 		}
 
