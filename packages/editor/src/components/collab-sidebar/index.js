@@ -36,17 +36,21 @@ function CollabSidebarContent( {
 	const { createNotice } = useDispatch( noticesStore );
 	const { saveEntityRecord, deleteEntityRecord } = useDispatch( coreStore );
 	const { updateBlockAttributes } = useDispatch( blockEditorStore );
-	const { currentPostId, getSelectedBlockClientId, getBlockAttributes } =
-		useSelect( ( select ) => {
-			const { getCurrentPostId } = select( editorStore );
-			return {
-				getSelectedBlockClientId:
-					select( blockEditorStore ).getSelectedBlockClientId,
-				getBlockAttributes:
-					select( blockEditorStore ).getBlockAttributes,
-				currentPostId: getCurrentPostId(),
-			};
-		}, [] );
+	const {
+		currentPostId,
+		getSelectedBlockClientId,
+		getBlockAttributes,
+		currentUser,
+	} = useSelect( ( select ) => {
+		const { getCurrentPostId } = select( editorStore );
+		return {
+			getSelectedBlockClientId:
+				select( blockEditorStore ).getSelectedBlockClientId,
+			getBlockAttributes: select( blockEditorStore ).getBlockAttributes,
+			currentPostId: getCurrentPostId(),
+			currentUser: select( coreStore ).getCurrentUser(),
+		};
+	}, [] );
 
 	const onError = ( error ) => {
 		const errorMessage =
@@ -111,24 +115,29 @@ function CollabSidebarContent( {
 		};
 
 		try {
-			// Handle resolution/reopening by creating new comments.
+			// Handle resolution/reopening by creating new comments with meta.
 			if ( status === 'approved' || status === 'hold' ) {
-				const commentType =
-					status === 'approved'
-						? 'block_comment_resol'
-						: 'block_comment_ropen';
+				const action = status === 'approved' ? 'resolve' : 'reopen';
 				const approvalStatus =
 					status === 'approved' ? 'approved' : 'hold';
 
+				// Create a new block_comment with resolution meta.
 				await saveEntityRecord(
 					'root',
 					'comment',
 					{
 						post: currentPostId,
-						comment_type: commentType,
+						comment_type: 'block_comment',
 						comment_approved: 0,
 						parent: id,
 						content: content || '',
+						meta: {
+							_block_comment_resolution: {
+								action,
+								timestamp: new Date().toISOString(),
+								userId: currentUser?.id || 0,
+							},
+						},
 					},
 					{ throwOnError: true }
 				);

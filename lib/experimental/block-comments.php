@@ -92,50 +92,60 @@ function gutenberg_filter_comment_count_query_exclude_block_comments( $query ) {
 add_filter( 'query', 'gutenberg_filter_comment_count_query_exclude_block_comments' );
 
 /**
- * Bypass REST API validation for resolution comments.
+ * Allow empty block comments for resolution/reopen events.
  *
- * The REST API validates both empty content and duplicates before WordPress core filters run,
- * so we need to handle resolution comments at the REST level.
- *
- * @param true|WP_Error $result Response to replace the request with.
- * @param WP_REST_Server $server Server instance.
- * @param WP_REST_Request $request Request used to generate the response.
- * @return true|WP_Error Modified response.
+ * @param bool  $allow_empty Whether to allow empty comments.
+ * @param array $commentdata Comment data array.
+ * @return bool Modified allow_empty value.
  */
-function gutenberg_bypass_rest_validation_for_resolution_comments( $result, $server, $request ) {
-	// Only handle comment creation requests.
-	if ( $request->get_route() !== '/wp/v2/comments' || $request->get_method() !== 'POST' ) {
-		return $result;
+function gutenberg_allow_empty_block_comments( $allow_empty, $commentdata ) {
+	if ( isset( $commentdata['comment_type'] ) && 'block_comment' === $commentdata['comment_type'] ) {
+		return true;
 	}
-
-	// Check if this is a resolution or reopen comment.
-	$comment_type = $request->get_param( 'comment_type' );
-
-	if ( 'block_comment_resol' === $comment_type || 'block_comment_ropen' === $comment_type ) {
-		// Temporarily bypass both empty content and duplicate validation for resolution comments.
-		add_filter( 'allow_empty_comment', '__return_true', 50 );
-		add_filter( 'duplicate_comment_id', '__return_false', 50 );
-	}
-
-	return $result;
+	return $allow_empty;
 }
-add_filter( 'rest_pre_dispatch', 'gutenberg_bypass_rest_validation_for_resolution_comments', 10, 3 );
+add_filter( 'allow_empty_comment', 'gutenberg_allow_empty_block_comments', 10, 2 );
 
 /**
- * Disable WordPress duplicate comment detection for resolution comments.
+ * Registers comment meta fields for block comments in the REST API.
  *
- * @param int|false $duplicate_id ID of the duplicate comment, or false if not duplicate.
- * @param array $commentdata Comment data array.
- * @return int|false Modified duplicate check result.
+ * This function registers meta fields for resolution events in block comments
+ * so they can be read and written via the WordPress REST API.
+ *
+ * @return void
  */
-function gutenberg_disable_duplicate_detection_for_resolution_comments( $duplicate_id, $commentdata ) {
-	if ( isset( $commentdata['comment_type'] ) &&
-		( 'block_comment_resol' === $commentdata['comment_type'] || 'block_comment_ropen' === $commentdata['comment_type'] )
-	) {
-		// Return false to indicate this is not a duplicate.
-		return false;
+if ( ! function_exists( 'register_block_comment_meta_fields' ) ) {
+	function register_block_comment_meta_fields() {
+		register_meta(
+			'comment',
+			'_block_comment_resolution',
+			array(
+				'type'          => 'object',
+				'description'   => 'Resolution event data for block comments',
+				'single'        => true,
+				'show_in_rest'  => array(
+					'schema' => array(
+						'type'       => 'object',
+						'properties' => array(
+							'action'    => array(
+								'type' => 'string',
+								'enum' => array( 'resolve', 'reopen' ),
+							),
+							'timestamp' => array(
+								'type'   => 'string',
+								'format' => 'date-time',
+							),
+							'userId'    => array(
+								'type' => 'integer',
+							),
+						),
+					),
+				),
+				'auth_callback' => function () {
+					return current_user_can( 'edit_posts' );
+				},
+			)
+		);
 	}
-
-	return $duplicate_id;
+	add_action( 'rest_api_init', 'register_block_comment_meta_fields' );
 }
-add_filter( 'duplicate_comment_id', 'gutenberg_disable_duplicate_detection_for_resolution_comments', 10, 2 );
