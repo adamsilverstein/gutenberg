@@ -34,7 +34,7 @@ test.describe( 'Collaboration - Notes Sync', () => {
 		await editor.clickBlockOptionsMenuItem( 'Add note' );
 		await page
 			.getByRole( 'textbox', { name: 'New note', exact: true } )
-			.fill( 'Hello from User A' );
+			.pressSequentially( 'Hello from User A' );
 		await page
 			.getByRole( 'region', { name: 'Editor settings' } )
 			.getByRole( 'button', { name: 'Add note', exact: true } )
@@ -108,7 +108,7 @@ test.describe( 'Collaboration - Notes Sync', () => {
 		await page2Editor.clickBlockOptionsMenuItem( 'Add note' );
 		await page2
 			.getByRole( 'textbox', { name: 'New note', exact: true } )
-			.fill( 'Note from User B' );
+			.pressSequentially( 'Note from User B' );
 		await page2
 			.getByRole( 'region', { name: 'Editor settings' } )
 			.getByRole( 'button', { name: 'Add note', exact: true } )
@@ -167,7 +167,7 @@ test.describe( 'Collaboration - Notes Sync', () => {
 		await editor.clickBlockOptionsMenuItem( 'Add note' );
 		await page
 			.getByRole( 'textbox', { name: 'New note', exact: true } )
-			.fill( 'Main note' );
+			.pressSequentially( 'Main note' );
 		await page
 			.getByRole( 'region', { name: 'Editor settings' } )
 			.getByRole( 'button', { name: 'Add note', exact: true } )
@@ -183,7 +183,7 @@ test.describe( 'Collaboration - Notes Sync', () => {
 		// Add a reply.
 		await page
 			.getByRole( 'textbox', { name: 'Reply to' } )
-			.fill( 'A reply to the note' );
+			.pressSequentially( 'A reply to the note' );
 		await page
 			.getByRole( 'region', { name: 'Editor settings' } )
 			.getByRole( 'button', { name: 'Reply', exact: true } )
