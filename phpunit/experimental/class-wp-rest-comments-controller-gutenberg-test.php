@@ -510,7 +510,13 @@ class WP_Test_REST_Comments_Controller_Gutenberg extends WP_Test_REST_TestCase {
 			'<a href="https://wordpress.org/"',
 			$stored
 		);
-		$this->assertStringContainsString( 'rel="noopener nofollow"', $stored );
+		// Core's `wp_rel_ugc` filter may append `ugc` to the rel attribute on
+		// comment links, so assert the forced safety tokens are present rather
+		// than matching the exact rel string.
+		$this->assertMatchesRegularExpression(
+			'/<a\b[^>]*\brel="[^"]*\bnoopener\b[^"]*\bnofollow\b[^"]*"/i',
+			$stored
+		);
 		$this->assertStringContainsString( '>WordPress</a>', $stored );
 	}
 
@@ -518,8 +524,11 @@ class WP_Test_REST_Comments_Controller_Gutenberg extends WP_Test_REST_TestCase {
 		$stored = $this->post_note_and_get_stored_content(
 			'<a href="https://wordpress.org/" rel="dofollow">WP</a>'
 		);
-		$this->assertStringNotContainsString( 'rel="dofollow"', $stored );
-		$this->assertStringContainsString( 'rel="noopener nofollow"', $stored );
+		$this->assertStringNotContainsString( 'dofollow', $stored );
+		$this->assertMatchesRegularExpression(
+			'/<a\b[^>]*\brel="[^"]*\bnoopener\b[^"]*\bnofollow\b[^"]*"/i',
+			$stored
+		);
 	}
 
 	public function test_note_strips_disallowed_tags() {
@@ -569,13 +578,11 @@ class WP_Test_REST_Comments_Controller_Gutenberg extends WP_Test_REST_TestCase {
 		$this->assertSame( 201, $response->get_status() );
 
 		$comment = get_comment( $response->get_data()['id'] );
-		$this->assertStringContainsString( 'Bold body', $comment->comment_content );
-		// The strict comment allowlist permits <strong>; the key assertion is
-		// that the note allowlist did NOT install for a non-note request, so
-		// rel="noopener nofollow" should not have been added to anything.
-		$this->assertStringNotContainsString(
-			'rel="noopener nofollow"',
-			$comment->comment_content
-		);
+		// The strict comment allowlist permits <strong>, so the tag itself
+		// being preserved is expected. The key assertion is that the note
+		// allowlist did NOT install for a non-note request, so the forced
+		// `noopener nofollow` rel from the note filter must be absent.
+		$this->assertStringContainsString( 'body', $comment->comment_content );
+		$this->assertStringNotContainsString( 'noopener', $comment->comment_content );
 	}
 }
