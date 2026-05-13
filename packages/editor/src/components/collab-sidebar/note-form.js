@@ -1,9 +1,4 @@
 /**
- * External dependencies
- */
-import TextareaAutosize from 'react-autosize-textarea';
-
-/**
  * WordPress dependencies
  */
 import { useState } from '@wordpress/element';
@@ -15,11 +10,20 @@ import { Stack, VisuallyHidden } from '@wordpress/ui';
 import { __ } from '@wordpress/i18n';
 import { useInstanceId } from '@wordpress/compose';
 import { isKeyboardEvent } from '@wordpress/keycodes';
+import { RichText } from '@wordpress/block-editor';
+import { __unstableStripHTML as stripHTML } from '@wordpress/dom';
 
 /**
  * Internal dependencies
  */
 import { sanitizeNoteContent } from './utils';
+
+const ALLOWED_NOTE_FORMATS = [
+	'core/bold',
+	'core/italic',
+	'core/link',
+	'core/code',
+];
 
 export function NoteForm( { onSubmit, onCancel, note, labels } ) {
 	const [ inputComment, setInputComment ] = useState(
@@ -27,9 +31,9 @@ export function NoteForm( { onSubmit, onCancel, note, labels } ) {
 	);
 
 	const inputId = useInstanceId( NoteForm, 'comment-input' );
+	const trimmedPlainText = sanitizeNoteContent( stripHTML( inputComment ) );
 	const isDisabled =
-		inputComment === note?.content?.raw ||
-		! sanitizeNoteContent( inputComment ).length;
+		inputComment === note?.content?.raw || ! trimmedPlainText.length;
 
 	return (
 		<Stack
@@ -47,20 +51,25 @@ export function NoteForm( { onSubmit, onCancel, note, labels } ) {
 			<VisuallyHidden render={ <label htmlFor={ inputId } /> }>
 				{ labels?.input ?? __( 'Note' ) }
 			</VisuallyHidden>
-			<TextareaAutosize
+			<RichText
 				id={ inputId }
-				value={ inputComment ?? '' }
-				onChange={ ( comment ) =>
-					setInputComment( comment.target.value )
-				}
-				rows={ 1 }
-				maxRows={ 20 }
+				identifier="note-input"
+				tagName="div"
+				className="editor-collab-sidebar-panel__note-form-input"
+				role="textbox"
+				aria-multiline="true"
+				aria-label={ labels?.input ?? __( 'Note' ) }
+				value={ inputComment }
+				onChange={ setInputComment }
+				allowedFormats={ ALLOWED_NOTE_FORMATS }
+				placeholder={ labels?.input ?? __( 'Note' ) }
 				onKeyDown={ ( event ) => {
 					if (
 						isKeyboardEvent.primary( event, 'Enter' ) &&
 						! isDisabled
 					) {
-						event.target.parentNode.requestSubmit();
+						event.preventDefault();
+						event.currentTarget.closest( 'form' )?.requestSubmit();
 					}
 
 					if ( event.key === 'Escape' ) {
