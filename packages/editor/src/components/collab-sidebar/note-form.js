@@ -35,6 +35,14 @@ export function NoteForm( { onSubmit, onCancel, note, labels } ) {
 	const isDisabled =
 		inputComment === note?.content?.raw || ! trimmedPlainText.length;
 
+	function submit() {
+		if ( isDisabled ) {
+			return;
+		}
+		onSubmit( inputComment );
+		setInputComment( '' );
+	}
+
 	return (
 		<Stack
 			className="editor-collab-sidebar-panel__note-form"
@@ -43,8 +51,7 @@ export function NoteForm( { onSubmit, onCancel, note, labels } ) {
 			render={ <form /> }
 			onSubmit={ ( event ) => {
 				event.preventDefault();
-				onSubmit( inputComment );
-				setInputComment( '' );
+				submit();
 			} }
 		>
 			{ /* eslint-disable-next-line jsx-a11y/label-has-associated-control */ }
@@ -64,12 +71,9 @@ export function NoteForm( { onSubmit, onCancel, note, labels } ) {
 				allowedFormats={ ALLOWED_NOTE_FORMATS }
 				placeholder={ labels?.input ?? __( 'Note' ) }
 				onKeyDown={ ( event ) => {
-					if (
-						isKeyboardEvent.primary( event, 'Enter' ) &&
-						! isDisabled
-					) {
+					if ( isKeyboardEvent.primary( event, 'Enter' ) ) {
 						event.preventDefault();
-						event.currentTarget.closest( 'form' )?.requestSubmit();
+						submit();
 					}
 
 					if ( event.key === 'Escape' ) {
