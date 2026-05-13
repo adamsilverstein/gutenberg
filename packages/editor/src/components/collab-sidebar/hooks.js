@@ -154,7 +154,7 @@ export function useNoteActions() {
 		} );
 	};
 
-	const onCreate = async ( { content, parent } ) => {
+	const onCreate = async ( { content, parent, blockClientId } ) => {
 		try {
 			const savedRecord = await saveEntityRecord(
 				'root',
@@ -171,7 +171,10 @@ export function useNoteActions() {
 
 			// If it's a top-level note, update the block attributes with the note id.
 			if ( ! parent && savedRecord?.id ) {
-				const clientId = getSelectedBlockClientId();
+				// Callers may pass an explicit blockClientId snapshot so the
+				// note attaches to the originating block even if the canvas
+				// selection has shifted while the form was open.
+				const clientId = blockClientId ?? getSelectedBlockClientId();
 				const metadata = getBlockAttributes( clientId )?.metadata;
 				updateBlockAttributes( clientId, {
 					metadata: {

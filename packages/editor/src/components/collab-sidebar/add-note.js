@@ -2,6 +2,7 @@
  * WordPress dependencies
  */
 import { __ } from '@wordpress/i18n';
+import { useState } from '@wordpress/element';
 import { useSelect, useDispatch } from '@wordpress/data';
 import {
 	store as blockEditorStore,
@@ -21,29 +22,51 @@ import { unlock } from '../../lock-unlock';
 const { useBlockElement } = unlock( blockEditorPrivateApis );
 
 export function AddNote( { onSubmit, sidebarRef, floating } ) {
-	const { clientId } = useSelect( ( select ) => {
-		const { getSelectedBlockClientId } = select( blockEditorStore );
-		return {
-			clientId: getSelectedBlockClientId(),
-		};
-	}, [] );
+	const liveClientId = useSelect(
+		( select ) => select( blockEditorStore ).getSelectedBlockClientId(),
+		[]
+	);
 	const selectedNote = useSelect(
 		( select ) => unlock( select( editorStore ) ).getSelectedNote(),
 		[]
 	);
+
+	if ( selectedNote !== 'new' ) {
+		return null;
+	}
+
+	return (
+		<AddNoteInner
+			initialClientId={ liveClientId }
+			onSubmit={ onSubmit }
+			sidebarRef={ sidebarRef }
+			floating={ floating }
+		/>
+	);
+}
+
+// Renders the "Add note" form, snapshotting the canvas block clientId on
+// mount. The form's RichText input synchronises with the block-editor
+// selection store, so without this snapshot the canvas selection can clear
+// mid-edit and unmount the form before the user submits.
+function AddNoteInner( { initialClientId, onSubmit, sidebarRef, floating } ) {
+	const [ clientId ] = useState( initialClientId );
+	// eslint-disable-next-line @wordpress/no-unused-vars-before-return
 	const blockElement = useBlockElement( clientId );
+	// eslint-disable-next-line @wordpress/no-unused-vars-before-return
 	const { toggleBlockSpotlight } = unlock( useDispatch( blockEditorStore ) );
+	// eslint-disable-next-line @wordpress/no-unused-vars-before-return
 	const { selectNote } = unlock( useDispatch( editorStore ) );
+
+	if ( ! clientId ) {
+		return null;
+	}
 
 	const unselectNote = () => {
 		selectNote( undefined );
 		blockElement?.focus();
 		toggleBlockSpotlight( clientId, false );
 	};
-
-	if ( selectedNote !== 'new' || ! clientId ) {
-		return null;
-	}
 
 	return (
 		<FloatingContainer
@@ -73,6 +96,7 @@ export function AddNote( { onSubmit, sidebarRef, floating } ) {
 					onSubmit={ async ( inputComment ) => {
 						const { id } = await onSubmit( {
 							content: inputComment,
+							blockClientId: clientId,
 						} );
 						selectNote( id );
 						focusNoteThread( id, sidebarRef.current );
