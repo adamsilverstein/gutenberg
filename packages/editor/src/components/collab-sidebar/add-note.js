@@ -46,12 +46,11 @@ export function AddNote( { onSubmit, sidebarRef, floating } ) {
 }
 
 // Renders the "Add note" form, snapshotting the canvas block clientId on
-// mount. The form's RichText input synchronises with the block-editor
-// selection store, so without this snapshot the canvas selection can clear
-// mid-edit and unmount the form before the user submits.
+// mount. Focusing the rich-text input can shift the block-editor selection,
+// so without this snapshot the canvas selection can clear mid-edit and
+// unmount the form before the user submits.
 function AddNoteInner( { initialClientId, onSubmit, sidebarRef, floating } ) {
 	const [ clientId ] = useState( initialClientId );
-	// eslint-disable-next-line @wordpress/no-unused-vars-before-return
 	const blockElement = useBlockElement( clientId );
 	// eslint-disable-next-line @wordpress/no-unused-vars-before-return
 	const { toggleBlockSpotlight } = unlock( useDispatch( blockEditorStore ) );
@@ -84,7 +83,7 @@ function AddNoteInner( { initialClientId, onSubmit, sidebarRef, floating } ) {
 				if ( ! document.hasFocus() ) {
 					return;
 				}
-				// RichText re-renders briefly drop focus to the body during
+				// Rich-text re-renders briefly drop focus to the body during
 				// typing, producing a blur event with relatedTarget=null. Only
 				// dismiss the form when focus moves to a concrete element
 				// outside the form container.

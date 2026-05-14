@@ -6,17 +6,20 @@ import {
 	__experimentalTruncate as Truncate,
 	Button,
 } from '@wordpress/components';
-import { Stack, VisuallyHidden } from '@wordpress/ui';
+import { Stack } from '@wordpress/ui';
 import { __ } from '@wordpress/i18n';
 import { useInstanceId } from '@wordpress/compose';
 import { isKeyboardEvent } from '@wordpress/keycodes';
-import { RichText } from '@wordpress/block-editor';
+import { privateApis as blockEditorPrivateApis } from '@wordpress/block-editor';
 import { __unstableStripHTML as stripHTML } from '@wordpress/dom';
 
 /**
  * Internal dependencies
  */
 import { sanitizeNoteContent } from './utils';
+import { unlock } from '../../lock-unlock';
+
+const { RichTextControl } = unlock( blockEditorPrivateApis );
 
 const ALLOWED_NOTE_FORMATS = [
 	'core/bold',
@@ -53,35 +56,28 @@ export function NoteForm( { onSubmit, onCancel, note, labels } ) {
 				event.preventDefault();
 				submit();
 			} }
+			onKeyDown={ ( event ) => {
+				if ( isKeyboardEvent.primary( event, 'Enter' ) ) {
+					event.preventDefault();
+					submit();
+					return;
+				}
+
+				if ( event.key === 'Escape' ) {
+					event.preventDefault();
+					// Passing event for reply forms.
+					onCancel( event );
+				}
+			} }
 		>
-			{ /* eslint-disable-next-line jsx-a11y/label-has-associated-control */ }
-			<VisuallyHidden render={ <label htmlFor={ inputId } /> }>
-				{ labels?.input ?? __( 'Note' ) }
-			</VisuallyHidden>
-			<RichText
+			<RichTextControl
 				id={ inputId }
-				identifier="note-input"
-				tagName="div"
-				className="editor-collab-sidebar-panel__note-form-input"
-				role="textbox"
-				aria-multiline="true"
-				aria-label={ labels?.input ?? __( 'Note' ) }
+				label={ labels?.input ?? __( 'Note' ) }
+				hideLabelFromVision
 				value={ inputComment }
 				onChange={ setInputComment }
 				allowedFormats={ ALLOWED_NOTE_FORMATS }
 				placeholder={ labels?.input ?? __( 'Note' ) }
-				onKeyDown={ ( event ) => {
-					if ( isKeyboardEvent.primary( event, 'Enter' ) ) {
-						event.preventDefault();
-						submit();
-					}
-
-					if ( event.key === 'Escape' ) {
-						event.preventDefault();
-						// Passing event for reply forms.
-						onCancel( event );
-					}
-				} }
 			/>
 			<Stack
 				direction="row"

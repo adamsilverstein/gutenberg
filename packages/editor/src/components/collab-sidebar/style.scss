@@ -129,15 +129,11 @@
 	font-style: italic;
 }
 
-.editor-collab-sidebar-panel__note-form-input {
-	@include input-control;
-	// Padding matches the standard 40px control height for a single line input,
-	// in conjunction with the 20px line-height. "Standard" metrics are 10px 12px,
-	// minus 1px each to account for the border width.
-	padding: 9px 11px;
+// RichTextControl provides its own base styling (border, focus ring, padding).
+// Scope the few multi-line and inline-format tweaks the note form needs to the
+// control as rendered inside the note form.
+.editor-collab-sidebar-panel__note-form .block-editor-rich-text-control {
 	line-height: 20px;
-	display: block;
-	min-height: 40px;
 	max-height: calc(20px * 20 + 18px); // 20 rows + vertical padding.
 	overflow-y: auto;
 	white-space: pre-wrap;
