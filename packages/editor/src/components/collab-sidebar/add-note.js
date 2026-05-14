@@ -84,6 +84,13 @@ function AddNoteInner( { initialClientId, onSubmit, sidebarRef, floating } ) {
 				if ( ! document.hasFocus() ) {
 					return;
 				}
+				// RichText re-renders briefly drop focus to the body during
+				// typing, producing a blur event with relatedTarget=null. Only
+				// dismiss the form when focus moves to a concrete element
+				// outside the form container.
+				if ( ! event.relatedTarget ) {
+					return;
+				}
 				if ( event.currentTarget.contains( event.relatedTarget ) ) {
 					return;
 				}
