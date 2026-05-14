@@ -40,48 +40,50 @@ jest.mock( '@wordpress/ui', () => {
 			) : (
 				<div { ...rest }>{ children }</div>
 			),
-		VisuallyHidden: ( { render: el, children, ...rest } ) =>
-			el ? (
-				cloneElement( el, rest, children )
-			) : (
-				<span { ...rest }>{ children }</span>
-			),
 	};
 } );
 
+// The form imports `privateApis` from `@wordpress/block-editor` and calls
+// `unlock()` on it to get `RichTextControl`. Provide a placeholder privateApis
+// here and override `unlock` below so the mock RichTextControl is returned.
 jest.mock( '@wordpress/block-editor', () => ( {
 	__esModule: true,
-	RichText: ( {
-		value,
-		onChange,
-		onKeyDown,
-		allowedFormats,
-		tagName,
-		identifier,
-		placeholder,
-		...rest
-	} ) => {
-		// Silence unused destructured props for the mock.
-		void tagName;
-		void identifier;
-		void placeholder;
-		return (
-			// eslint-disable-next-line jsx-a11y/no-static-element-interactions
-			<div
-				{ ...rest }
-				data-allowed-formats={ ( allowedFormats || [] ).join( ',' ) }
-				data-testid="note-rich-text"
-				contentEditable
-				suppressContentEditableWarning
-				onInput={ ( event ) =>
-					onChange( event.currentTarget.textContent || '' )
-				}
-				onKeyDown={ onKeyDown }
-			>
-				{ value }
-			</div>
-		);
-	},
+	privateApis: {},
+} ) );
+
+const MockRichTextControl = ( {
+	value,
+	onChange,
+	allowedFormats,
+	id,
+	label,
+	hideLabelFromVision,
+	placeholder,
+	...rest
+} ) => {
+	// Silence unused destructured props for the mock.
+	void label;
+	void hideLabelFromVision;
+	void placeholder;
+	return (
+		<div
+			{ ...rest }
+			id={ id }
+			data-allowed-formats={ ( allowedFormats || [] ).join( ',' ) }
+			data-testid="note-rich-text"
+			contentEditable
+			suppressContentEditableWarning
+			onInput={ ( event ) =>
+				onChange( event.currentTarget.textContent || '' )
+			}
+		>
+			{ value }
+		</div>
+	);
+};
+
+jest.mock( '../../../lock-unlock', () => ( {
+	unlock: () => ( { RichTextControl: MockRichTextControl } ),
 } ) );
 
 jest.mock( '@wordpress/dom', () => ( {
