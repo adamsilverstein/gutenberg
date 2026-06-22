@@ -10,6 +10,10 @@
 
 -   Icon Block: Insert with a default icon instead of an empty placeholder ([#79111](https://github.com/WordPress/gutenberg/pull/79111)).
 
+### Bug Fixes
+
+-   Image: external images inserted by URL are now sideloaded on the server when uploaded to the media library, so the upload works when the editor is cross-origin isolated ([#29](https://github.com/adamsilverstein/gutenberg/pull/29)).
+
 ## 9.48.1 (2026-06-16)
 
 ## 9.48.0 (2026-06-10)
