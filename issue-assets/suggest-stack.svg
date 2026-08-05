@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="620" viewBox="0 0 820 620" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <rect width="820" height="620" rx="10" fill="#ffffff"/>
+
+  <!-- header -->
+  <text x="40" y="42" font-size="19" font-weight="700" fill="#1f2328">Suggest mode: 7-PR review stack</text>
+  <text x="40" y="66" font-size="14" fill="#59636e">Each PR builds on the one below it, and its diff shows only its own layer.</text>
+
+  <!-- trunk -->
+  <rect x="40" y="88" width="120" height="34" rx="17" fill="#dafbe1" stroke="#2da44e" stroke-width="1.5"/>
+  <text x="100" y="110" font-size="14" font-weight="700" fill="#1a7f37" text-anchor="middle">trunk</text>
+
+  <!-- spine -->
+  <line x1="62" y1="122" x2="62" y2="556" stroke="#d0d7de" stroke-width="2"/>
+
+  <!-- layer 1 -->
+  <line x1="62" y1="152" x2="88" y2="152" stroke="#d0d7de" stroke-width="2"/>
+  <rect x="88" y="128" width="640" height="48" rx="8" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <rect x="104" y="143" width="40" height="18" rx="9" fill="#0969da"/>
+  <text x="124" y="156" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">1/7</text>
+  <text x="158" y="157" font-size="14" font-weight="700" fill="#0969da">#80427</text>
+  <text x="228" y="157" font-size="14" fill="#1f2328">editor intent (edit/suggest/view) and experiment gate</text>
+  <text x="712" y="157" font-size="12" font-weight="700" fill="#bc4c00" text-anchor="end">← start review here</text>
+
+  <!-- layer 2 -->
+  <line x1="62" y1="212" x2="88" y2="212" stroke="#d0d7de" stroke-width="2"/>
+  <rect x="88" y="188" width="640" height="48" rx="8" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <rect x="104" y="203" width="40" height="18" rx="9" fill="#0969da"/>
+  <text x="124" y="216" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">2/7</text>
+  <text x="158" y="217" font-size="14" font-weight="700" fill="#0969da">#80428</text>
+  <text x="228" y="217" font-size="14" fill="#1f2328">suggestion storage, REST controller, and provider</text>
+
+  <!-- layer 3 -->
+  <line x1="62" y1="272" x2="88" y2="272" stroke="#d0d7de" stroke-width="2"/>
+  <rect x="88" y="248" width="640" height="48" rx="8" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <rect x="104" y="263" width="40" height="18" rx="9" fill="#0969da"/>
+  <text x="124" y="276" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">3/7</text>
+  <text x="158" y="277" font-size="14" font-weight="700" fill="#0969da">#80429</text>
+  <text x="228" y="277" font-size="14" fill="#1f2328">block-level capture (attribute and structural)</text>
+
+  <!-- layer 4 -->
+  <line x1="62" y1="332" x2="88" y2="332" stroke="#d0d7de" stroke-width="2"/>
+  <rect x="88" y="308" width="640" height="48" rx="8" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <rect x="104" y="323" width="40" height="18" rx="9" fill="#0969da"/>
+  <text x="124" y="336" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">4/7</text>
+  <text x="158" y="337" font-size="14" font-weight="700" fill="#0969da">#80430</text>
+  <text x="228" y="337" font-size="14" fill="#1f2328">inline marker primitive</text>
+
+  <!-- layer 5 -->
+  <line x1="62" y1="392" x2="88" y2="392" stroke="#d0d7de" stroke-width="2"/>
+  <rect x="88" y="368" width="640" height="48" rx="8" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <rect x="104" y="383" width="40" height="18" rx="9" fill="#0969da"/>
+  <text x="124" y="396" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">5/7</text>
+  <text x="158" y="397" font-size="14" font-weight="700" fill="#0969da">#80431</text>
+  <text x="228" y="397" font-size="14" fill="#1f2328">inline suggestion operations</text>
+
+  <!-- layer 6 -->
+  <line x1="62" y1="452" x2="88" y2="452" stroke="#d0d7de" stroke-width="2"/>
+  <rect x="88" y="428" width="640" height="48" rx="8" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1"/>
+  <rect x="104" y="443" width="40" height="18" rx="9" fill="#0969da"/>
+  <text x="124" y="456" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">6/7</text>
+  <text x="158" y="457" font-size="14" font-weight="700" fill="#0969da">#80432</text>
+  <text x="228" y="457" font-size="14" fill="#1f2328">review UI (Apply / Reject sidebar and summary)</text>
+
+  <!-- layer 7 -->
+  <line x1="62" y1="512" x2="88" y2="512" stroke="#d0d7de" stroke-width="2"/>
+  <rect x="88" y="488" width="640" height="48" rx="8" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.5"/>
+  <rect x="104" y="503" width="40" height="18" rx="9" fill="#0969da"/>
+  <text x="124" y="516" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">7/7</text>
+  <text x="158" y="517" font-size="14" font-weight="700" fill="#0969da">#80433</text>
+  <text x="228" y="517" font-size="14" fill="#1f2328">inline live wiring, docs, and end-to-end tests</text>
+
+  <!-- tip callout -->
+  <text x="712" y="517" font-size="12" font-weight="700" fill="#9a6700" text-anchor="end">tip of stack = #78994</text>
+
+  <!-- footer -->
+  <text x="40" y="580" font-size="13" fill="#59636e">Review bottom-up from #80427. Test the whole feature at once with the combined branch, #78994.</text>
+  <text x="40" y="600" font-size="13" fill="#59636e">Everything is behind the Suggestion Mode experiment (Gutenberg &#8250; Experiments &#8250; Collaboration).</text>
+</svg>
