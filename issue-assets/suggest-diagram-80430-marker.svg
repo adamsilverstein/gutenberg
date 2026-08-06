@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="560" viewBox="0 0 880 560" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <rect width="880" height="560" rx="10" fill="#ffffff"/>
+
+  <text x="36" y="40" font-size="18" font-weight="700" fill="#1f2328">Anatomy of an inline suggestion marker</text>
+  <text x="36" y="63" font-size="13" fill="#59636e">A generic rich-text format. Suggestions live in block content, not in a separate diff layer.</text>
+
+  <!-- serialized markup -->
+  <text x="36" y="98" font-size="12" font-weight="700" fill="#59636e">SAVED IN POST CONTENT</text>
+  <rect x="36" y="110" width="808" height="66" rx="8" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="52" y="150" font-size="13.5" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" fill="#1f2328">
+    <tspan fill="#0550ae">&lt;mark</tspan><tspan fill="#0a3069"> class=</tspan><tspan fill="#0a7b34">"wp-suggestion"</tspan><tspan fill="#0a3069"> data-suggestion-id=</tspan><tspan fill="#0a7b34">"128"</tspan><tspan fill="#0a3069"> data-suggestion-type=</tspan><tspan fill="#0a7b34">"add"</tspan>
+  </text>
+  <text x="52" y="168" font-size="13.5" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" fill="#1f2328">
+    <tspan fill="#0a3069">      data-author=</tspan><tspan fill="#0a7b34">"7"</tspan><tspan fill="#0550ae">&gt;</tspan><tspan fill="#1f2328">proposed text</tspan><tspan fill="#0550ae">&lt;/mark&gt;</tspan>
+  </text>
+
+  <!-- callouts -->
+  <rect x="36" y="200" width="196" height="104" rx="8" fill="#ddf4ff" stroke="#54aeff"/>
+  <text x="52" y="224" font-size="13" font-weight="700" fill="#0a3069">class</text>
+  <text x="52" y="245" font-size="12" fill="#0a3069">wp-suggestion</text>
+  <text x="52" y="266" font-size="12" fill="#0a3069">Identifies the run and</text>
+  <text x="52" y="283" font-size="12" fill="#0a3069">carries the visual style.</text>
+
+  <rect x="244" y="200" width="196" height="104" rx="8" fill="#ddf4ff" stroke="#54aeff"/>
+  <text x="260" y="224" font-size="13" font-weight="700" fill="#0a3069">data-suggestion-id</text>
+  <text x="260" y="245" font-size="12" fill="#0a3069">Links the run to its</text>
+  <text x="260" y="262" font-size="12" fill="#0a3069">note comment, so accept</text>
+  <text x="260" y="279" font-size="12" fill="#0a3069">and reject know the</text>
+  <text x="260" y="296" font-size="12" fill="#0a3069">exact range to act on.</text>
+
+  <rect x="452" y="200" width="196" height="104" rx="8" fill="#ddf4ff" stroke="#54aeff"/>
+  <text x="468" y="224" font-size="13" font-weight="700" fill="#0a3069">data-suggestion-type</text>
+  <text x="468" y="245" font-size="12" fill="#0a3069">add — proposed text</text>
+  <text x="468" y="262" font-size="12" fill="#0a3069">del — proposed removal</text>
+  <text x="468" y="279" font-size="12" fill="#0a3069">format — proposed</text>
+  <text x="468" y="296" font-size="12" fill="#0a3069">styling of existing text</text>
+
+  <rect x="660" y="200" width="184" height="104" rx="8" fill="#ddf4ff" stroke="#54aeff"/>
+  <text x="676" y="224" font-size="13" font-weight="700" fill="#0a3069">data-author</text>
+  <text x="676" y="245" font-size="12" fill="#0a3069">Whose suggestion it is.</text>
+  <text x="676" y="262" font-size="12" fill="#0a3069">Drives the per-author</text>
+  <text x="676" y="279" font-size="12" fill="#0a3069">tint, so two reviewers</text>
+  <text x="676" y="296" font-size="12" fill="#0a3069">stay distinguishable.</text>
+
+  <!-- a11y layer -->
+  <text x="36" y="348" font-size="12" font-weight="700" fill="#59636e">ADDED IN THE EDITOR ONLY — NEVER SERIALIZED</text>
+  <rect x="36" y="360" width="808" height="66" rx="8" fill="#fff8c5" stroke="#d4a72c"/>
+  <text x="52" y="392" font-size="13.5" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" fill="#1f2328">
+    <tspan fill="#0550ae">&lt;mark</tspan><tspan fill="#0a3069"> class=</tspan><tspan fill="#0a7b34">"wp-suggestion"</tspan><tspan fill="#0550ae">&gt;&lt;span</tspan><tspan fill="#0a3069"> role=</tspan><tspan fill="#0a7b34">"insertion"</tspan><tspan fill="#0550ae">&gt;</tspan><tspan fill="#1f2328">proposed text</tspan><tspan fill="#0550ae">&lt;/span&gt;&lt;/mark&gt;</tspan>
+  </text>
+  <text x="52" y="414" font-size="12" fill="#7d4e00">A bare &lt;mark&gt; is invisible to a screen reader, so a suggested deletion would read as ordinary text.</text>
+
+  <rect x="36" y="446" width="808" height="86" rx="8" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="52" y="470" font-size="13" font-weight="700" fill="#1f2328">Why the role lives in a separate pass</text>
+  <text x="52" y="491" font-size="12" fill="#59636e">Formats added when preparing the editable tree render into the DOM but are ignored when that DOM is parsed</text>
+  <text x="52" y="508" font-size="12" fill="#59636e">back into a value, the same trick core annotations use. Putting role on the marker itself would round-trip it</text>
+  <text x="52" y="525" font-size="12" fill="#59636e">into saved content. ARIA maps insertion/deletion to &lt;ins&gt;/&lt;del&gt; semantics.</text>
+</svg>
