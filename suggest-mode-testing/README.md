@@ -441,43 +441,9 @@ Tested on `try/suggest-mode-combined` at merge commit `b15ac9b2ee5`, verified by
 
 **The headline:** the feature's core loop is sound. Inline additions, deletions and formats capture correctly, persist across reloads, survive the code-editor round trip, hold up at 30 suggestions and 110 blocks, and accept/reject applies the right content. The permissions layer (Section M) is the strongest part of the build - every REST bypass attempt was refused with the correct status, and suggestion text never escapes the post's own read permission. The problems cluster in three places: a fallback path that fires more often than it should, a Viewing mode that is not actually read-only, and accessibility.
 
-**Top 5 by severity**
-
-1. **F-09 - the whole-content `attribute-set` fallback.** When the capture layer cannot express an edit as a targeted operation it falls back to replacing the whole block's content, which breaks the stated marker/overlay invariant and suppresses marker rendering entirely. This one defect is the shared root cause of ID-03, ID-11, ID-12, FS-05, FS-06 and IR-10, and explains the missing markers in ID-08, ID-10, IA-08, IR-04 and MU-07. Fixing it closes more red rows than anything else on this list.
-2. **F-19 - a pending move renders on the published front end.** Readers see an unaccepted change. Every other pending kind strips correctly; a move is expressed purely as block order in `post_content`, so there is no marker to strip. The saved `fromIndex` / `fromAnchorClientId` metadata already carries what the front-end filter needs. This is the only finding that affects people who are not using the feature.
-3. **F-21 - another session's save is read as a document full of new insertions.** The server converges and no data is lost, but the local editor transiently shows 13 blocks with 12 flagged `pending-insert` and manufactures notes. Same family as F-04 (code-editor edits) and F-09: server-originated content is being diffed as user intent.
-4. **F-01 / F-02 - Viewing mode is not read-only.** Enter splits a paragraph and destroys its text; the block inserter opens and inserts. The intent gate stops at RichText's `contentEditable` rather than being an editor-level read-only, so it is being closed one key at a time.
-5. **F-23 - suggestion markers carry no accessibility semantics.** `role`, `aria-label`, `title` and visually-hidden text are all absent on all three marker types. A screen-reader user hears proposed deletions as ordinary prose and cannot tell an addition from a removal. Per-author tinting is invisible to them entirely.
-
-Close behind: **F-15** (post title, excerpt, featured image and status are silent direct edits in Suggesting mode), **F-18** (undo after accept restores the marker but orphans its note), **F-34** (copying content out carries markers and dangling note ids into a new post), **F-07** (a suggested block split is shown as already done rather than as a reviewable diff).
-
-**Suggested order of fixes**
-
-1. **F-09 first**, before anything else. It is the highest-leverage single change, and several other findings cannot be honestly re-tested until markers render reliably.
-2. **F-21 and F-04 together** - both are "server-supplied content diffed as user intent", and the fix is the same shape as the existing `SuggestionUndoGuard` exemption.
-3. **F-01 / F-02** as one change: replace the RichText-level gate with an editor-level read-only for the View intent, which covers Enter, the inserter and the block toolbar at once.
-4. **F-19**, a self-contained addition to the front-end filter in `block-suggestions.php`.
-5. **F-23**, then **F-24** - accessibility, before the API and markup calcify. F-24 (List View) is the same gap for structural changes.
-6. **F-15**, which needs a product decision (capture, block, or explicitly scope suggest mode to block content) more than it needs code.
-7. The review-experience cluster - **F-20**, **F-27**, **F-28**, **F-31** - bulk review, summary quality, gesture-to-accept ratio, and the click-interception bug. Individually small, collectively the difference between a reviewable feature and a tedious one.
-8. **F-37**'s manual passes, prioritised as listed there: revision restore, Classic block, real IME.
-
-**Needs a human pass:** 4 flows are ⬜ (AX-03 keyboard focus ring, EX-03 synced patterns, EX-05 Classic block, EX-07 client-side post switching) and 13 more carry harness caveats. All 17 are enumerated in F-37 with the reason each one resisted automation.
+The highest-severity findings are **F-09** (the whole-content fallback that suppresses marker rendering, and the shared root cause of six red rows), **F-19** (a pending move renders on the published front end), **F-21** (another session's save is read as a document full of insertions), **F-01 / F-02** (Viewing mode is not read-only) and **F-23** (markers carry no accessibility semantics). [Follow Up Work](#follow-up-work) lists everything in priority order with repro steps and a likely fix area; the 4 unrun flows and 13 harness caveats are enumerated in F-37.
 
 ---
-
-Append one entry per 🟡/🔴 result and any papercut noticed along the way. Keep entries in this format so they can be triaged into issues/PRs after the session:
-
-```
-### F-NN: <short title>
-- **Flow:** <ID(s)>
-- **Severity:** bug | rough edge | question | idea
-- **What happened:** <1-3 sentences, with the exact repro if it differs from the flow description>
-- **Expected:** <what the issue/design implies>
-- **Screenshot(s):** <thumbnails linking to the full-size captures>
-- **Console/log:** <relevant snippet, if any>
-- **Proposed fix / next step:** <optional>
-```
 
 <details>
 <summary>Show all 37 findings, F-01 to F-37</summary>
