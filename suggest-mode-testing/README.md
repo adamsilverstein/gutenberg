@@ -8,6 +8,86 @@
 
 ---
 
+## Contents
+
+**[Instructions for the testing agent(s)](#instructions-for-the-testing-agents)** - [Environment setup](#environment-setup) · [Per-flow protocol](#per-flow-protocol) · [Ground rules](#ground-rules) · [Status legend](#status-legend)
+
+**[Findings log](#findings-log)** - [run summary](#summary---run-completed-2026-08-14) and the 37 findings behind the results, F-01 to F-37 (listed below)
+
+**[Follow Up Work](#follow-up-work)** - [setup for anyone picking this up](#setup-for-anyone-picking-this-up) · [Table 1 - reproducible failures, fixable in code](#table-1---reproducible-failures-fixable-in-code) · [Table 2 - needs manual review, a decision, or both](#table-2---needs-manual-review-a-decision-or-both)
+
+**[Session wrap-up checklist](#session-wrap-up-checklist-for-the-last-agent)**
+
+### Test sections
+
+Every flow lives in one of these tables. Counts are 🟢 passes, 🟡 rough edges, 🔴 failures, ⬜ not run.
+
+| Section | Flows | 🟢 | 🟡 | 🔴 | ⬜ |
+|---------|-------|----|----|----|----|
+| **A** - [Setup, gating, and mode switching](#section-a---setup-gating-and-mode-switching) | MS-01 to MS-11 | 7 | 1 | 3 | - |
+| **B** - [Inline text suggestions: additions](#section-b---inline-text-suggestions-additions) | IA-01 to IA-09 | 4 | 4 | 1 | - |
+| **C** - [Inline text suggestions: deletions](#section-c---inline-text-suggestions-deletions) | ID-01 to ID-12 | 7 | 2 | 3 | - |
+| **D** - [Inline text suggestions: replace, paste, and input seams](#section-d---inline-text-suggestions-replace-paste-and-input-seams) | IR-01 to IR-10 | 3 | 6 | 1 | - |
+| **E** - [Formatting-only suggestions](#section-e---formatting-only-suggestions) | FS-01 to FS-08 | 2 | 4 | 2 | - |
+| **F** - [Structural suggestions: insert, remove, move](#section-f---structural-suggestions-insert-remove-move) | ST-01 to ST-17 | 11 | 6 | - | - |
+| **G** - [Attribute and metadata suggestions](#section-g---attribute-and-metadata-suggestions) | AT-01 to AT-11 | 8 | - | 3 | - |
+| **H** - [Notes sidebar integration](#section-h---notes-sidebar-integration) | NS-01 to NS-09 | 4 | 4 | 1 | - |
+| **I** - [Undo and redo](#section-i---undo-and-redo) | UN-01 to UN-09 | 7 | 1 | 1 | - |
+| **J** - [Persistence, saving, and front end](#section-j---persistence-saving-and-front-end) | PS-01 to PS-12 | 8 | 2 | 2 | - |
+| **K** - [Review cycle: accept and reject](#section-k---review-cycle-accept-and-reject) | RV-01 to RV-21 | 18 | 3 | - | - |
+| **L** - [Multi-user: attribution](#section-l---multi-user-attribution) | MU-01 to MU-10 | 5 | 4 | 1 | - |
+| **M** - [Multi-user: permissions](#section-m---multi-user-permissions) | PM-01 to PM-07 | 5 | 2 | - | - |
+| **N** - [Accessibility and visual polish](#section-n---accessibility-and-visual-polish) | AX-01 to AX-07 | 2 | 3 | 1 | 1 |
+| **O** - [Stress, scale, and cross-feature edges](#section-o---stress-scale-and-cross-feature-edges) | EX-01 to EX-10 | 7 | - | - | 3 |
+| **Total** | **163 flows** | **98** | **42** | **19** | **4** |
+
+### Findings
+
+<details>
+<summary>All 37 findings, F-01 to F-37</summary>
+
+- [F-01: Enter splits a block in Viewing (read-only) mode and destroys text](#f-01-enter-splits-a-block-in-viewing-read-only-mode-and-destroys-text)
+- [F-02: The block inserter is live in Viewing mode and inserts blocks](#f-02-the-block-inserter-is-live-in-viewing-mode-and-inserts-blocks)
+- [F-03: Intent shortcuts are registered and documented in contexts that can never use them](#f-03-intent-shortcuts-are-registered-and-documented-in-contexts-that-can-never-use-them)
+- [F-04: Editing raw HTML in the code editor while Suggesting corrupts the document](#f-04-editing-raw-html-in-the-code-editor-while-suggesting-corrupts-the-document)
+- [F-05: One unreproduced extra "Format: content" note on a plain typed addition](#f-05-one-unreproduced-extra-format-content-note-on-a-plain-typed-addition)
+- [F-06: Typing inside your own pending addition splits it into two markers and two notes](#f-06-typing-inside-your-own-pending-addition-splits-it-into-two-markers-and-two-notes)
+- [F-07: A suggested block split is shown as a completed split, not as a reviewable diff](#f-07-a-suggested-block-split-is-shown-as-a-completed-split-not-as-a-reviewable-diff)
+- [F-08: Repeated forward-delete drops its markers and mutates the rendered text](#f-08-repeated-forward-delete-drops-its-markers-and-mutates-the-rendered-text)
+- [F-09: The whole-content fallback breaks the marker/overlay invariant and hides existing markers](#f-09-the-whole-content-fallback-breaks-the-markeroverlay-invariant-and-hides-existing-markers)
+- [F-10: Note summaries strip spaces and leak raw HTML](#f-10-note-summaries-strip-spaces-and-leak-raw-html)
+- [F-11: Adding and removing a format produce the identical note summary](#f-11-adding-and-removing-a-format-produce-the-identical-note-summary)
+- [F-12: A second format toggle on the same run records an empty suggestion and drops the markers](#f-12-a-second-format-toggle-on-the-same-run-records-an-empty-suggestion-and-drops-the-markers)
+- [F-13: Should the move ghost be hidden from screen readers?](#f-13-should-the-move-ghost-be-hidden-from-screen-readers)
+- [F-14: An attribute suggestion and an inline suggestion can coexist on one block](#f-14-an-attribute-suggestion-and-an-inline-suggestion-can-coexist-on-one-block)
+- [F-15: Post title, excerpt, featured image and post status are directly editable in Suggesting mode](#f-15-post-title-excerpt-featured-image-and-post-status-are-directly-editable-in-suggesting-mode)
+- [F-16: "Format:" and "Formatting:" are two different suggestion families one word apart](#f-16-format-and-formatting-are-two-different-suggestion-families-one-word-apart)
+- [F-17: A suggestion pops the notes sidebar open even when the user closed it](#f-17-a-suggestion-pops-the-notes-sidebar-open-even-when-the-user-closed-it)
+- [F-18: Undo after accept restores the marker but not its note](#f-18-undo-after-accept-restores-the-marker-but-not-its-note)
+- [F-19: A pending move is applied to the published front end](#f-19-a-pending-move-is-applied-to-the-published-front-end)
+- [F-20: No bulk review, and accepting your own suggestion from Suggest mode is unremarked](#f-20-no-bulk-review-and-accepting-your-own-suggestion-from-suggest-mode-is-unremarked)
+- [F-21: A second session's save is read as a document full of new insertions](#f-21-a-second-sessions-save-is-read-as-a-document-full-of-new-insertions)
+- [F-22: With the experiment off, suggestion marks become inert undecipherable highlights](#f-22-with-the-experiment-off-suggestion-marks-become-inert-undecipherable-highlights)
+- [F-23: Suggestion markers carry no accessibility semantics at all](#f-23-suggestion-markers-carry-no-accessibility-semantics-at-all)
+- [F-24: Pending block treatments are invisible in List View](#f-24-pending-block-treatments-are-invisible-in-list-view)
+- [F-25: Possible horizontal overflow at 200% zoom (needs a real-browser check)](#f-25-possible-horizontal-overflow-at-200-zoom-needs-a-real-browser-check)
+- [F-26: Two edge contexts left unverified, one of them likely to be affected](#f-26-two-edge-contexts-left-unverified-one-of-them-likely-to-be-affected)
+- [F-27: Note summaries lack the context needed to review without opening the canvas](#f-27-note-summaries-lack-the-context-needed-to-review-without-opening-the-canvas)
+- [F-28: One user gesture can cost several unlinked accepts](#f-28-one-user-gesture-can-cost-several-unlinked-accepts)
+- [F-29: Reconciling pasted rich text discards its formatting and links](#f-29-reconciling-pasted-rich-text-discards-its-formatting-and-links)
+- [F-30: Multi-block formatting is refused with no feedback at all](#f-30-multi-block-formatting-is-refused-with-no-feedback-at-all)
+- [F-31: Clicking a note selects the block but does not reveal its marker, and cards intercept clicks](#f-31-clicking-a-note-selects-the-block-but-does-not-reveal-its-marker-and-cards-intercept-clicks)
+- [F-32: The notes display-mode preference exists but nothing reads it](#f-32-the-notes-display-mode-preference-exists-but-nothing-reads-it)
+- [F-33: Undo order does not match the order of the user's actions](#f-33-undo-order-does-not-match-the-order-of-the-users-actions)
+- [F-34: Copying content out carries markers and dangling note ids into a new post](#f-34-copying-content-out-carries-markers-and-dangling-note-ids-into-a-new-post)
+- [F-35: An accepted suggestion records no reviewer](#f-35-an-accepted-suggestion-records-no-reviewer)
+- [F-36: A Viewing-mode user still broadcasts presence](#f-36-a-viewing-mode-user-still-broadcasts-presence)
+- [F-37: Coverage gaps - flows that need a human pass](#f-37-coverage-gaps---flows-that-need-a-human-pass)
+
+</details>
+
+---
+
 ## Instructions for the testing agent(s)
 
 Read this whole preamble before running any flow. This document is both the test plan and the results log - you will edit it in place as you go.
