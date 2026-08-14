@@ -45,6 +45,10 @@ Every flow lives in one of these tables. Counts are 🟢 passes, 🟡 rough edge
 
 ## Testing Instructions
 
+[![Test in WordPress Playground](https://img.shields.io/badge/Test_in-WP_Playground-blue?style=for-the-badge&logo=wordpress)](https://playground.wordpress.net/gutenberg.html?pr=78994)
+
+One click boots the combined branch ([PR #78994](https://github.com/WordPress/gutenberg/pull/78994)) in a disposable WordPress with the plugin build already installed - no local checkout. Enable **Gutenberg > Experiments > Suggestion mode** and reload the editor before testing. Playground signs you in as a single administrator, so the multi-user flows (Sections L and M) still need the local setup below.
+
 <details>
 <summary>Show the testing instructions - environment setup, per-flow protocol, ground rules, status legend</summary>
 
@@ -792,7 +796,11 @@ Two hand-off tables. **Table 1** is work that can go straight to a developer: th
 
 ### Setup for anyone picking this up
 
-Everything below was reproduced on the combined branch, not on trunk. To get to the same starting point:
+Everything below was reproduced on the combined branch, not on trunk.
+
+[![Test in WordPress Playground](https://img.shields.io/badge/Test_in-WP_Playground-blue?style=for-the-badge&logo=wordpress)](https://playground.wordpress.net/gutenberg.html?pr=78994)
+
+That is the fastest way in: the combined branch running in a throwaway site, no build required. Enable the experiment (step 3) and every single-user flow is reproducible there. To change code, or to run the multi-user flows in Sections L and M, build locally instead:
 
 1. **Branch.** `try/suggest-mode-combined` ([PR #78994](https://github.com/WordPress/gutenberg/pull/78994)) at merge commit `b15ac9b2ee5`, which is byte-identical to the stack tip `origin/suggest/inline-wiring` with trunk merged in. The stack is [#80427](https://github.com/WordPress/gutenberg/pull/80427) → [#80433](https://github.com/WordPress/gutenberg/pull/80433); test against the combined branch, since several behaviours only appear once all seven are together.
 2. **Environment.** `nvm use && npm install && npm run build`, then `npm run wp-env start`. This run used `.wp-env.test.json` on port 8940; any port is fine.
