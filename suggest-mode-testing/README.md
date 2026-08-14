@@ -10,7 +10,7 @@
 
 ## Contents
 
-**[Instructions for the testing agent(s)](#instructions-for-the-testing-agents)** - [Environment setup](#environment-setup) · [Per-flow protocol](#per-flow-protocol) · [Ground rules](#ground-rules) · [Status legend](#status-legend)
+**[Testing Instructions](#testing-instructions)** - [Environment setup](#environment-setup) · [Per-flow protocol](#per-flow-protocol) · [Ground rules](#ground-rules) · [Status legend](#status-legend)
 
 **[Findings log](#findings-log)** - [run summary](#summary---run-completed-2026-08-14) and the 37 findings behind the results, F-01 to F-37 (listed below)
 
@@ -88,7 +88,10 @@ Every flow lives in one of these tables. Counts are 🟢 passes, 🟡 rough edge
 
 ---
 
-## Instructions for the testing agent(s)
+## Testing Instructions
+
+<details>
+<summary>Show the testing instructions - environment setup, per-flow protocol, ground rules, status legend</summary>
 
 Read this whole preamble before running any flow. This document is both the test plan and the results log - you will edit it in place as you go.
 
@@ -135,11 +138,16 @@ For each flow, in order:
 | 🔴 | Fails - wrong behavior, data loss, or crash |
 | ⬜ | Not yet run |
 
+</details>
+
 ---
 
 ## Section A - Setup, gating, and mode switching
 
 Covers the experiment gate and editor intent layer ([#80427](https://github.com/WordPress/gutenberg/pull/80427)).
+
+<details>
+<summary>Show the 11 flows (MS-01 to MS-11) - 🟢 7 · 🟡 1 · 🔴 3</summary>
 
 | ID | Test flow | Description | Result | Passing |
 |----|-----------|-------------|--------|---------|
@@ -155,9 +163,14 @@ Covers the experiment gate and editor intent layer ([#80427](https://github.com/
 | MS-10 | Mode with code editor | Switch to the code editor while in Suggesting mode: what happens? Content should not be silently editable as raw HTML in a way that bypasses suggestions. | The code editor is reachable in Suggesting mode and the textarea is fully writable (`readOnly: false`). Typing into it corrupts the document: 7 → 5 blocks, the typed markup landed as a `freeform` block with one character per line, every surviving block was re-flagged as a pending **"Insert block:"** suggestion, the original "Add: INSERTED" note was duplicated, and 98 `Block validation failed` errors hit the console. See F-04. The serialized marker shape is confirmed here: `<mark data-suggestion-id="N" data-suggestion-type="add" data-author="1" class="wp-suggestion">` with `metadata.noteId` on the block.<br><br><a href="screenshots/MS-10-code-editor-in-suggesting.png"><img src="screenshots/thumbs/MS-10-code-editor-in-suggesting.png" alt="MS-10-code-editor-in-suggesting.png" width="300"></a> <a href="screenshots/MS-10-after-raw-code-edit.png"><img src="screenshots/thumbs/MS-10-after-raw-code-edit.png" alt="MS-10-after-raw-code-edit.png" width="300"></a> | 🔴 |
 | MS-11 | Typing while Viewing announces nothing weird | In Viewing mode, mash keys: no characters land, no console errors, no snackbar spam. | No characters land, no console errors, exactly one snackbar for the mode switch and no repeats. But the mash is not harmless: the Enter in the sequence still split a block and dirtied the post (same defect as MS-04 / F-01).<br><br><a href="screenshots/MS-04-viewing-enter-splits-block.png"><img src="screenshots/thumbs/MS-04-viewing-enter-splits-block.png" alt="MS-04-viewing-enter-splits-block.png" width="300"></a> | 🔴 |
 
+</details>
+
 ## Section B - Inline text suggestions: additions
 
 Covers typed additions ([#80430](https://github.com/WordPress/gutenberg/pull/80430), [#80431](https://github.com/WordPress/gutenberg/pull/80431), [#80433](https://github.com/WordPress/gutenberg/pull/80433)).
+
+<details>
+<summary>Show the 9 flows (IA-01 to IA-09) - 🟢 4 · 🟡 4 · 🔴 1</summary>
 
 | ID | Test flow | Description | Result | Passing |
 |----|-----------|-------------|--------|---------|
@@ -171,7 +184,12 @@ Covers typed additions ([#80430](https://github.com/WordPress/gutenberg/pull/804
 | IA-08 | Enter key inside a paragraph | Press Enter mid-paragraph in Suggesting mode: whatever the design (block split as structural suggestion, or blocked), it must be captured as a suggestion, not a direct edit. | Captured, not committed - the data model is right but the presentation is not. Block 0's `content` attribute keeps the full original sentence; a new block is added carrying `metadata.suggestion: {type:"pending-insert"}` and the tail text; two notes appear (`Delete: "jumps over the lazy dog near the riverbank."` and `Insert block: paragraph`). But **zero inline markers render**: the canvas paints block 0 truncated to "The quick brown fox " (class `is-suggestion-pending`) and the tail as a separate red pending block, so the reviewer sees the post-split result rather than a strike-through diff - unlike ID-01, where the same logical deletion does get a strike-through. See F-07.<br><br><a href="screenshots/IA-08-enter-mid-paragraph.png"><img src="screenshots/thumbs/IA-08-enter-mid-paragraph.png" alt="IA-08-enter-mid-paragraph.png" width="300"></a> | 🟡 |
 | IA-09 | Whitespace-only addition | Add just spaces/newline: is a sensible note created ("Add: ␣"?) and is the marker visible enough to review? | A note is created and the marker holds all three typed spaces, but the sidebar renders it as `Add: " "` - HTML whitespace collapsing means a reviewer cannot tell one space from three. The marker itself is 14px x 20.5px of underline, findable but easy to miss.<br><br><a href="screenshots/IA-09-whitespace-only-addition.png"><img src="screenshots/thumbs/IA-09-whitespace-only-addition.png" alt="IA-09-whitespace-only-addition.png" width="300"></a> | 🟡 |
 
+</details>
+
 ## Section C - Inline text suggestions: deletions
+
+<details>
+<summary>Show the 12 flows (ID-01 to ID-12) - 🟢 7 · 🟡 2 · 🔴 3</summary>
 
 | ID | Test flow | Description | Result | Passing |
 |----|-----------|-------------|--------|---------|
@@ -188,7 +206,12 @@ Covers typed additions ([#80430](https://github.com/WordPress/gutenberg/pull/804
 | ID-11 | Delete straddling an existing marker | Make an add suggestion, then select a range that half-overlaps it and delete: the existing suggestion must not be corrupted (issue says straddling edits are left alone). | The straddling edit is **not** left alone. With a pending `add:"PENDING"`, deleting a range that half-overlaps it drops every rendered marker and adds a second note - the original `Add: "PENDING"` survives alongside a whole-content `attribute-set` summarised `Add: "PEND" / Delete: "PENDINGjumps"`. The `<mark>` itself survives in the serialized content; it is the render that is replaced by the overlay. Same root cause as ID-03 and ID-12, see F-09.<br><br><a href="screenshots/ID-11-delete-straddling-marker.png"><img src="screenshots/thumbs/ID-11-delete-straddling-marker.png" alt="ID-11-delete-straddling-marker.png" width="300"></a> | 🔴 |
 | ID-12 | Delete your own pending addition | Select text that is entirely inside your own add marker and delete it: ideally the addition simply shrinks/withdraws rather than stacking del-over-add. | Does not shrink or withdraw. Deleting "NDI" from inside a pending "PENDING" leaves the original note untouched and stacks a whole-content `attribute-set` note on top (`Add: "PENGjumps" / Delete: "PENDINGjumps"`), and all rendered markers vanish. Same root cause as ID-03 and ID-11, see F-09.<br><br><a href="screenshots/ID-12-delete-inside-own-addition.png"><img src="screenshots/thumbs/ID-12-delete-inside-own-addition.png" alt="ID-12-delete-inside-own-addition.png" width="300"></a> | 🔴 |
 
+</details>
+
 ## Section D - Inline text suggestions: replace, paste, and input seams
+
+<details>
+<summary>Show the 10 flows (IR-01 to IR-10) - 🟢 3 · 🟡 6 · 🔴 1</summary>
 
 | ID | Test flow | Description | Result | Passing |
 |----|-----------|-------------|--------|---------|
@@ -203,7 +226,12 @@ Covers typed additions ([#80430](https://github.com/WordPress/gutenberg/pull/804
 | IR-09 | Drag-drop text within a block | Select text and drag it elsewhere in the same paragraph: reconciled into del (origin) + add (destination) markers. | **Could not be automated.** Synthetic `dragstart`/`dragover`/`drop`/`dragend` events with a populated `DataTransfer` were dispatched on the editable and produced nothing at all - no markers, no notes, no text change - because Chromium does not drive the real drag pipeline from scripted DragEvents. Inconclusive rather than failing; needs a manual pass.<br><br><a href="screenshots/IR-09-drag-drop-text.png"><img src="screenshots/thumbs/IR-09-drag-drop-text.png" alt="IR-09-drag-drop-text.png" width="300"></a> | 🟡 |
 | IR-10 | Marker/overlay invariant | After running IR-01..IR-09 on one post, assert no block carries both an inline marker and an overlay diff (the stack's stated invariant; check block attributes in the console). | **Invariant violated.** After an inline add on block 0, an inline del on block 2, a type-over on block 3, and then a delete inside block 0's own pending add, block 0 ends up with `metadata.noteId: [92, 96]` where note 92 is an `inline-suggestion` whose `<mark>` is still present in the block's saved content and note 96 is a whole-content `attribute-set` overlay. Both are attached to the same block at once. The consequence is visible in the sidebar - `Add: "ADDED "` and `Add: "ADD" / Delete: "ADDED"` describe the same text contradictorily - and in the canvas, where block 0's `add` marker stops rendering while blocks 2 and 3 (inline-only, invariant intact) still render theirs. See F-09.<br><br><a href="screenshots/IR-10-marker-overlay-invariant.png"><img src="screenshots/thumbs/IR-10-marker-overlay-invariant.png" alt="IR-10-marker-overlay-invariant.png" width="300"></a> | 🔴 |
 
+</details>
+
 ## Section E - Formatting-only suggestions
+
+<details>
+<summary>Show the 8 flows (FS-01 to FS-08) - 🟢 2 · 🟡 4 · 🔴 2</summary>
 
 | ID | Test flow | Description | Result | Passing |
 |----|-----------|-------------|--------|---------|
@@ -216,9 +244,14 @@ Covers typed additions ([#80430](https://github.com/WordPress/gutenberg/pull/804
 | FS-07 | Format across two blocks | Select across a block boundary and bold: per-block format suggestions or a clean refusal, never a direct commit. | Never a direct commit - with a genuine two-block keyboard selection, ⌘B leaves both blocks' markup byte-identical. But the refusal is silent: 0 notes, 0 markers, no snackbar, no disabled state on the toolbar button. The user presses bold and nothing whatsoever happens.<br><br><a href="screenshots/FS-07-format-across-blocks.png"><img src="screenshots/thumbs/FS-07-format-across-blocks.png" alt="FS-07-format-across-blocks.png" width="300"></a> | 🟡 |
 | FS-08 | Unsupported format buttons | Try other RichText formats (inline code, strikethrough, highlight, superscript) in Suggesting mode: each either becomes a proper suggestion or is visibly disabled - no silent direct edits. | **Could not be automated - no verdict.** The More menu lists ten formats (Footnote, Highlight, Inline code, Inline image, Keyboard input, Language, Math, Strikethrough, Subscript, Superscript) and none are disabled in Suggesting mode. But the harness cannot actually apply them: clicking Highlight opens a colour submenu rather than applying, and `[role="menuitem"]` matching for Inline code / Strikethrough / Superscript reports "menu item not found". Crucially, **running the identical steps in Editing mode produces the same nothing**, so the null result is the harness, not the feature. Needs a manual pass before any conclusion is drawn.<br><br><a href="screenshots/FS-08-more-formats-menu.png"><img src="screenshots/thumbs/FS-08-more-formats-menu.png" alt="FS-08-more-formats-menu.png" width="300"></a> <a href="screenshots/FS-08-unsupported-formats.png"><img src="screenshots/thumbs/FS-08-unsupported-formats.png" alt="FS-08-unsupported-formats.png" width="300"></a> <a href="screenshots/FS-08-control-editing-mode.png"><img src="screenshots/thumbs/FS-08-control-editing-mode.png" alt="FS-08-control-editing-mode.png" width="300"></a> | 🟡 |
 
+</details>
+
 ## Section F - Structural suggestions: insert, remove, move
 
 Covers block-level capture ([#80429](https://github.com/WordPress/gutenberg/pull/80429)).
+
+<details>
+<summary>Show the 17 flows (ST-01 to ST-17) - 🟢 11 · 🟡 6</summary>
 
 | ID | Test flow | Description | Result | Passing |
 |----|-----------|-------------|--------|---------|
@@ -240,7 +273,12 @@ Covers block-level capture ([#80429](https://github.com/WordPress/gutenberg/pull
 | ST-16 | Duplicate a block | Use Duplicate from the block menu: captured as an insert suggestion of the copy. | The duplicate lands with `pending-insert` and one note "Insert block: paragraph"; the original is untouched.<br><br><a href="screenshots/ST-16-duplicate-block.png"><img src="screenshots/thumbs/ST-16-duplicate-block.png" alt="ST-16-duplicate-block.png" width="300"></a> | 🟢 |
 | ST-17 | Transform block type | Transform a paragraph into a quote via the block switcher: captured as a suggestion (attribute or remove+insert - document which) and reviewable. | Captured as **remove + insert**, not as an attribute change: the original paragraph stays visible with `pending-remove` and the new `core/quote` sits beside it with `pending-insert`, giving block count 7 → 8 and two notes ("Remove block: paragraph", "Insert block: quote"). Reviewable, and honest about what a transform is - but it does mean a single block-switcher click costs two accept actions, and the two halves are not linked, so accepting one and rejecting the other yields either a duplicate or a hole.<br><br><a href="screenshots/ST-17-transform-block-type.png"><img src="screenshots/thumbs/ST-17-transform-block-type.png" alt="ST-17-transform-block-type.png" width="300"></a> | 🟡 |
 
+</details>
+
 ## Section G - Attribute and metadata suggestions
+
+<details>
+<summary>Show the 11 flows (AT-01 to AT-11) - 🟢 8 · 🔴 3</summary>
 
 | ID | Test flow | Description | Result | Passing |
 |----|-----------|-------------|--------|---------|
@@ -256,9 +294,14 @@ Covers block-level capture ([#80429](https://github.com/WordPress/gutenberg/pull
 | AT-10 | Post-level metadata (document sidebar) | In Suggesting mode change excerpt, featured image, categories/tags, and post status controls: document which are blocked, direct, or captured. Direct silent edits by a non-author role are findings. | **All silent direct edits**, none blocked, none captured. Excerpt `""` → "A suggested excerpt", featured image `0` → `11`, and post status `draft` → `pending` all landed with zero notes and the post dirty. The status change is the most serious: a suggester can move the post through its editorial workflow while nominally only suggesting. Exercised through `editPost` at the store level (the same dispatch the document sidebar controls call); AT-09 confirms the same silent-direct-edit behaviour through the real UI. See F-15.<br><br><a href="screenshots/AT-10-post-level-metadata.png"><img src="screenshots/thumbs/AT-10-post-level-metadata.png" alt="AT-10-post-level-metadata.png" width="300"></a> | 🔴 |
 | AT-11 | Multiple attribute changes, one block | Change heading level, then alignment on the same heading: one combined note or two clean notes; Reject restores both original values. | **One combined note**, which is the cleaner of the two allowed outcomes: after changing level and then text alignment the note count stays 1 and its summary grows to "Format: heading level, text alignment". The block's own attributes stay at the originals (`level: 2`), so a single reject restores both.<br><br><a href="screenshots/AT-11-two-attribute-changes.png"><img src="screenshots/thumbs/AT-11-two-attribute-changes.png" alt="AT-11-two-attribute-changes.png" width="300"></a> | 🟢 |
 
+</details>
+
 ## Section H - Notes sidebar integration
 
 Covers the review UI layer ([#80432](https://github.com/WordPress/gutenberg/pull/80432)).
+
+<details>
+<summary>Show the 9 flows (NS-01 to NS-09) - 🟢 4 · 🟡 4 · 🔴 1</summary>
 
 | ID | Test flow | Description | Result | Passing |
 |----|-----------|-------------|--------|---------|
@@ -272,7 +315,12 @@ Covers the review UI layer ([#80432](https://github.com/WordPress/gutenberg/pull
 | NS-08 | Notes display modes | Cycle the notes display modes (all/minimized/hidden) with suggestions pending: markers/treatments behave per the current design; nothing orphaned. | **Not applicable on this branch.** There is no display-mode control in the UI - the only notes affordance in the header is "All notes" - and no display-mode code in `packages/editor/src/components/collab-sidebar/`. Setting the `notesDisplayMode` preference directly to `all` / `minimized` / `hidden` persists the value but changes nothing: marker count and summary count stay at 1 in every mode. Nothing is orphaned, because nothing responds. The three-mode feature lives on other notes branches, not in this stack.<br><br><a href="screenshots/NS-08-notes-display-modes.png"><img src="screenshots/thumbs/NS-08-notes-display-modes.png" alt="NS-08-notes-display-modes.png" width="300"></a> | 🟡 |
 | NS-09 | Long suggestion excerpt | Suggest adding a very long paragraph: note summary truncates gracefully. | Graceful. A 235-character addition is clamped to a 127-character summary ending in an ellipsis, and the card measures 214x73px with `scrollWidth === clientWidth` and `scrollHeight === clientHeight` - no overflow in either axis.<br><br><a href="screenshots/NS-09-long-suggestion-excerpt.png"><img src="screenshots/thumbs/NS-09-long-suggestion-excerpt.png" alt="NS-09-long-suggestion-excerpt.png" width="300"></a> | 🟢 |
 
+</details>
+
 ## Section I - Undo and redo
+
+<details>
+<summary>Show the 9 flows (UN-01 to UN-09) - 🟢 7 · 🟡 1 · 🔴 1</summary>
 
 | ID | Test flow | Description | Result | Passing |
 |----|-----------|-------------|--------|---------|
@@ -286,7 +334,12 @@ Covers the review UI layer ([#80432](https://github.com/WordPress/gutenberg/pull
 | UN-08 | Undo after accept | As author, accept a suggestion, then undo: does undo restore the pending suggestion (and its note)? Document the intended semantics. | Half-restores, into an inconsistent state. Accepting works cleanly first ("Suggestion applied." snackbar, marker count 0, added text kept). Undo then puts the **inline marker back** (markers 0 → 1) but the sidebar renders **no summary** for it - so the canvas shows a pending suggestion that has no reviewable note and no Accept/Reject affordance. See F-18.<br><br><a href="screenshots/UN-08-undo-after-accept.png"><img src="screenshots/thumbs/UN-08-undo-after-accept.png" alt="UN-08-undo-after-accept.png" width="300"></a> | 🔴 |
 | UN-09 | Undo across mode switch | Suggest something, switch to Editing mode, undo: what happens? No crash, no orphaned marker. | Clean. Making a suggestion, switching to Editing, then undoing fully withdraws it: marker gone, note gone, text pristine, no crash and no orphan.<br><br><a href="screenshots/UN-09-undo-across-mode-switch.png"><img src="screenshots/thumbs/UN-09-undo-across-mode-switch.png" alt="UN-09-undo-across-mode-switch.png" width="300"></a> | 🟢 |
 
+</details>
+
 ## Section J - Persistence, saving, and front end
+
+<details>
+<summary>Show the 12 flows (PS-01 to PS-12) - 🟢 8 · 🟡 2 · 🔴 2</summary>
 
 | ID | Test flow | Description | Result | Passing |
 |----|-----------|-------------|--------|---------|
@@ -303,9 +356,14 @@ Covers the review UI layer ([#80432](https://github.com/WordPress/gutenberg/pull
 | PS-11 | REST/content shape | Inspect saved `post_content`: markers serialize as `<mark class="wp-suggestion">` per design; no double-encoded or orphaned markup after two save/reload cycles. | Clean. Saved `post_content` holds 3 `<mark …wp-suggestion>` opens and exactly 3 `</mark>` closes (balanced, no orphans), 3 `"suggestion":{"type":…}` metadata entries, and **no double encoding** (`&lt;mark` absent). Move metadata carries its origin explicitly - `fromAnchorClientId`, `fromParentClientId`, `fromIndex` - which is what lets the ghost survive a reload.<br><br><a href="screenshots/PS-01-save-with-pending.png"><img src="screenshots/thumbs/PS-01-save-with-pending.png" alt="PS-01-save-with-pending.png" width="300"></a> | 🟢 |
 | PS-12 | Copy content out | Copy all blocks and paste into a fresh post in EDITING mode: what carries over? Pending markers leaking into a normal post as literal marks is a finding. | **Markers leak.** Serializing the blocks and creating a fresh post from them carries `<mark data-suggestion-id="192" data-suggestion-type="add" data-author="1" class="wp-suggestion">COPIED </mark>` and `metadata.noteId: [192]` straight into the new post - while the new post has **zero** notes, so those ids point at a note belonging to a different post. Block-level `metadata.suggestion` did not carry over, only the inline markers and the noteId.<br><br><a href="screenshots/PS-12-copy-content-out.png"><img src="screenshots/thumbs/PS-12-copy-content-out.png" alt="PS-12-copy-content-out.png" width="300"></a> | 🔴 |
 
+</details>
+
 ## Section K - Review cycle: accept and reject
 
 Run as the author (admin) in Editing intent.
+
+<details>
+<summary>Show the 21 flows (RV-01 to RV-21) - 🟢 18 · 🟡 3</summary>
 
 | ID | Test flow | Description | Result | Passing |
 |----|-----------|-------------|--------|---------|
@@ -331,9 +389,14 @@ Run as the author (admin) in Editing intent.
 | RV-20 | Accept all / reject all | If a bulk affordance exists, test it; if not, note its absence as a product question in the findings. | **No bulk affordance exists.** With three suggestions pending, no button anywhere matches accept-all / reject-all / apply-all, and the sidebar is a flat list of per-note cards each with its own pair of buttons. Recorded as a product question, see F-20.<br><br><a href="screenshots/RV-20-bulk-affordance.png"><img src="screenshots/thumbs/RV-20-bulk-affordance.png" alt="RV-20-bulk-affordance.png" width="300"></a> | 🟡 |
 | RV-21 | Review while in Suggesting mode | Try accepting a suggestion while YOU are still in Suggesting mode: allowed or blocked? Must be deliberate and non-corrupting. | **Allowed**, and non-corrupting: the Accept button is present and enabled while the intent is still Suggesting, and clicking it applies the suggestion cleanly ("Suggestion applied.", marker gone, text kept). Nothing breaks, but nothing marks it as a deliberate decision either - a suggester can accept their own suggestion without ever leaving Suggest mode. See F-20.<br><br><a href="screenshots/RV-21-review-while-suggesting.png"><img src="screenshots/thumbs/RV-21-review-while-suggesting.png" alt="RV-21-review-while-suggesting.png" width="300"></a> | 🟡 |
 
+</details>
+
 ## Section L - Multi-user: attribution
 
 Two browser contexts logged in simultaneously (admin + editor-user).
+
+<details>
+<summary>Show the 10 flows (MU-01 to MU-10) - 🟢 5 · 🟡 4 · 🔴 1</summary>
 
 | ID | Test flow | Description | Result | Passing |
 |----|-----------|-------------|--------|---------|
@@ -348,7 +411,12 @@ Two browser contexts logged in simultaneously (admin + editor-user).
 | MU-09 | Accept of user B's suggestion attributes correctly | admin accepts editor-user's suggestion: resulting content correct; any activity/attribution trail (note resolution author) reflects admin as reviewer. | Content lands correctly and "Suggestion applied." fires. The accepted note transitions to `approved` with `_wp_suggestion_status: applied` while the other author's untouched note stays `hold`, so there is a per-note state trail. What there is **not** is a record of *who* reviewed it - the note carries its original author and an applied flag, but nothing identifies admin as the reviewer, so an audit trail of "who accepted whose change" does not exist.<br><br><a href="screenshots/MU-09-accept-other-users-suggestion.png"><img src="screenshots/thumbs/MU-09-accept-other-users-suggestion.png" alt="MU-09-accept-other-users-suggestion.png" width="300"></a> | 🟡 |
 | MU-10 | Suggester withdraws own suggestion | Can editor-user reject/withdraw their OWN pending suggestion? Document intended behavior. | **Yes, and more than that.** In editor-user's own session both Accept and Reject render for each suggestion (2 of each for 2 suggestions), covering their own and admin's. Rejecting one's own pending suggestion is a reasonable withdraw affordance; being able to *accept* one's own - and to accept another author's - is the same open question as RV-21. It is role-consistent (an Editor has `edit_others_posts` and PM-02 confirms the server allows it), so this is a product decision rather than a permissions hole. See F-20.<br><br><a href="screenshots/MU-07-overlap-conflict.png"><img src="screenshots/thumbs/MU-07-overlap-conflict.png" alt="MU-07-overlap-conflict.png" width="300"></a> | 🟡 |
 
+</details>
+
 ## Section M - Multi-user: permissions
+
+<details>
+<summary>Show the 7 flows (PM-01 to PM-07) - 🟢 5 · 🟡 2</summary>
 
 | ID | Test flow | Description | Result | Passing |
 |----|-----------|-------------|--------|---------|
@@ -360,7 +428,12 @@ Two browser contexts logged in simultaneously (admin + editor-user).
 | PM-06 | Viewing-mode user cannot mutate | User in Viewing mode issues nothing to the server: watch the network panel while they interact - zero mutation requests. | Effectively clean. Interacting throughout a Viewing-mode session produces no content or note mutations: the post stays not-dirty, 0 notes are created, and the only non-GET traffic is an `OPTIONS` preflight plus `POST /wp-sync/v1/updates`, the collaborative presence heartbeat. That heartbeat is by design, but it is worth confirming a read-only viewer should broadcast presence at all, and that the endpoint accepts nothing more than presence from them.<br><br><a href="screenshots/PM-06-viewing-no-mutations.png"><img src="screenshots/thumbs/PM-06-viewing-no-mutations.png" alt="PM-06-viewing-no-mutations.png" width="300"></a> | 🟡 |
 | PM-07 | Experiment off for one user | If suggestion data exists and a user loads the editor with the experiment off (different site state or role-scoped): content must render safely, markers must not corrupt on save. | **Content is safe** - the important half. With the experiment off, the post loads, pre-existing text is intact, and the marker survives a save byte-for-byte (`markCount: 1`, `hasNoteId: true`, `preexistingIntact: true`). Nothing corrupts. The rough edge is what the user sees: the `<mark class="wp-suggestion">` renders as an inert highlight with no controls and no explanation, and `metadata.noteId` rides along invisibly, so a user on the non-experiment path has decorated text they can neither interpret nor clear. See F-22.<br><br><a href="screenshots/PM-07-experiment-off-with-data.png"><img src="screenshots/thumbs/PM-07-experiment-off-with-data.png" alt="PM-07-experiment-off-with-data.png" width="300"></a> | 🟡 |
 
+</details>
+
 ## Section N - Accessibility and visual polish
+
+<details>
+<summary>Show the 7 flows (AX-01 to AX-07) - 🟢 2 · 🟡 3 · 🔴 1 · ⬜ 1</summary>
 
 | ID | Test flow | Description | Result | Passing |
 |----|-----------|-------------|--------|---------|
@@ -372,7 +445,12 @@ Two browser contexts logged in simultaneously (admin + editor-user).
 | AX-06 | Zoom and small viewport | At 200% browser zoom and a ~1100px viewport: markers, note rail, and accept/reject controls remain usable. | At a 1100px viewport everything holds up: markers and the note rail are visible and there is no horizontal page scroll (`bodyScrollsX: false`). Simulating 200% via CSS `zoom` does produce horizontal overflow (`bodyScrollsX: true`), which would fail WCAG 1.4.10 reflow if it reproduces - but CSS `zoom` is not equivalent to browser zoom (it does not change the layout viewport the way real zoom does), so this specific number should not be treated as a confirmed failure. Needs a manual pass at real 200% browser zoom. See F-25.<br><br><a href="screenshots/AX-06-narrow-viewport.png"><img src="screenshots/thumbs/AX-06-narrow-viewport.png" alt="AX-06-narrow-viewport.png" width="300"></a> <a href="screenshots/AX-06-200-percent-zoom.png"><img src="screenshots/thumbs/AX-06-200-percent-zoom.png" alt="AX-06-200-percent-zoom.png" width="300"></a> | 🟡 |
 | AX-07 | Visual QA sweep | Screenshot each marker type and treatment close-up; flag misalignments, clipped underlines, ghost styling glitches, snackbar overlap. | Covered incidentally rather than as a dedicated sweep - all three marker types and the pending-insert/remove/move treatments are captured across the 153 screenshots in this run, and no clipped underlines or misaligned decorations were observed. One real overlap issue *was* hit: in MU-09 a floating note card sat on top of the Accept button and intercepted the click, which had to be forced. A deliberate close-up sweep by a human designer is still worth doing.<br><br><a href="screenshots/MU-09-accept-other-users-suggestion.png"><img src="screenshots/thumbs/MU-09-accept-other-users-suggestion.png" alt="MU-09-accept-other-users-suggestion.png" width="300"></a> <a href="screenshots/AX-02-04-marker-semantics-contrast.png"><img src="screenshots/thumbs/AX-02-04-marker-semantics-contrast.png" alt="AX-02-04-marker-semantics-contrast.png" width="300"></a> | 🟡 |
 
+</details>
+
 ## Section O - Stress, scale, and cross-feature edges
+
+<details>
+<summary>Show the 10 flows (EX-01 to EX-10) - 🟢 7 · ⬜ 3</summary>
 
 | ID | Test flow | Description | Result | Passing |
 |----|-----------|-------------|--------|---------|
@@ -386,6 +464,8 @@ Two browser contexts logged in simultaneously (admin + editor-user).
 | EX-08 | Offline/failed save | Simulate a failed save (network offline) with pending suggestions: error surfaced, retry succeeds, no duplicate notes. | Handled correctly, which is a good sign for the note-creation path. Going offline mid-save surfaces the right notice ("Updating failed because you were offline..."), the post stays dirty rather than silently claiming success, the retry after reconnecting saves cleanly, and crucially the note count is unchanged - **no duplicate notes** from the retry.<br><br><a href="screenshots/EX-08-offline-save.png"><img src="screenshots/thumbs/EX-08-offline-save.png" alt="EX-08-offline-save.png" width="300"></a> | 🟢 |
 | EX-09 | Rapid mode toggling while typing | Toggle Editing↔Suggesting repeatedly while typing: no half-captured edits; each keystroke lands on the correct side of the mode switch. | Every keystroke landed on the correct side. Across three rapid Suggesting↔Editing cycles, all three suggested strings (`S0`, `S1`, `S2`) ended up inside markers and all three edited strings (`E0`, `E1`, `E2`) went straight into the text with no marker - 3 notes for 3 suggestions, no half-captured edits, 0 console errors. The mode boundary is respected even under fast toggling.<br><br><a href="screenshots/EX-09-rapid-mode-toggle.png"><img src="screenshots/thumbs/EX-09-rapid-mode-toggle.png" alt="EX-09-rapid-mode-toggle.png" width="300"></a> | 🟢 |
 | EX-10 | Console hygiene | Across the entire session, collect console errors/warnings attributable to suggest mode; any error is at minimum a 🟡 finding. | Clean. A `console.error` hook installed across the stress runs collected **zero errors** - the defects found in this session are behavioural, not accompanied by thrown exceptions or React warnings.<br><br><a href="screenshots/EX-01-many-suggestions.png"><img src="screenshots/thumbs/EX-01-many-suggestions.png" alt="EX-01-many-suggestions.png" width="300"></a> | 🟢 |
+
+</details>
 
 ---
 
@@ -443,6 +523,9 @@ Append one entry per 🟡/🔴 result and any papercut noticed along the way. Ke
 - **Console/log:** <relevant snippet, if any>
 - **Proposed fix / next step:** <optional>
 ```
+
+<details>
+<summary>Show all 37 findings, F-01 to F-37</summary>
 
 ### F-01: Enter splits a block in Viewing (read-only) mode and destroys text
 - **Flow:** MS-04, MS-11
@@ -776,6 +859,8 @@ Append one entry per 🟡/🔴 result and any papercut noticed along the way. Ke
 - **Screenshot(s):** various, per flow row
 - **Console/log:** none
 - **Proposed fix / next step:** Prioritise by risk rather than by count. **PS-10 (revision restore)** is the sharpest: restoring a pre-suggestion revision replaces content while note comments still reference marker ids that no longer exist, and F-21 shows the reconciler already mishandles server-supplied content. **EX-05 (Classic block)** is next for the reason in F-26. **IR-07 (real IME)** matters because composition is where the input seam is most likely to leak a raw commit. The drag flows (IR-09, ST-10) are lowest risk - ST-08/ST-09 exercise the same capture code through toolbar arrows.
+
+</details>
 
 ---
 
