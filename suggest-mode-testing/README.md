@@ -10,11 +10,11 @@
 
 ## Contents
 
-**[Testing Instructions](#testing-instructions)** - environment setup, per-flow protocol, ground rules, status legend
+**[Testing Instructions](#testing-instructions)**
 
-**[Findings log](#findings-log)** - the run summary, then the 37 findings behind the results, F-01 to F-37
+**[Findings log](#findings-log)**
 
-**[Follow Up Work](#follow-up-work)** - what to pick up next: reproducible failures in one table, calls that need a human in the other
+**[Follow Up Work](#follow-up-work)**
 
 **[Session wrap-up checklist](#session-wrap-up-checklist-for-the-last-agent)**
 
