@@ -4,6 +4,8 @@
 **Code under test:** the combined branch [#78994](https://github.com/WordPress/gutenberg/pull/78994) (`try/suggest-mode-combined`) at `2bbe377a2fa` (2026-11-22), which carries the whole stack including overlapping suggestions ([#85794](https://github.com/WordPress/gutenberg/pull/85794)).
 **Baseline:** the [2026-08-14 run](../README.md) of the same plan - 163 flows, findings F-01 to F-37. This run repeats every one of those flows and adds a new section for overlapping suggestions.
 
+> **How this was produced.** The run was carried out and written up by Claude (Anthropic's AI model) at Adam Silverstein's request: scripted Playwright sessions drove every flow, and the results below are its reading of the evidence. Treat it as a tester's report to verify, not as a sign-off.
+>
 > **About this directory.** A testing artifact, not plugin code, and not intended to be merged. Screenshots are in [`screenshots/`](screenshots/), named by flow ID. The scripts that drove every flow are in [`harness/`](harness/), so any row can be re-run.
 
 ---

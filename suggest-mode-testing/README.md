@@ -6,6 +6,8 @@
 
 > **About this directory.** A testing artifact, not plugin code - it lives on a branch of a fork so the document and its 153 screenshots have a stable home and readable URLs, and is not intended to be merged. Start with [Follow Up Work](#follow-up-work) if you are picking up a fix or a manual test; the section tables above it are the raw per-flow results. Screenshots are in [`screenshots/`](screenshots/), named by flow ID.
 
+> **Re-run available.** This plan was run again on 2026-11-22 against the current combined branch, with a new section for overlapping suggestions and a per-flow comparison with the results below: [2026-11-22 re-run](run-2026-11-22/README.md).
+
 ---
 
 ## Contents
