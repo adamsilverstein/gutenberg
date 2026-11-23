@@ -1,0 +1,40 @@
+import { test } from '@wordpress/e2e-test-utils-playwright';
+import { shot, USERS } from '../../helpers';
+import { log, savePost, markersIn, snackbars, focusBlock, selectIn, blocksOf } from './lib';
+import { newPost, adminOpen, gesture, compact, session, spoken } from './plib';
+
+test( 'OV-16 verify', async ( { admin, editor, page, requestUtils, browser } ) => {
+	const id = await newPost( requestUtils, 'OV-16b' );
+	const ed = await session( browser, USERS.editor );
+	await ed.open( id );
+	await gesture( ed.page, 'E', 'brown', 'start', () => ed.page.keyboard.type( 'EDITOR SENTENCE HERE ', { delay: 15 } ) );
+	await savePost( ed.page );
+	await ed.leave();
+	await adminOpen( { admin, editor, page }, id );
+	await gesture( page, 'A nested add', 'SENTENCE', 'start', () => page.keyboard.type( 'ADMIN ', { delay: 15 } ) );
+	await gesture( page, 'A2 nested add', 'HERE', 'start', () => page.keyboard.type( 'SECOND ', { delay: 15 } ) );
+	await gesture( page, 'D nested del', 'HERE', undefined, () => page.keyboard.press( 'Backspace' ) );
+	await savePost( page );
+	await page.goto( '/wp-admin/' );
+	await ed.open( id );
+	const tryDel = async ( needle: string ) => {
+		await focusBlock( ed.page, 0 );
+		await selectIn( ed.page, 0, needle );
+		const posts: string[] = [];
+		const onReq = ( r: any ) => { if ( /wp\/v2\/comments/.test( r.url() ) && r.method() !== 'GET' ) posts.push( `${ r.method() } ${ ( r.postData() || '' ).slice( 0, 120 ) }` ); };
+		ed.page.on( 'request', onReq );
+		await ed.page.keyboard.press( 'Backspace' );
+		await ed.page.waitForTimeout( 1200 );
+		log( `OV-16 delete "${ needle }" @1.2s`, { snack: await snackbars( ed.page ), spoken: await spoken( ed.page ), markers: compact( await markersIn( ed.page ) ) } );
+		await ed.page.waitForTimeout( 5000 );
+		log( `OV-16 delete "${ needle }" note writes`, posts );
+		ed.page.off( 'request', onReq );
+		log( `OV-16 html`, ( await blocksOf( ed.page ) )[ 0 ].content );
+	};
+	await tryDel( 'SECOND HERE' );
+	await shot( ed.page, 'OV-16-delete-across-others-nested-add-and-del' );
+	await tryDel( 'ADMIN SENTENCE' );
+	await shot( ed.page, 'OV-16-delete-across-others-nested-add-and-own-text' );
+	await tryDel( 'EDITOR' );
+	await ed.context.close();
+} );
